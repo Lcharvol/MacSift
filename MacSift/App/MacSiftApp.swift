@@ -3,21 +3,21 @@ import SwiftUI
 @main
 struct MacSiftApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var exclusionManager = ExclusionManager()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView(exclusionManager: exclusionManager, appState: appState)
                 .environmentObject(appState)
-                .frame(minWidth: 800, minHeight: 600)
+                .environmentObject(exclusionManager)
+                .frame(minWidth: 900, minHeight: 650)
         }
         .windowStyle(.titleBar)
-        .defaultSize(width: 1000, height: 700)
-    }
-}
+        .defaultSize(width: 1100, height: 750)
 
-struct ContentView: View {
-    var body: some View {
-        Text("MacSift")
-            .font(.largeTitle)
+        Settings {
+            SettingsView(exclusionManager: exclusionManager)
+                .environmentObject(appState)
+        }
     }
 }

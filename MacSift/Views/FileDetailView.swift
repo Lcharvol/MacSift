@@ -8,8 +8,8 @@ struct FileDetailView: View, Equatable {
     let isAdvanced: Bool
     let onToggle: () -> Void
 
-    // Equatable: SwiftUI re-renders only when these change. The closure is ignored
-    // (it captures the same VM and is stable across renders).
+    // Equatable: SwiftUI re-renders only when these change. The closures are
+    // ignored (they capture stable values).
     nonisolated static func == (lhs: FileDetailView, rhs: FileDetailView) -> Bool {
         lhs.file.id == rhs.file.id
             && lhs.isSelected == rhs.isSelected
@@ -65,29 +65,6 @@ struct FileDetailView: View, Equatable {
         )
         .contentShape(Rectangle())
         .onTapGesture { onToggle() }
-        .contextMenu {
-            Button {
-                NSWorkspace.shared.activateFileViewerSelecting([file.url])
-            } label: {
-                Label("Reveal in Finder", systemImage: "magnifyingglass")
-            }
-
-            Button {
-                QuickLookPreview.show(url: file.url)
-            } label: {
-                Label("Quick Look", systemImage: "eye")
-            }
-
-            Divider()
-
-            Button {
-                let pb = NSPasteboard.general
-                pb.clearContents()
-                pb.setString(file.path, forType: .string)
-            } label: {
-                Label("Copy Path", systemImage: "doc.on.doc")
-            }
-        }
     }
 }
 

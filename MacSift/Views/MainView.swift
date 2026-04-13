@@ -230,84 +230,16 @@ struct MainView: View {
 
     @ViewBuilder
     private var fileListView: some View {
-        // Use pre-sorted cached lists from ScanViewModel — avoids re-sorting on every selection toggle
-        let baseFiles: [ScannedFile] = {
-            if let category = selectedCategory {
-                return scanVM.sortedFilesByCategory[category] ?? []
-            }
-            return scanVM.allSortedFiles
-        }()
-
-        // Apply search filter (case-insensitive substring match on name)
-        let files: [ScannedFile] = {
-            let query = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
-            guard !query.isEmpty else { return baseFiles }
-            return baseFiles.filter { $0.name.lowercased().contains(query) }
-        }()
-
-        if files.isEmpty {
-            emptyState
-        } else {
-            // Cap displayed rows for instant category switching. With 10k+ files, even a
-            // diffed update is slow; rendering 1k is plenty since the list is sorted by size
-            // and users rarely scroll past the top files.
-            let displayLimit = showAllFiles ? Int.max : 1000
-            let displayed = Array(files.prefix(displayLimit))
-            let hiddenCount = files.count - displayed.count
-
-            List {
-                ForEach(displayed) { file in
-                    FileDetailView(
-                        file: file,
-                        isSelected: cleaningVM.selectedIDs.contains(file.id),
-                        isAdvanced: appState.mode == .advanced,
-                        onToggle: { cleaningVM.toggleFile(file) }
-                    )
-                    .equatable()
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
-                }
-
-                if hiddenCount > 0 {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 6) {
-                            Text("+ \(hiddenCount) smaller files not shown")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Button("Show all") {
-                                showAllFiles = true
-                            }
-                            .buttonStyle(.glass)
-                            .controlSize(.small)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 12)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .id(selectedCategory)
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 44))
-                .foregroundStyle(.tertiary)
-            Text(selectedCategory == nil ? "No files found" : "No \(selectedCategory!.label.lowercased()) found")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Your disk looks clean for this category.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        FileListSection(
+            sortedFilesByCategory: scanVM.sortedFilesByCategory,
+            allSortedFiles: scanVM.allSortedFiles,
+            selectedCategory: selectedCategory,
+            searchQuery: searchQuery,
+            isAdvanced: appState.mode == .advanced,
+            selectedIDs: cleaningVM.selectedIDs,
+            showAllFiles: $showAllFiles,
+            onToggle: { [weak cleaningVM] file in cleaningVM?.toggleFile(file) }
+        )
     }
 
     private var bottomBar: some View {

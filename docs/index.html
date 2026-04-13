@@ -289,78 +289,189 @@
     <!-- Inline mockup shown when screenshot-main.png is absent -->
     <template id="mockup-template">
         <div class="mockup">
-            <div class="mockup__sidebar">
-                <div class="mock-brand"><span></span>MacSift</div>
-                <div class="mock-scan">Start Scan</div>
-                <div class="mock-section">Categories</div>
-                <div class="mock-cat mock-cat--active">
-                    <span class="mock-cat__dot" style="background:#4A9EFF"></span>
-                    Caches
-                    <em>3.2 GB</em>
+            <!-- Sidebar -->
+            <aside class="mk-sidebar">
+                <div class="mk-brand">
+                    <span class="mk-brand__mark"></span>
+                    MacSift
                 </div>
-                <div class="mock-cat">
-                    <span class="mock-cat__dot" style="background:#9FA8B3"></span>
-                    Logs
-                    <em>840 MB</em>
-                </div>
-                <div class="mock-cat">
-                    <span class="mock-cat__dot" style="background:#5DD3FF"></span>
-                    Temporary
-                    <em>210 MB</em>
-                </div>
-                <div class="mock-cat">
-                    <span class="mock-cat__dot" style="background:#C08CFF"></span>
-                    App data
-                    <em>1.4 GB</em>
-                </div>
-                <div class="mock-cat">
-                    <span class="mock-cat__dot" style="background:#FFB547"></span>
-                    Large files
-                    <em>12.6 GB</em>
-                </div>
-            </div>
-            <div class="mockup__main">
-                <div class="mock-header">
+                <button class="mk-scan">
+                    <span class="mk-scan__icon"></span>
+                    Start Scan
+                </button>
+                <div class="mk-section-label">Categories</div>
+                <nav class="mk-cats">
+                    <div class="mk-cat mk-cat--active">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#4A9EFF"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Caches</span>
+                            <em>12,438 files</em>
+                        </div>
+                        <span class="mk-cat__size">4.7 GB</span>
+                    </div>
+                    <div class="mk-cat">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#9FA8B3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Logs</span>
+                            <em>2,104 files</em>
+                        </div>
+                        <span class="mk-cat__size">1.2 GB</span>
+                    </div>
+                    <div class="mk-cat">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#5DD3FF"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Temporary</span>
+                            <em>6,218 files</em>
+                        </div>
+                        <span class="mk-cat__size">860 MB</span>
+                    </div>
+                    <div class="mk-cat">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#C08CFF"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/><path d="M3 9h18"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Unused app data</span>
+                            <em>47 folders</em>
+                        </div>
+                        <span class="mk-cat__size">3.4 GB</span>
+                    </div>
+                    <div class="mk-cat">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#FFB547"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Large files</span>
+                            <em>18 files</em>
+                        </div>
+                        <span class="mk-cat__size">26.4 GB</span>
+                    </div>
+                    <div class="mk-cat">
+                        <svg class="mk-cat__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#6FE4A6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <div class="mk-cat__body">
+                            <span>Time Machine</span>
+                            <em>4 snapshots</em>
+                        </div>
+                        <span class="mk-cat__size">—</span>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Main content -->
+            <section class="mk-main">
+                <header class="mk-header">
                     <h3>Caches</h3>
-                    <p>4 groups · 3.2&nbsp;GB · scanned just now</p>
-                </div>
-                <div class="mock-row mock-row--off">
-                    <span class="mock-check"></span>
-                    <span class="mock-row__icon" style="color:#4A9EFF">▨</span>
-                    <div class="mock-row__body">
-                        <strong>Safari</strong>
-                        <small>12,438 files</small>
+                    <p>6 groups <span class="mk-sep"></span> 4.7&nbsp;GB <span class="mk-sep"></span> scanned 2 min ago</p>
+                </header>
+
+                <!-- Storage bar -->
+                <div class="mk-bar">
+                    <div class="mk-bar__top">
+                        <span>Storage Found</span>
+                        <em>4.7 GB recoverable</em>
                     </div>
-                    <span class="mock-row__size">2.1 GB</span>
-                </div>
-                <div class="mock-row mock-row--on">
-                    <span class="mock-check mock-check--on">✓</span>
-                    <span class="mock-row__icon" style="color:#C08CFF">▨</span>
-                    <div class="mock-row__body">
-                        <strong>Visual Studio Code</strong>
-                        <small>8,904 files</small>
+                    <div class="mk-bar__track">
+                        <span style="width:28%; background:#4A9EFF"></span>
+                        <span style="width:19%; background:#5DD3FF"></span>
+                        <span style="width:14%; background:#C08CFF"></span>
+                        <span style="width:11%; background:#FFB547"></span>
+                        <span style="width:9%;  background:#9FA8B3"></span>
+                        <span style="width:7%;  background:#6FE4A6"></span>
                     </div>
-                    <span class="mock-row__size">1.3 GB</span>
-                </div>
-                <div class="mock-row mock-row--off">
-                    <span class="mock-check"></span>
-                    <span class="mock-row__icon" style="color:#FFB547">▨</span>
-                    <div class="mock-row__body">
-                        <strong>Docker</strong>
-                        <small>234 files</small>
+                    <div class="mk-bar__legend">
+                        <span><i style="background:#4A9EFF"></i>Safari</span>
+                        <span><i style="background:#5DD3FF"></i>Xcode</span>
+                        <span><i style="background:#C08CFF"></i>VS Code</span>
+                        <span><i style="background:#FFB547"></i>Docker</span>
+                        <span><i style="background:#9FA8B3"></i>Figma</span>
+                        <span><i style="background:#6FE4A6"></i>Spotify</span>
                     </div>
-                    <span class="mock-row__size">620 MB</span>
                 </div>
-                <div class="mock-row mock-row--off">
-                    <span class="mock-check"></span>
-                    <span class="mock-row__icon" style="color:#6FE4A6">▨</span>
-                    <div class="mock-row__body">
-                        <strong>Spotify</strong>
-                        <small>412 files</small>
+
+                <!-- Rows -->
+                <div class="mk-rows">
+                    <div class="mk-row mk-row--inspected">
+                        <span class="mk-check"></span>
+                        <div class="mk-row__tile" style="color:#4A9EFF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Safari</strong>
+                            <small>12,438 files</small>
+                        </div>
+                        <span class="mk-row__size">1.3 GB</span>
                     </div>
-                    <span class="mock-row__size">180 MB</span>
+                    <div class="mk-row mk-row--selected">
+                        <span class="mk-check mk-check--on">✓</span>
+                        <div class="mk-row__tile" style="color:#5DD3FF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/><line x1="14" y1="4" x2="10" y2="20"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Xcode</strong>
+                            <small>24,901 files</small>
+                        </div>
+                        <span class="mk-row__size">890 MB</span>
+                    </div>
+                    <div class="mk-row mk-row--selected">
+                        <span class="mk-check mk-check--on">✓</span>
+                        <div class="mk-row__tile" style="color:#C08CFF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/><path d="M3 9h18"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Visual Studio Code</strong>
+                            <small>8,904 files</small>
+                        </div>
+                        <span class="mk-row__size">680 MB</span>
+                    </div>
+                    <div class="mk-row">
+                        <span class="mk-check"></span>
+                        <div class="mk-row__tile" style="color:#FFB547"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Docker</strong>
+                            <small>234 files</small>
+                        </div>
+                        <span class="mk-row__size">520 MB</span>
+                    </div>
+                    <div class="mk-row">
+                        <span class="mk-check"></span>
+                        <div class="mk-row__tile" style="color:#9FA8B3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Figma</strong>
+                            <small>1,208 files</small>
+                        </div>
+                        <span class="mk-row__size">410 MB</span>
+                    </div>
+                    <div class="mk-row">
+                        <span class="mk-check"></span>
+                        <div class="mk-row__tile" style="color:#6FE4A6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 11.5c2.8-1 7.2-1 10 0"/><path d="M9 15c2-.8 5-.8 7 0"/></svg></div>
+                        <div class="mk-row__body">
+                            <strong>Spotify</strong>
+                            <small>412 files</small>
+                        </div>
+                        <span class="mk-row__size">180 MB</span>
+                    </div>
                 </div>
-            </div>
+
+                <!-- Bottom bar -->
+                <footer class="mk-bottom">
+                    <span class="mk-bottom__info">2 files selected <strong>· 1.57 GB</strong></span>
+                    <button class="mk-bottom__btn">Clean Selected</button>
+                </footer>
+            </section>
+
+            <!-- Inspector -->
+            <aside class="mk-inspector">
+                <div class="mk-inspector__icon" style="color:#4A9EFF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+                </div>
+                <div class="mk-inspector__title">Safari</div>
+                <div class="mk-inspector__sub">Caches</div>
+                <div class="mk-inspector__stats">
+                    <div class="mk-stat">
+                        <span class="mk-stat__label">Size</span>
+                        <span class="mk-stat__value">1.3 GB</span>
+                    </div>
+                    <div class="mk-stat">
+                        <span class="mk-stat__label">Files</span>
+                        <span class="mk-stat__value">12,438</span>
+                    </div>
+                </div>
+                <div class="mk-inspector__risk">Safe to delete</div>
+                <div class="mk-inspector__actions">
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Reveal in Finder</button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Quick Look</button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy Path</button>
+                </div>
+            </aside>
         </div>
     </template>
 

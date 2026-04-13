@@ -311,22 +311,47 @@ struct MainView: View {
             return scanVM.allSortedFiles
         }()
 
+        // Cap displayed rows for instant category switching. With 10k+ files, even a
+        // diffed update is slow; rendering 1k is plenty since the list is sorted by size
+        // and users rarely scroll past the top files.
+        let displayLimit = 1000
+        let displayed = Array(files.prefix(displayLimit))
+        let hiddenCount = files.count - displayed.count
+
         // List wraps NSTableView on macOS — far faster than LazyVStack for thousands of rows.
         // FileDetailView is Equatable so SwiftUI skips re-rendering rows whose props didn't change.
-        return List(files) { file in
-            FileDetailView(
-                file: file,
-                isSelected: cleaningVM.selectedIDs.contains(file.id),
-                isAdvanced: appState.mode == .advanced,
-                onToggle: { cleaningVM.toggleFile(file) }
-            )
-            .equatable()
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
+        // .id(selectedCategory) forces List to recreate fresh on category switch instead of
+        // running an O(n) diff against the previous array.
+        return List {
+            ForEach(displayed) { file in
+                FileDetailView(
+                    file: file,
+                    isSelected: cleaningVM.selectedIDs.contains(file.id),
+                    isAdvanced: appState.mode == .advanced,
+                    onToggle: { cleaningVM.toggleFile(file) }
+                )
+                .equatable()
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
+            }
+
+            if hiddenCount > 0 {
+                HStack {
+                    Spacer()
+                    Text("+ \(hiddenCount) smaller files not shown")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 12)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .id(selectedCategory)
     }
 
     private var bottomBar: some View {

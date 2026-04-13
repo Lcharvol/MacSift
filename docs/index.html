@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MacSift — Transparent macOS Disk Cleaner</title>
+    <meta name="description" content="A transparent, trustworthy disk cleaner for macOS Tahoe. Native SwiftUI with Liquid Glass. Groups files by app, moves to Trash — never permanent.">
+    <meta property="og:title" content="MacSift — Transparent macOS Disk Cleaner">
+    <meta property="og:description" content="See exactly what's taking up space. Groups by app. Moves to Trash. Never a black box.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lcharvol.github.io/MacSift/">
+    <meta name="theme-color" content="#06080c">
+    <link rel="icon" type="image/png" href="images/icon.png">
+    <link rel="apple-touch-icon" href="images/icon@180.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Background orbs -->
+    <div class="orbs" aria-hidden="true">
+        <div class="orb orb--blue"></div>
+        <div class="orb orb--cyan"></div>
+        <div class="orb orb--teal"></div>
+    </div>
+    <div class="grid-overlay" aria-hidden="true"></div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav__inner">
+            <a class="nav__logo" href="#top">
+                <img src="images/icon.png" alt="" width="28" height="28">
+                <span>MacSift</span>
+            </a>
+            <div class="nav__links">
+                <a href="#features">Features</a>
+                <a href="#install">Install</a>
+                <a href="#faq">FAQ</a>
+                <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener" class="nav__github">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero" id="top">
+        <div class="hero__inner">
+            <div class="hero__badge fade-up">
+                <span class="dot"></span>
+                Built for macOS 26 Tahoe
+            </div>
+
+            <h1 class="hero__title fade-up delay-1">
+                See what's taking up space.<br>
+                <span class="gradient-text">Trust every deletion.</span>
+            </h1>
+
+            <p class="hero__subtitle fade-up delay-2">
+                A transparent disk cleaner for macOS. Groups files by owning app, shows you exactly
+                what will be removed, and moves everything to the Trash — so you can always undo.
+            </p>
+
+            <div class="hero__ctas fade-up delay-3">
+                <a href="https://github.com/Lcharvol/MacSift/releases/latest" class="btn btn--primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download for macOS
+                </a>
+                <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener" class="btn btn--ghost">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"/>
+                    </svg>
+                    Star on GitHub
+                </a>
+            </div>
+
+            <div class="hero__meta fade-up delay-4">
+                <span>Free &amp; open source</span>
+                <span class="dot-sep"></span>
+                <span>Pure SwiftUI</span>
+                <span class="dot-sep"></span>
+                <span>No telemetry</span>
+            </div>
+
+            <div class="hero__visual fade-up delay-5">
+                <div class="screenshot-frame">
+                    <div class="window-chrome">
+                        <span class="window-dot window-dot--red"></span>
+                        <span class="window-dot window-dot--yellow"></span>
+                        <span class="window-dot window-dot--green"></span>
+                    </div>
+                    <div class="screenshot-placeholder">
+                        <img src="images/screenshot-main.png" alt="MacSift main window" onerror="this.replaceWith(document.getElementById('mockup-template').content.cloneNode(true))">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Features</div>
+                <h2>Fast, safe, and honest about everything.</h2>
+                <p>Built on the principles you'd want from a cleaner: no black box, no permanent deletes, no surprises.</p>
+            </div>
+
+            <div class="features__grid">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--blue">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3>Grouped by app</h3>
+                    <p>Library/Caches/com.apple.Safari/* collapses into a single "Safari" row — 10,000 files, one decision.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--cyan">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <h3>Moves to Trash</h3>
+                    <p>No permanent deletion. Everything goes to the Finder Trash so you can restore anything, anytime.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--teal">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <h3>Dry run by default</h3>
+                    <p>The first time you run MacSift, cleaning is simulated. Nothing is touched until you explicitly opt in.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--blue">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </div>
+                    <h3>Full transparency</h3>
+                    <p>Every row shows the app, category, file count, and total size. Click any group to inspect the top files and reveal in Finder.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--cyan">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/></svg>
+                    </div>
+                    <h3>Liquid Glass UI</h3>
+                    <p>Built on the new macOS 26 Tahoe APIs. Native sidebar, inspector, materials, and toolbar — feels at home next to Finder.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--teal">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <h3>Fast and responsive</h3>
+                    <p>Parallel async scans, smart progress throttling, and pre-sorted caches keep the UI snappy even with 50,000+ files.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What it detects -->
+    <section class="detects">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">What it finds</div>
+                <h2>Seven categories, no vague "junk".</h2>
+            </div>
+
+            <div class="detects__grid">
+                <div class="category-chip"><div class="chip-icon" style="color:#5AA9FF">☰</div>Caches<span>~/Library/Caches</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#9FA8B3">≡</div>Logs<span>~/Library/Logs + /var/log</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#5DD3FF">⟳</div>Temporary files<span>/tmp, NSTemporaryDirectory</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#C08CFF">◌</div>Unused app data<span>Orphaned Application Support</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#FFB547">◈</div>Large files<span>Anywhere in your home</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#6FE4A6">⟲</div>Time Machine snapshots<span>Local tmutil snapshots</span></div>
+                <div class="category-chip"><div class="chip-icon" style="color:#FF8FB1">⌾</div>iOS Backups<span>MobileSync device backups</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install -->
+    <section class="install" id="install">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Install</div>
+                <h2>Two commands. No Xcode project required.</h2>
+                <p>MacSift is a SwiftPM project that builds into a proper <code>.app</code> bundle with the provided script.</p>
+            </div>
+
+            <div class="install__cards">
+                <div class="install-card">
+                    <div class="install-step">1</div>
+                    <h4>Clone the repo</h4>
+                    <div class="code-block">
+                        <code>git clone https://github.com/Lcharvol/MacSift.git<br>cd MacSift</code>
+                        <button class="copy-btn" data-copy="git clone https://github.com/Lcharvol/MacSift.git&#10;cd MacSift">Copy</button>
+                    </div>
+                </div>
+
+                <div class="install-card">
+                    <div class="install-step">2</div>
+                    <h4>Build &amp; launch</h4>
+                    <div class="code-block">
+                        <code>./build-app.sh<br>open MacSift.app</code>
+                        <button class="copy-btn" data-copy="./build-app.sh&#10;open MacSift.app">Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="install__note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Requires macOS 26 Tahoe, Xcode 26 toolchain, and Full Disk Access (granted at first launch).
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">FAQ</div>
+                <h2>Questions you'd ask a friend.</h2>
+            </div>
+
+            <div class="faq__list">
+                <details class="faq-item" open>
+                    <summary>Will MacSift delete anything important?</summary>
+                    <p>No — MacSift never permanently deletes. Everything goes to the Trash via <code>FileManager.trashItem</code>. Dry run is on by default; destructive actions require an explicit confirmation, and there's an extra warning above 10 GB. System paths (<code>/System</code>, <code>/usr</code>, <code>/bin</code>, <code>/sbin</code>) and still-installed-app data are hard-blocked.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Why does it need Full Disk Access?</summary>
+                    <p>To scan <code>/private/var/log</code> and some system caches. Without FDA, the app still works — it just skips the protected paths and shows a banner. You grant it once in System Settings.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Is there a DMG or Homebrew cask?</summary>
+                    <p>Not yet. MacSift is a personal project and not notarized for distribution, so you build it yourself from source with the provided script. The build is one command and produces a proper <code>.app</code> bundle.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Does it collect any telemetry?</summary>
+                    <p>No. Zero. It never makes a network connection. All scanning and cleaning happens entirely on your Mac.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>How fast is it?</summary>
+                    <p>On a typical Mac with ~50,000 scannable files, a full scan completes in 3–8 seconds. The UI stays responsive throughout — scanning is parallelized across categories, progress is throttled, and sorting runs off the main thread.</p>
+                </details>
+
+                <details class="faq-item">
+                    <summary>Does it support older macOS versions?</summary>
+                    <p>No — MacSift uses the Liquid Glass APIs introduced in macOS 26 Tahoe. Supporting older versions would mean rewriting the UI layer, which isn't planned.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="final-cta">
+        <div class="container">
+            <h2>Reclaim space, with your eyes open.</h2>
+            <p>Free, open source, and never a black box.</p>
+            <div class="hero__ctas">
+                <a href="https://github.com/Lcharvol/MacSift" class="btn btn--primary" target="_blank" rel="noopener">
+                    Get MacSift on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer__inner">
+            <div class="footer__brand">
+                <img src="images/icon.png" alt="" width="24" height="24">
+                <span>MacSift</span>
+            </div>
+            <div class="footer__links">
+                <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/Lcharvol/MacSift/issues" target="_blank" rel="noopener">Issues</a>
+                <a href="https://github.com/Lcharvol/MacSift/blob/main/README.md" target="_blank" rel="noopener">README</a>
+            </div>
+            <div class="footer__meta">
+                Made for macOS. No tracking, no ads, no nonsense.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Fallback SVG mockup when screenshot image isn't present -->
+    <template id="mockup-template">
+        <div class="mockup">
+            <div class="mockup-sidebar">
+                <div class="mock-logo"><span class="mock-dot" style="background:#4A9EFF"></span>MacSift</div>
+                <div class="mock-cta"></div>
+                <div class="mock-category"><span class="mock-dot" style="background:#4A9EFF"></span>Caches<em>3.2 GB</em></div>
+                <div class="mock-category"><span class="mock-dot" style="background:#9FA8B3"></span>Logs<em>840 MB</em></div>
+                <div class="mock-category"><span class="mock-dot" style="background:#5DD3FF"></span>Temporary<em>210 MB</em></div>
+                <div class="mock-category"><span class="mock-dot" style="background:#C08CFF"></span>App data<em>1.4 GB</em></div>
+                <div class="mock-category"><span class="mock-dot" style="background:#FFB547"></span>Large files<em>12.6 GB</em></div>
+            </div>
+            <div class="mockup-main">
+                <div class="mock-header">
+                    <strong>All Categories</strong>
+                    <span>48,312 files · 18.25 GB · scanned 2 min ago</span>
+                </div>
+                <div class="mock-bar">
+                    <div class="mock-bar-card">
+                        <div class="mock-bar-row"><span>Storage Found</span><em>18.25 GB recoverable</em></div>
+                        <div class="mock-bar-track">
+                            <span style="background:#4A9EFF;flex:3.2"></span>
+                            <span style="background:#C08CFF;flex:1.4"></span>
+                            <span style="background:#5DD3FF;flex:.3"></span>
+                            <span style="background:#9FA8B3;flex:.85"></span>
+                            <span style="background:#FFB547;flex:12.6"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mock-rows">
+                    <div class="mock-row"><span class="mock-check"></span><span class="mock-row-icon" style="color:#4A9EFF">◉</span><span class="mock-row-name">Safari<em>12,438 files</em></span><span class="mock-row-size">2.1 GB</span></div>
+                    <div class="mock-row"><span class="mock-check mock-check--on"></span><span class="mock-row-icon" style="color:#C08CFF">◌</span><span class="mock-row-name">Visual Studio Code<em>8,904 files</em></span><span class="mock-row-size">1.3 GB</span></div>
+                    <div class="mock-row"><span class="mock-check"></span><span class="mock-row-icon" style="color:#9FA8B3">≡</span><span class="mock-row-name">System logs<em>234 files</em></span><span class="mock-row-size">620 MB</span></div>
+                    <div class="mock-row"><span class="mock-check"></span><span class="mock-row-icon" style="color:#FFB547">◈</span><span class="mock-row-name">StudyProject.mov<em>Large file</em></span><span class="mock-row-size">4.7 GB</span></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>

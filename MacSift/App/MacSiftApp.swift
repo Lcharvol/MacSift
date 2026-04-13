@@ -15,6 +15,23 @@ struct MacSiftApp: App {
         .windowStyle(.titleBar)
         .defaultSize(width: 1100, height: 750)
         .commands {
+            // Custom About panel
+            CommandGroup(replacing: .appInfo) {
+                Button("About MacSift") {
+                    NSApplication.shared.orderFrontStandardAboutPanel(options: [
+                        .applicationName: "MacSift",
+                        .applicationVersion: "0.1.0",
+                        .credits: NSAttributedString(
+                            string: "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently.",
+                            attributes: [
+                                .font: NSFont.systemFont(ofSize: 11),
+                                .foregroundColor: NSColor.secondaryLabelColor,
+                            ]
+                        ),
+                    ])
+                }
+            }
+
             // File menu commands with keyboard shortcuts
             CommandGroup(after: .newItem) {
                 Button("Scan Now") {

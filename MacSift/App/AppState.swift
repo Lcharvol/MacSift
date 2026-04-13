@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// App-wide observable state. We can't use @AppStorage here because that
+/// property wrapper is designed for use directly on Views, not inside an
+/// ObservableObject — it doesn't compose with @Published. The didSet pattern
+/// below is the idiomatic alternative for an ObservableObject that mirrors
+/// values to UserDefaults.
 @MainActor
 final class AppState: ObservableObject {
     enum Mode: String, CaseIterable {

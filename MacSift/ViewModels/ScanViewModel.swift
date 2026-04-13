@@ -16,6 +16,8 @@ struct CompletedScan: Equatable {
     let result: ScanResult
     let sortedFilesByCategory: [FileCategory: [ScannedFile]]
     let allSortedFiles: [ScannedFile]
+    let groupsByCategory: [FileCategory: [FileGroup]]
+    let allSortedGroups: [FileGroup]
     let tmSnapshots: [TMSnapshot]
 
     static func == (lhs: CompletedScan, rhs: CompletedScan) -> Bool {
@@ -30,10 +32,16 @@ final class ScanViewModel: ObservableObject {
     enum State: Equatable {
         case idle
         case scanning
+        case cancelling
         case completed(CompletedScan)
 
         var isScanning: Bool {
             if case .scanning = self { return true }
+            return false
+        }
+
+        var isCancelling: Bool {
+            if case .cancelling = self { return true }
             return false
         }
 
@@ -56,6 +64,8 @@ final class ScanViewModel: ObservableObject {
     var result: ScanResult { state.completedScan?.result ?? .empty }
     var sortedFilesByCategory: [FileCategory: [ScannedFile]] { state.completedScan?.sortedFilesByCategory ?? [:] }
     var allSortedFiles: [ScannedFile] { state.completedScan?.allSortedFiles ?? [] }
+    var groupsByCategory: [FileCategory: [FileGroup]] { state.completedScan?.groupsByCategory ?? [:] }
+    var allSortedGroups: [FileGroup] { state.completedScan?.allSortedGroups ?? [] }
     var tmSnapshots: [TMSnapshot] { state.completedScan?.tmSnapshots ?? [] }
 
     private let exclusionManager: ExclusionManager
@@ -69,6 +79,9 @@ final class ScanViewModel: ObservableObject {
     }
 
     func cancelScan() {
+        if state.isScanning {
+            state = .cancelling
+        }
         currentScanTask?.cancel()
     }
 
@@ -143,16 +156,28 @@ final class ScanViewModel: ObservableObject {
             return
         }
 
-        // Sort off the main thread — with 10k+ files this would freeze the UI
-        // for hundreds of milliseconds at the end of the scan.
-        let prepared: (byCategory: [FileCategory: [ScannedFile]], all: [ScannedFile]) =
-            await Task.detached(priority: .userInitiated) {
-                let byCategory = scanResult.filesByCategory.mapValues { files in
-                    files.sorted { $0.size > $1.size }
-                }
-                let all = byCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
-                return (byCategory, all)
-            }.value
+        // Sort + group off the main thread — with 10k+ files this would freeze
+        // the UI for hundreds of milliseconds at the end of the scan.
+        struct Prepared: Sendable {
+            let byCategory: [FileCategory: [ScannedFile]]
+            let all: [ScannedFile]
+            let groupsByCategory: [FileCategory: [FileGroup]]
+            let allGroups: [FileGroup]
+        }
+        let prepared: Prepared = await Task.detached(priority: .userInitiated) {
+            let byCategory = scanResult.filesByCategory.mapValues { files in
+                files.sorted { $0.size > $1.size }
+            }
+            let all = byCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
+            let groupsByCategory = byCategory.mapValues { FileGrouper.group($0) }
+            let allGroups = groupsByCategory.values.flatMap { $0 }.sorted { $0.totalSize > $1.totalSize }
+            return Prepared(
+                byCategory: byCategory,
+                all: all,
+                groupsByCategory: groupsByCategory,
+                allGroups: allGroups
+            )
+        }.value
 
         let snapshots = (try? await TimeMachineService.listSnapshots()) ?? []
 
@@ -174,9 +199,17 @@ final class ScanViewModel: ObservableObject {
 
         var byCategory = prepared.byCategory
         var all = prepared.all
+        var groupsByCategory = prepared.groupsByCategory
+        var allGroups = prepared.allGroups
+
         if !snapshotFiles.isEmpty {
             byCategory[.timeMachineSnapshots] = snapshotFiles
             all.append(contentsOf: snapshotFiles)
+
+            let snapshotGroups = FileGrouper.group(snapshotFiles)
+            groupsByCategory[.timeMachineSnapshots] = snapshotGroups
+            allGroups.append(contentsOf: snapshotGroups)
+            allGroups.sort { $0.totalSize > $1.totalSize }
         }
 
         let completed = CompletedScan(
@@ -186,6 +219,8 @@ final class ScanViewModel: ObservableObject {
             ),
             sortedFilesByCategory: byCategory,
             allSortedFiles: all,
+            groupsByCategory: groupsByCategory,
+            allSortedGroups: allGroups,
             tmSnapshots: snapshots
         )
         // Single @Published assignment instead of 5 cascading ones

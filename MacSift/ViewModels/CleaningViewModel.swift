@@ -73,6 +73,20 @@ final class CleaningViewModel: ObservableObject {
         }
     }
 
+    /// Toggle every file inside a `FileGroup`. If all files are already
+    /// selected, deselect them all; otherwise select all of them. Mutations
+    /// are batched into one assignment to avoid per-id @Published cascades.
+    func toggleGroup(_ group: FileGroup) {
+        let groupIDs = group.fileIDs
+        var newSelection = selectedIDs
+        if groupIDs.isSubset(of: newSelection) {
+            newSelection.subtract(groupIDs)
+        } else {
+            newSelection.formUnion(groupIDs)
+        }
+        selectedIDs = newSelection
+    }
+
     func selectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
         // Build the new set locally then assign once — avoids 1 @Published
         // notification per inserted item, which freezes the UI for large categories.

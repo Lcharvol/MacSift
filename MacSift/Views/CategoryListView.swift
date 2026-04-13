@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CategoryListView: View {
     let sizeByCategory: [FileCategory: Int64]
+    let countByCategory: [FileCategory: Int]
     @Binding var selectedCategory: FileCategory?
 
     var body: some View {
@@ -10,7 +11,8 @@ struct CategoryListView: View {
                 ForEach(FileCategory.allCases) { category in
                     CategoryRow(
                         category: category,
-                        size: sizeByCategory[category] ?? 0
+                        size: sizeByCategory[category] ?? 0,
+                        count: countByCategory[category] ?? 0
                     )
                     .tag(category)
                 }
@@ -23,16 +25,25 @@ struct CategoryListView: View {
 private struct CategoryRow: View {
     let category: FileCategory
     let size: Int64
+    let count: Int
 
     var body: some View {
         Label {
             HStack {
-                Text(category.label)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(category.label)
+                    if count > 0 {
+                        Text("^[\(count) file](inflect: true)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer()
                 if size > 0 {
                     Text(size.formattedFileSize)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
+                        .font(.callout)
                 }
             }
         } icon: {

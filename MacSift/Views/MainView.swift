@@ -4,9 +4,24 @@ struct MainView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var scanVM: ScanViewModel
     @StateObject private var cleaningVM: CleaningViewModel
-    @State private var selectedCategory: FileCategory?
-    @State private var showAllFiles = false
+    // Per-window UI state. SceneStorage persists these across app launches so
+    // re-opening the window restores the user's last view preferences.
+    @SceneStorage("MainView.selectedCategoryRaw") private var selectedCategoryRaw: String = ""
+    @SceneStorage("MainView.showAllFiles") private var showAllFiles = false
+    @SceneStorage("MainView.isInspectorPresented") private var isInspectorPresented = false
     @State private var searchQuery: String = ""
+    @State private var inspectedGroup: FileGroup?
+
+    private var selectedCategory: FileCategory? {
+        FileCategory(rawValue: selectedCategoryRaw)
+    }
+
+    private var selectedCategoryBinding: Binding<FileCategory?> {
+        Binding(
+            get: { FileCategory(rawValue: selectedCategoryRaw) },
+            set: { selectedCategoryRaw = $0?.rawValue ?? "" }
+        )
+    }
 
     init(exclusionManager: ExclusionManager, appState: AppState) {
         _scanVM = StateObject(wrappedValue: ScanViewModel(exclusionManager: exclusionManager, appState: appState))
@@ -29,8 +44,19 @@ struct MainView: View {
                 cleaningVM.updateFileIndex(from: scanVM.result)
             }
         }
-        .onChange(of: selectedCategory) { _, _ in
+        .onChange(of: cleaningVM.state) { _, newState in
+            // Auto-rescan after a successful real (non-dry-run) cleaning so
+            // the displayed sizes reflect the new state on disk.
+            if newState == .completed,
+               appState.isDryRun == false,
+               (cleaningVM.report?.deletedCount ?? 0) > 0
+            {
+                scanVM.startScan()
+            }
+        }
+        .onChange(of: selectedCategoryRaw) { _, _ in
             showAllFiles = false  // reset cap when switching categories
+            searchQuery = ""      // clear filter so the new category shows everything
         }
         .onReceive(NotificationCenter.default.publisher(for: .macSiftStartScan)) { _ in
             scanVM.startScan()
@@ -54,7 +80,8 @@ struct MainView: View {
 
             CategoryListView(
                 sizeByCategory: scanVM.result.sizeByCategory,
-                selectedCategory: $selectedCategory
+                countByCategory: scanVM.result.filesByCategory.mapValues { $0.count },
+                selectedCategory: selectedCategoryBinding
             )
             .scrollContentBackground(.hidden)
         }
@@ -74,20 +101,30 @@ struct MainView: View {
             Button {
                 if scanVM.state.isScanning {
                     scanVM.cancelScan()
-                } else {
+                } else if !scanVM.state.isCancelling {
                     scanVM.startScan()
                 }
             } label: {
-                Label(
-                    scanVM.state.isScanning ? "Cancel Scan" : "Start Scan",
-                    systemImage: scanVM.state.isScanning ? "stop.circle" : "magnifyingglass"
-                )
-                .frame(maxWidth: .infinity)
+                Label(scanButtonLabel, systemImage: scanButtonIcon)
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
+            .disabled(scanVM.state.isCancelling)
         }
         .padding(16)
+    }
+
+    private var scanButtonLabel: String {
+        if scanVM.state.isCancelling { return "Cancelling…" }
+        if scanVM.state.isScanning { return "Cancel Scan" }
+        return "Start Scan"
+    }
+
+    private var scanButtonIcon: String {
+        if scanVM.state.isCancelling { return "hourglass" }
+        if scanVM.state.isScanning { return "stop.circle" }
+        return "magnifyingglass"
     }
 
     // MARK: - Detail
@@ -97,7 +134,7 @@ struct MainView: View {
         switch scanVM.state {
         case .idle:
             welcomeView
-        case .scanning:
+        case .scanning, .cancelling:
             ScanProgressView(progress: scanVM.displayProgress)
         case .completed:
             resultsView
@@ -177,7 +214,7 @@ struct MainView: View {
 
             StorageBarView(
                 result: scanVM.result,
-                selectedCategory: $selectedCategory
+                selectedCategory: selectedCategoryBinding
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -199,6 +236,18 @@ struct MainView: View {
                 }
                 .help("Rescan disk (⌘R)")
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isInspectorPresented.toggle()
+                } label: {
+                    Label("Inspector", systemImage: "sidebar.right")
+                }
+                .help("Toggle inspector")
+            }
+        }
+        .inspector(isPresented: $isInspectorPresented) {
+            InspectorView(group: inspectedGroup)
+                .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
         }
     }
 
@@ -207,14 +256,14 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(selectedCategory?.label ?? "All Categories")
                     .font(.title2.weight(.semibold))
-                Text("\(scanVM.result.totalFileCount) files · \(scanVM.result.totalSize.formattedFileSize)")
+                Text(headerSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             if selectedCategory != nil {
                 Button {
-                    selectedCategory = nil
+                    selectedCategoryRaw = ""
                 } label: {
                     Label("Clear filter", systemImage: "xmark.circle.fill")
                         .font(.caption)
@@ -231,15 +280,31 @@ struct MainView: View {
     @ViewBuilder
     private var fileListView: some View {
         FileListSection(
-            sortedFilesByCategory: scanVM.sortedFilesByCategory,
-            allSortedFiles: scanVM.allSortedFiles,
+            groupsByCategory: scanVM.groupsByCategory,
+            allSortedGroups: scanVM.allSortedGroups,
             selectedCategory: selectedCategory,
             searchQuery: searchQuery,
             isAdvanced: appState.mode == .advanced,
             selectedIDs: cleaningVM.selectedIDs,
+            inspectedGroupID: inspectedGroup?.id,
             showAllFiles: $showAllFiles,
-            onToggle: { [weak cleaningVM] file in cleaningVM?.toggleFile(file) }
+            onToggleGroup: { [weak cleaningVM] group in cleaningVM?.toggleGroup(group) },
+            onInspectGroup: { group in
+                inspectedGroup = group
+                isInspectorPresented = true
+            }
         )
+    }
+
+    private var headerSubtitle: String {
+        let count = scanVM.result.totalFileCount
+        let size = scanVM.result.totalSize.formattedFileSize
+        let duration = scanVM.result.scanDuration
+        if duration > 0 {
+            let durationStr = String(format: "%.1fs", duration)
+            return "\(count) files · \(size) · scanned in \(durationStr)"
+        }
+        return "\(count) files · \(size)"
     }
 
     private var bottomBar: some View {
@@ -249,6 +314,10 @@ struct MainView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+            } else {
+                Text("Tick rows to select what to clean")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
             }
 
             Spacer()

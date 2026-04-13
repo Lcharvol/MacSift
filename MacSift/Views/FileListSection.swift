@@ -1,33 +1,34 @@
 import SwiftUI
 
-/// Isolated view for the file list. By taking its inputs as plain values and
-/// not observing the ViewModels directly, SwiftUI can skip re-evaluating the
-/// list when unrelated parent state changes. The cap on displayed rows keeps
-/// category switches snappy even with very large categories.
+/// Isolated view for the file list. Renders aggregated `FileGroup`s instead
+/// of raw files so that things like "Safari cache" appear as a single row
+/// even when they contain thousands of underlying files.
 struct FileListSection: View {
-    let sortedFilesByCategory: [FileCategory: [ScannedFile]]
-    let allSortedFiles: [ScannedFile]
+    let groupsByCategory: [FileCategory: [FileGroup]]
+    let allSortedGroups: [FileGroup]
     let selectedCategory: FileCategory?
     let searchQuery: String
     let isAdvanced: Bool
     let selectedIDs: Set<String>
+    let inspectedGroupID: String?
     @Binding var showAllFiles: Bool
-    let onToggle: (ScannedFile) -> Void
+    let onToggleGroup: (FileGroup) -> Void
+    let onInspectGroup: (FileGroup) -> Void
 
     private static let defaultCap = 300
 
-    private var displayedFiles: [ScannedFile] {
-        let baseFiles: [ScannedFile] = {
+    private var displayedGroups: [FileGroup] {
+        let baseGroups: [FileGroup] = {
             if let category = selectedCategory {
-                return sortedFilesByCategory[category] ?? []
+                return groupsByCategory[category] ?? []
             }
-            return allSortedFiles
+            return allSortedGroups
         }()
 
-        let filtered: [ScannedFile] = {
+        let filtered: [FileGroup] = {
             let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
-            guard !q.isEmpty else { return baseFiles }
-            return baseFiles.filter { $0.name.lowercased().contains(q) }
+            guard !q.isEmpty else { return baseGroups }
+            return baseGroups.filter { $0.label.lowercased().contains(q) }
         }()
 
         let limit = showAllFiles ? Int.max : Self.defaultCap
@@ -36,13 +37,13 @@ struct FileListSection: View {
 
     private var totalAvailable: Int {
         if let category = selectedCategory {
-            return sortedFilesByCategory[category]?.count ?? 0
+            return groupsByCategory[category]?.count ?? 0
         }
-        return allSortedFiles.count
+        return allSortedGroups.count
     }
 
     var body: some View {
-        let displayed = displayedFiles
+        let displayed = displayedGroups
         let hidden = max(0, totalAvailable - displayed.count)
 
         if displayed.isEmpty && searchQuery.isEmpty {
@@ -51,12 +52,20 @@ struct FileListSection: View {
             FileListNoMatchesState(query: searchQuery)
         } else {
             List {
-                ForEach(displayed) { file in
-                    FileDetailView(
-                        file: file,
-                        isSelected: selectedIDs.contains(file.id),
+                ForEach(displayed) { group in
+                    let groupIDs = group.fileIDs
+                    let allSelected = !groupIDs.isEmpty && groupIDs.isSubset(of: selectedIDs)
+                    let anySelected = !groupIDs.isDisjoint(with: selectedIDs)
+                    let partiallySelected = anySelected && !allSelected
+
+                    FileGroupRow(
+                        group: group,
+                        isSelected: allSelected,
+                        isPartiallySelected: partiallySelected,
+                        isInspected: inspectedGroupID == group.id,
                         isAdvanced: isAdvanced,
-                        onToggle: { onToggle(file) }
+                        onToggle: { onToggleGroup(group) },
+                        onInspect: { onInspectGroup(group) }
                     )
                     .equatable()
                     .listRowSeparator(.hidden)
@@ -68,7 +77,7 @@ struct FileListSection: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 6) {
-                            Text("+ \(hidden) smaller files not shown")
+                            Text("+ \(hidden) smaller groups not shown")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Show all") {
@@ -86,8 +95,6 @@ struct FileListSection: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            // Disable list animations: we don't want diff-based row insert/delete
-            // animations when the user switches categories.
             .animation(.none, value: selectedCategory)
         }
     }

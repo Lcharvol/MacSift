@@ -66,25 +66,31 @@ final class CleaningViewModel: ObservableObject {
     }
 
     func selectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
+        // Build the new set locally then assign once — avoids 1 @Published
+        // notification per inserted item, which freezes the UI for large categories.
+        var newSelection = selectedIDs
         for file in files {
-            selectedIDs.insert(file.id)
+            newSelection.insert(file.id)
         }
+        selectedIDs = newSelection
     }
 
     func deselectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
+        var newSelection = selectedIDs
         for file in files {
-            selectedIDs.remove(file.id)
+            newSelection.remove(file.id)
         }
+        selectedIDs = newSelection
     }
 
     func selectAllSafe(from result: ScanResult) {
-        for (category, files) in result.filesByCategory {
-            if category.riskLevel == .safe {
-                for file in files {
-                    selectedIDs.insert(file.id)
-                }
+        var newSelection = selectedIDs
+        for (category, files) in result.filesByCategory where category.riskLevel == .safe {
+            for file in files {
+                newSelection.insert(file.id)
             }
         }
+        selectedIDs = newSelection
     }
 
     func showCleaningPreview() {

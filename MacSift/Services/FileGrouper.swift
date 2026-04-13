@@ -56,8 +56,7 @@ enum FileGrouper {
     /// into a single "System logs" bucket.
     private static func groupByLibrarySubpath(files: [ScannedFile], category: FileCategory) -> [FileGroup] {
         let libraryRoots: [String] = {
-            let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
-            let homePrefix = home.hasSuffix("/") ? home : home + "/"
+            let homePrefix = CategoryClassifier.sharedHomePrefix
             switch category {
             case .cache: return ["\(homePrefix)Library/Caches/"]
             case .logs: return ["\(homePrefix)Library/Logs/"]

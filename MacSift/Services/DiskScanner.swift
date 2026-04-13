@@ -10,6 +10,14 @@ struct ScanProgress: Sendable {
     let category: FileCategory?
 }
 
+/// Result of scanning a single root directory. Bundles the files found with
+/// a count of items that couldn't be read (permission errors, broken links,
+/// corrupted metadata). These are aggregated across all scan tasks.
+struct ScanRootResult: Sendable {
+    var files: [ScannedFile]
+    var inaccessibleCount: Int
+}
+
 struct DiskScanner: Sendable {
     let classifier: CategoryClassifier
     let exclusionManager: ExclusionManager
@@ -54,8 +62,9 @@ struct DiskScanner: Sendable {
         let homeDirectory = self.homeDirectory
 
         var allFiles: [FileCategory: [ScannedFile]] = [:]
+        var totalInaccessible = 0
 
-        await withTaskGroup(of: [ScannedFile].self) { group in
+        await withTaskGroup(of: ScanRootResult.self) { group in
             for (url, hintCategory) in scanTargets {
                 group.addTask {
                     Self.scanDirectory(
@@ -78,8 +87,9 @@ struct DiskScanner: Sendable {
                 )
             }
 
-            for await files in group {
-                for file in files {
+            for await root in group {
+                totalInaccessible += root.inaccessibleCount
+                for file in root.files {
                     allFiles[file.category, default: []].append(file)
                 }
             }
@@ -88,7 +98,11 @@ struct DiskScanner: Sendable {
         let duration = Date().timeIntervalSince(startTime)
         progress?.finish()
 
-        return ScanResult(filesByCategory: allFiles, scanDuration: duration)
+        return ScanResult(
+            filesByCategory: allFiles,
+            scanDuration: duration,
+            inaccessibleCount: totalInaccessible
+        )
     }
 
     private static func isExcluded(_ url: URL, excludedPaths: [String]) -> Bool {
@@ -105,12 +119,19 @@ struct DiskScanner: Sendable {
         excludedPaths: [String],
         maxDepth: Int,
         progress: AsyncStream<ScanProgress>.Continuation?
-    ) -> [ScannedFile] {
+    ) -> ScanRootResult {
         let fm = FileManager.default
 
-        if isExcluded(directory, excludedPaths: excludedPaths) { return [] }
-        guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else { return [] }
-        guard fm.isReadableFile(atPath: directory.path(percentEncoded: false)) else { return [] }
+        if isExcluded(directory, excludedPaths: excludedPaths) {
+            return ScanRootResult(files: [], inaccessibleCount: 0)
+        }
+        guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else {
+            return ScanRootResult(files: [], inaccessibleCount: 0)
+        }
+        guard fm.isReadableFile(atPath: directory.path(percentEncoded: false)) else {
+            // Root itself is unreadable — count it as one inaccessible item
+            return ScanRootResult(files: [], inaccessibleCount: 1)
+        }
 
         let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey, .isSymbolicLinkKey]
 
@@ -118,9 +139,12 @@ struct DiskScanner: Sendable {
             at: directory,
             includingPropertiesForKeys: keys,
             options: []
-        ) else { return [] }
+        ) else {
+            return ScanRootResult(files: [], inaccessibleCount: 1)
+        }
 
         var files: [ScannedFile] = []
+        var inaccessible = 0
         var deltaFiles = 0
         var deltaSize: Int64 = 0
 
@@ -130,7 +154,7 @@ struct DiskScanner: Sendable {
             // Task was cancelled. Check periodically to avoid syscall overhead.
             cancelCheckCounter += 1
             if cancelCheckCounter % 200 == 0 && Task.isCancelled {
-                return files
+                return ScanRootResult(files: files, inaccessibleCount: inaccessible)
             }
             guard let fileURL = next as? URL else { continue }
 
@@ -144,7 +168,10 @@ struct DiskScanner: Sendable {
                 continue
             }
 
-            guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else { continue }
+            guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else {
+                inaccessible += 1
+                continue
+            }
 
             if values.isSymbolicLink == true {
                 enumerator.skipDescendants()
@@ -203,7 +230,7 @@ struct DiskScanner: Sendable {
             ))
         }
 
-        return files
+        return ScanRootResult(files: files, inaccessibleCount: inaccessible)
     }
 
     private static func scanForLargeFiles(
@@ -211,9 +238,11 @@ struct DiskScanner: Sendable {
         classifier: CategoryClassifier,
         excludedPaths: [String],
         progress: AsyncStream<ScanProgress>.Continuation?
-    ) -> [ScannedFile] {
+    ) -> ScanRootResult {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else { return [] }
+        guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else {
+            return ScanRootResult(files: [], inaccessibleCount: 0)
+        }
 
         let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey, .isSymbolicLinkKey]
 
@@ -221,7 +250,9 @@ struct DiskScanner: Sendable {
             at: directory,
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else { return [] }
+        ) else {
+            return ScanRootResult(files: [], inaccessibleCount: 1)
+        }
 
         // Skip the entire Library (already scanned by other tasks), version control,
         // node_modules, build outputs, and Trash — these can have millions of small files
@@ -254,13 +285,14 @@ struct DiskScanner: Sendable {
         let homePath = directory.path(percentEncoded: false)
         let homePrefix = homePath.hasSuffix("/") ? homePath : homePath + "/"
         var files: [ScannedFile] = []
+        var inaccessible = 0
         var deltaFiles = 0
         var deltaSize: Int64 = 0
         var visited = 0
 
         while let next = enumerator.nextObject() {
             if visited % 200 == 0 && Task.isCancelled {
-                return files
+                return ScanRootResult(files: files, inaccessibleCount: inaccessible)
             }
             guard let fileURL = next as? URL else { continue }
 
@@ -297,7 +329,10 @@ struct DiskScanner: Sendable {
                 continue
             }
 
-            guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else { continue }
+            guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else {
+                inaccessible += 1
+                continue
+            }
 
             if values.isSymbolicLink == true || values.isDirectory == true { continue }
 
@@ -329,6 +364,6 @@ struct DiskScanner: Sendable {
             ))
         }
 
-        return files
+        return ScanRootResult(files: files, inaccessibleCount: inaccessible)
     }
 }

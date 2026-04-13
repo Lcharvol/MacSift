@@ -6,13 +6,37 @@ struct CategoryClassifier: Sendable {
     /// Used to detect orphaned Application Support folders.
     let installedAppBundleNames: Set<String>
 
+    /// Default init with an empty installed-app set. Call
+    /// `CategoryClassifier.withInstalledApps(thresholdBytes:)` to get a
+    /// properly populated classifier — that function walks /Applications
+    /// asynchronously off the calling thread.
     init(
         largeFileThresholdBytes: Int64 = 500 * 1024 * 1024,
-        installedAppBundleNames: Set<String> = Self.scanInstalledAppBundleNames()
+        installedAppBundleNames: Set<String> = []
     ) {
         self.largeFileThresholdBytes = largeFileThresholdBytes
         self.installedAppBundleNames = installedAppBundleNames
     }
+
+    /// Builds a classifier with the installed-app set populated from
+    /// /Applications and ~/Applications. The disk walk runs on a detached
+    /// task so callers on the main actor don't block.
+    static func withInstalledApps(largeFileThresholdBytes: Int64 = 500 * 1024 * 1024) async -> CategoryClassifier {
+        let names = await Task.detached(priority: .userInitiated) {
+            Self.scanInstalledAppBundleNames()
+        }.value
+        return CategoryClassifier(
+            largeFileThresholdBytes: largeFileThresholdBytes,
+            installedAppBundleNames: names
+        )
+    }
+
+    /// Shared home directory prefix (`/Users/foo/`) used by both the
+    /// classifier and `FileGrouper`. Computed once at process start.
+    static let sharedHomePrefix: String = {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
+        return home.hasSuffix("/") ? home : home + "/"
+    }()
 
     /// Walks /Applications and ~/Applications once at init and collects the
     /// lowercased bundle base names. Used to flag Application Support folders
@@ -59,7 +83,7 @@ struct CategoryClassifier: Sendable {
 
     func classify(url: URL, size: Int64) -> FileCategory? {
         let path = url.path(percentEncoded: false)
-        let homePrefix = Self.cachedHomePrefix
+        let homePrefix = Self.sharedHomePrefix
 
         // iOS Backups (check before general appData)
         if path.contains("MobileSync/Backup") {
@@ -104,9 +128,4 @@ struct CategoryClassifier: Sendable {
         return nil
     }
 
-    // Cache the home directory prefix once instead of recomputing on every file
-    private static let cachedHomePrefix: String = {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
-        return home.hasSuffix("/") ? home : home + "/"
-    }()
 }

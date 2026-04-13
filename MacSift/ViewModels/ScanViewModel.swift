@@ -121,7 +121,7 @@ final class ScanViewModel: ObservableObject {
     }
 
     private func runScan() async {
-        let scanner = makeScanner()
+        let scanner = await makeScanner()
         let (stream, continuation) = AsyncStream.makeStream(of: ScanProgress.self)
         let progressTask = startProgressAccumulator(stream: stream)
 
@@ -147,8 +147,12 @@ final class ScanViewModel: ObservableObject {
     }
 
     /// Build the scanner with the current settings and optional custom root.
-    private func makeScanner() -> DiskScanner {
-        let classifier = CategoryClassifier(largeFileThresholdBytes: appState.largeFileThresholdBytes)
+    /// The classifier walks /Applications once to populate its installed-app
+    /// set for orphan detection — this happens on a background thread.
+    private func makeScanner() async -> DiskScanner {
+        let classifier = await CategoryClassifier.withInstalledApps(
+            largeFileThresholdBytes: appState.largeFileThresholdBytes
+        )
         return DiskScanner(
             classifier: classifier,
             exclusionManager: exclusionManager,

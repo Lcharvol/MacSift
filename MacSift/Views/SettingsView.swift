@@ -9,6 +9,7 @@ struct SettingsView: View {
     /// hint if the user changes it mid-session.
     @State private var initialThresholdMB: Int = 0
     @State private var didLoadInitial = false
+    @State private var showResetConfirmation = false
 
     private var thresholdChanged: Bool {
         didLoadInitial && initialThresholdMB != appState.largeFileThresholdMB
@@ -126,9 +127,34 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Reset all settings")
+                            .font(.callout.weight(.medium))
+                        Text("Clears mode, dry-run, threshold, and all excluded folders.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Reset…", role: .destructive) {
+                        showResetConfirmation = true
+                    }
+                    .controlSize(.small)
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 460)
+        .frame(width: 480, height: 500)
+        .alert("Reset all MacSift settings?", isPresented: $showResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset", role: .destructive) {
+                resetAllSettings()
+            }
+        } message: {
+            Text("This clears your mode, dry-run preference, large file threshold, and the list of excluded folders. Your files on disk are not touched.")
+        }
         .onAppear {
             if !didLoadInitial {
                 initialThresholdMB = appState.largeFileThresholdMB
@@ -155,6 +181,21 @@ struct SettingsView: View {
     private func addDefaultExclusions() {
         for s in defaultSuggestions {
             exclusionManager.addExclusion(s.url)
+        }
+    }
+
+    private func resetAllSettings() {
+        let defaults = UserDefaults.standard
+        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "excludedPaths"] {
+            defaults.removeObject(forKey: key)
+        }
+        // Reapply defaults on the live AppState so the UI updates immediately
+        appState.mode = .simple
+        appState.isDryRun = true
+        appState.largeFileThresholdMB = 500
+        // Clear exclusions
+        for url in exclusionManager.excludedPaths {
+            exclusionManager.removeExclusion(url)
         }
     }
 }

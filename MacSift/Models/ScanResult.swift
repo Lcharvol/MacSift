@@ -10,10 +10,19 @@ struct ScanResult: Sendable {
     let totalSize: Int64
     let totalFileCount: Int
     let countByCategory: [FileCategory: Int]
+    /// Count of files / directories the scanner couldn't read due to
+    /// permissions or I/O errors. Reported to the user so a partial scan
+    /// is never silently presented as complete.
+    let inaccessibleCount: Int
 
-    init(filesByCategory: [FileCategory: [ScannedFile]], scanDuration: TimeInterval) {
+    init(
+        filesByCategory: [FileCategory: [ScannedFile]],
+        scanDuration: TimeInterval,
+        inaccessibleCount: Int = 0
+    ) {
         self.filesByCategory = filesByCategory
         self.scanDuration = scanDuration
+        self.inaccessibleCount = inaccessibleCount
 
         // Compute aggregates once, here. These were previously computed
         // properties that iterated all files on every access — which meant

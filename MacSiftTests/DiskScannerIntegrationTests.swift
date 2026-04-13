@@ -40,6 +40,44 @@ struct DiskScannerIntegrationTests {
         #expect(result.filesByCategory[.logs]?.isEmpty == false)
     }
 
+    @Test func progressStreamEmitsDeltas() async throws {
+        let tempDir = try createTempStructure()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let classifier = CategoryClassifier(largeFileThresholdBytes: 500 * 1024 * 1024)
+        let exclusionManager = await MainActor.run {
+            ExclusionManager(userDefaultsSuiteName: "test.\(UUID().uuidString)")
+        }
+        let scanner = DiskScanner(
+            classifier: classifier,
+            exclusionManager: exclusionManager,
+            homeDirectory: tempDir
+        )
+
+        // Stream events into a collector that runs concurrently with the scan
+        let (stream, continuation) = AsyncStream.makeStream(of: ScanProgress.self)
+
+        async let collected: [ScanProgress] = Task { () -> [ScanProgress] in
+            var events: [ScanProgress] = []
+            for await event in stream {
+                events.append(event)
+            }
+            return events
+        }.value
+
+        _ = await scanner.scan(progress: continuation)
+
+        let events = await collected
+
+        // At least one delta event should have been emitted for the files we created
+        #expect(!events.isEmpty)
+        // Every event carries non-negative deltas
+        #expect(events.allSatisfy { $0.deltaFiles >= 0 && $0.deltaSize >= 0 })
+        // Accumulated total matches what the scanner put on disk (1024 + 2048 bytes)
+        let totalDeltaSize = events.reduce(0 as Int64) { $0 + $1.deltaSize }
+        #expect(totalDeltaSize >= 1024 + 2048)
+    }
+
     @Test func respectsExclusions() async throws {
         let tempDir = try createTempStructure()
         defer { try? FileManager.default.removeItem(at: tempDir) }

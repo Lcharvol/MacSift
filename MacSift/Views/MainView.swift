@@ -263,6 +263,10 @@ struct MainView: View {
             formatter.unitsStyle = .short
             parts.append(formatter.localizedString(for: completedAt, relativeTo: Date()))
         }
+        let inaccessible = scanVM.result.inaccessibleCount
+        if inaccessible > 0 {
+            parts.append("\(inaccessible) inaccessible")
+        }
         return parts.joined(separator: " · ")
     }
 

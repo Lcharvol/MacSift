@@ -6,6 +6,35 @@ APP_NAME="MacSift"
 BUNDLE="$APP_NAME.app"
 BUNDLE_ID="com.macsift.app"
 
+# -------------------------------------------------------------------------
+# Prerequisites check
+# -------------------------------------------------------------------------
+# Swift 6.0+ is required (project uses swift-tools-version: 6.0 and macOS 26
+# Liquid Glass APIs). macOS 26+ is required to run the resulting binary.
+
+if ! command -v swift >/dev/null 2>&1; then
+    echo "❌ swift not found in PATH."
+    echo "   Install Xcode 26 command-line tools: xcode-select --install"
+    exit 1
+fi
+
+swift_version=$(swift --version 2>/dev/null | head -1 | grep -oE 'version [0-9]+\.[0-9]+' | awk '{print $2}')
+swift_major=${swift_version%.*}
+if [ -z "$swift_version" ] || [ "$swift_major" -lt 6 ] 2>/dev/null; then
+    echo "❌ Swift $swift_version detected. MacSift requires Swift 6.0 or later."
+    echo "   Install Xcode 26 or newer."
+    exit 1
+fi
+
+macos_version=$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)
+if [ -n "$macos_version" ] && [ "$macos_version" -lt 26 ] 2>/dev/null; then
+    echo "⚠️  macOS $macos_version detected. MacSift targets macOS 26 (Tahoe)."
+    echo "   The build may succeed but the resulting binary won't launch here."
+    echo "   Continue anyway? [y/N]"
+    read -r answer
+    [ "$answer" = "y" ] || [ "$answer" = "Y" ] || exit 1
+fi
+
 echo "Building $APP_NAME ($CONFIG)..."
 swift build -c "$CONFIG"
 

@@ -116,11 +116,39 @@ The build script ad-hoc signs the app so TCC remembers the grant across rebuilds
 
 ## Tests
 
-- 39 tests in 8 suites. They MUST stay green.
+- 67 tests in 12 suites. They MUST stay green.
 - Tests use Swift Testing (`@Test`, `@Suite`, `#expect`), not XCTest.
 - Integration tests for `DiskScanner` and `CleaningEngine` use real temp directories under `FileManager.default.temporaryDirectory` — never touch the real home or the real Trash from tests.
 - `ExclusionManager` tests pass a unique `userDefaultsSuiteName` per test to avoid cross-test pollution.
 - Test names with `.app` extensions in paths trigger `.skipsPackageDescendants` in the FileManager enumerator. The scanner explicitly does NOT pass that option for category scans (only for the large-file scan). Don't change this without re-verifying the scanner integration tests.
+- Suites to know about: `FileGrouper`, `BundleNames`, `FileDescriptions · iOS backups`, `CleaningViewModel` (toggleGroup), `CategoryClassifier` (orphan detection), `DiskScanner Integration` (including `progressStreamEmitsDeltas`).
+
+## User-facing features (as of v0.1.0)
+
+- **Inspector panel** (right side, toggled from toolbar). Click a row once to populate it with the group's size, file count, risk level, top-5 largest files, and Reveal in Finder / Quick Look / Copy Path actions. Never a per-row `.contextMenu` — that killed perf at scale.
+- **Drag-and-drop** a folder anywhere on the window to scan just that folder via `ScanViewModel.startScan(folder:)`. The folder becomes the scanner's `homeDirectory` for that run.
+- **Cancel scan** via the Cancel button in the sidebar. The scanner's static functions check `Task.isCancelled` every 200 iterations and bail out cleanly. `ScanViewModel.State` has a `.cancelling` intermediate state so the button shows "Cancelling…" until the task actually stops.
+- **Auto-rescan after a real cleaning** — `MainView.onChange(of: cleaningVM.state)` triggers a fresh scan when `report.deletedCount > 0` and dry run is OFF.
+- **Search** (⌘F / toolbar search field) filters the displayed groups by label. Resets when you switch category.
+- **Keyboard shortcuts** in `MacSiftApp.commands`: ⌘R scan, ⌘. cancel, ⌘A select-all-safe, ⌘⇧A deselect all, Esc dismiss cleaning preview.
+- **Scene storage** persists `selectedCategory` and `showAllFiles` across launches (NOT `isInspectorPresented` — see #69 in the history).
+- **Reset all settings** in the Settings window wipes mode, dry-run, threshold, exclusions via an explicit alert.
+
+## Release / distribution
+
+- v0.1.0 is published at https://github.com/Lcharvol/MacSift/releases/tag/v0.1.0
+- The release zip is named `MacSift.zip` (versionless) so deep links like
+  `releases/latest/download/MacSift.zip` don't break with each new release.
+  When cutting a new release, upload both `MacSift.zip` and `MacSift-X.Y.Z.zip`.
+- Build process for a new release: bump version strings if needed, `swift test`,
+  `./build-app.sh release`, `ditto -c -k --keepParent MacSift.app /tmp/MacSift.zip`,
+  `git tag -a vX.Y.Z`, `gh release create`.
+- The app is ad-hoc signed only (no paid Developer ID). First-launch requires
+  right-click → Open. `build-app.sh` runs `codesign --force --deep --sign -` so
+  TCC remembers Full Disk Access across rebuilds.
+- Landing page lives in `docs/` on the `main` branch and is served by GitHub
+  Pages at https://lcharvol.github.io/MacSift/. The `.nojekyll` file prevents
+  Jekyll from processing the design specs that also live under `docs/`.
 
 ## Git workflow
 

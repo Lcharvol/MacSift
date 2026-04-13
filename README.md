@@ -9,7 +9,7 @@
 See exactly what's taking up space, group it by the app that owns it,
 and move everything to the Trash — never permanent deletion.
 
-**[Website](https://lcharvol.github.io/MacSift/) · [Download v0.1.0](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift-0.1.0.zip) · [Release notes](https://github.com/Lcharvol/MacSift/releases/tag/v0.1.0)**
+**[Website](https://lcharvol.github.io/MacSift/) · [Download v0.1.0](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) · [Release notes](https://github.com/Lcharvol/MacSift/releases/tag/v0.1.0)**
 
 </div>
 
@@ -35,7 +35,7 @@ MacSift is the opposite:
 
 ### Option A — Download the release
 
-1. Download [**MacSift-0.1.0.zip**](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift-0.1.0.zip) (1.5&nbsp;MB, Apple Silicon).
+1. Download [**MacSift.zip**](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) (1.5&nbsp;MB, Apple Silicon).
 2. Unzip and drag `MacSift.app` to `/Applications`.
 3. **First launch:** right-click the app → **Open** → confirm.
    Gatekeeper asks because the app is ad-hoc signed, not notarized (no paid
@@ -146,6 +146,26 @@ GitHub Actions runs `swift test` on every push to `main` (see
 - **Time Machine snapshot deletion** can require admin privileges. If
   `tmutil deletelocalsnapshots` fails, the cleaning report shows the exact
   `sudo` command to run in Terminal.
+
+## Uninstall
+
+MacSift is a regular `.app` bundle with no installer and no privileged
+helper. To remove it completely:
+
+```bash
+# Quit the app, then:
+rm -rf /Applications/MacSift.app
+
+# Clean up persisted preferences + exclusion list
+defaults delete com.macsift.app
+```
+
+You can also use the **Reset all settings** button in the in-app Settings
+window — it wipes the same keys without touching the disk.
+
+The app never writes outside its own UserDefaults domain (no keychain
+entries, no LaunchAgents, no `~/Library/Application Support/MacSift`
+folder). Nothing else to clean.
 
 ## License
 

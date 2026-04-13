@@ -152,7 +152,7 @@
         <section class="what">
             <div class="container what__grid">
                 <div class="what__intro">
-                    <h2>Seven categories.<br>No vague "junk".</h2>
+                    <h2>Eleven categories.<br>No vague "junk".</h2>
                     <p>
                         Each file is classified into a specific category with a known location
                         and a documented risk level. Nothing lands in "Other".
@@ -175,8 +175,23 @@
                         <em class="risk risk--safe">Safe</em>
                     </li>
                     <li>
+                        <strong>Xcode junk</strong>
+                        <span class="mono">Developer/Xcode · CoreSimulator</span>
+                        <em class="risk risk--safe">Safe</em>
+                    </li>
+                    <li>
+                        <strong>Dev caches</strong>
+                        <span class="mono">npm · yarn · pip · cargo · brew</span>
+                        <em class="risk risk--safe">Safe</em>
+                    </li>
+                    <li>
                         <strong>Unused app data</strong>
                         <span class="mono">Orphaned Application Support</span>
+                        <em class="risk risk--moderate">Review</em>
+                    </li>
+                    <li>
+                        <strong>Mail attachments</strong>
+                        <span class="mono">~/Library/Mail Downloads</span>
                         <em class="risk risk--moderate">Review</em>
                     </li>
                     <li>
@@ -187,6 +202,11 @@
                     <li>
                         <strong>Large files</strong>
                         <span class="mono">Anywhere in your home</span>
+                        <em class="risk risk--danger">Caution</em>
+                    </li>
+                    <li>
+                        <strong>Old downloads</strong>
+                        <span class="mono">~/Downloads · older than 90d</span>
                         <em class="risk risk--danger">Caution</em>
                     </li>
                     <li>

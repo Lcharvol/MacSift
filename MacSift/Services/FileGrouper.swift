@@ -44,9 +44,152 @@ enum FileGrouper {
             return groupByLibrarySubpath(files: files, category: firstCategory)
         case .iosBackups:
             return groupByIOSBackup(files: files)
-        case .timeMachineSnapshots, .tempFiles, .largeFiles:
+        case .xcodeJunk:
+            return groupByXcodeJunk(files: files)
+        case .devCaches:
+            return groupByDevCache(files: files)
+        case .mailDownloads:
+            // All mail attachments collapse into a single row — the individual
+            // file names are noisy and the user just wants "clear mail downloads".
+            let total = files.reduce(0 as Int64) { $0 + $1.size }
+            let representative = files[0].url.deletingLastPathComponent()
+            return [FileGroup(
+                id: "mailDownloads:all",
+                label: "Mail attachments",
+                category: .mailDownloads,
+                totalSize: total,
+                fileCount: files.count,
+                files: files,
+                topFiles: topNLargest(files, count: topFilesPreviewCount),
+                representativeURL: representative
+            )]
+        case .timeMachineSnapshots, .tempFiles, .largeFiles, .oldDownloads:
             return files.map(singletonGroup)
         }
+    }
+
+    // MARK: - Xcode Junk grouping
+
+    /// Groups Xcode junk by the owning project name for DerivedData, or by
+    /// subpath (Archives, iOS DeviceSupport, CoreSimulator Caches) for the rest.
+    private static func groupByXcodeJunk(files: [ScannedFile]) -> [FileGroup] {
+        let homePrefix = CategoryClassifier.sharedHomePrefix
+        let derivedDataRoot = "\(homePrefix)Library/Developer/Xcode/DerivedData/"
+        let archivesRoot = "\(homePrefix)Library/Developer/Xcode/Archives/"
+        let deviceSupportRoot = "\(homePrefix)Library/Developer/Xcode/iOS DeviceSupport/"
+        let simulatorCachesRoot = "\(homePrefix)Library/Developer/CoreSimulator/Caches/"
+
+        var buckets: [String: [ScannedFile]] = [:]
+        var bucketLabels: [String: String] = [:]
+
+        for file in files {
+            let path = file.path
+            let key: String
+            let label: String
+
+            if path.hasPrefix(derivedDataRoot) {
+                // Xcode project folders are named "ProjectName-<hash>"
+                let relative = String(path.dropFirst(derivedDataRoot.count))
+                let folder = relative.split(separator: "/").first.map(String.init) ?? "DerivedData"
+                // Strip the "-xxxxxxxx" hash suffix to show a clean project name
+                let projectName: String = {
+                    if let dashIdx = folder.lastIndex(of: "-") {
+                        return String(folder[folder.startIndex..<dashIdx])
+                    }
+                    return folder
+                }()
+                key = "derivedData:\(folder)"
+                label = "DerivedData · \(projectName)"
+            } else if path.hasPrefix(archivesRoot) {
+                key = "xcodeJunk:archives"
+                label = "Xcode archives"
+            } else if path.hasPrefix(deviceSupportRoot) {
+                // Group by iOS version folder e.g. "17.4 (21E219)"
+                let relative = String(path.dropFirst(deviceSupportRoot.count))
+                let folder = relative.split(separator: "/").first.map(String.init) ?? "DeviceSupport"
+                key = "deviceSupport:\(folder)"
+                label = "iOS \(folder) debug symbols"
+            } else if path.hasPrefix(simulatorCachesRoot) {
+                key = "xcodeJunk:simulatorCaches"
+                label = "CoreSimulator caches"
+            } else {
+                key = "xcodeJunk:other"
+                label = "Xcode other"
+            }
+
+            buckets[key, default: []].append(file)
+            bucketLabels[key] = label
+        }
+
+        return buckets.map { key, bucketFiles in
+            let total = bucketFiles.reduce(0 as Int64) { $0 + $1.size }
+            return FileGroup(
+                id: "xcode:\(key)",
+                label: bucketLabels[key] ?? key,
+                category: .xcodeJunk,
+                totalSize: total,
+                fileCount: bucketFiles.count,
+                files: bucketFiles,
+                topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
+                representativeURL: bucketFiles[0].url.deletingLastPathComponent()
+            )
+        }
+        .sorted { $0.totalSize > $1.totalSize }
+    }
+
+    // MARK: - Dev cache grouping
+
+    /// Groups developer caches by the root cache folder (`.npm`, `.yarn`,
+    /// `Homebrew`, etc.) so the user sees one row per package manager.
+    private static func groupByDevCache(files: [ScannedFile]) -> [FileGroup] {
+        let homePrefix = CategoryClassifier.sharedHomePrefix
+
+        // Ordered list — longer prefixes must come first so `.cache/pip`
+        // matches before `.cache`.
+        let rootPatterns: [(prefix: String, label: String, key: String)] = [
+            (".cache/huggingface", "Hugging Face", "huggingface"),
+            (".cache/pip", "pip", "pip"),
+            (".cache/yarn", "yarn cache", "yarn-cache"),
+            (".cache", "Shell caches", "cache"),
+            (".npm", "npm", "npm"),
+            (".yarn", "yarn", "yarn"),
+            (".pnpm-store", "pnpm", "pnpm"),
+            (".cargo/registry/cache", "Cargo registry", "cargo"),
+            (".rustup/toolchains", "Rust toolchains", "rustup"),
+            ("go/pkg/mod", "Go modules", "go"),
+            ("Library/Caches/Homebrew", "Homebrew", "homebrew"),
+            ("Library/Caches/pip", "pip (Library)", "pip-lib"),
+            ("Library/Caches/com.apple.dt.Xcode", "Xcode cache", "xcode-cache"),
+        ]
+
+        var buckets: [String: (label: String, files: [ScannedFile])] = [:]
+        for file in files {
+            let path = file.path
+            for root in rootPatterns {
+                if path.hasPrefix("\(homePrefix)\(root.prefix)") {
+                    buckets[root.key, default: (root.label, [])].files.append(file)
+                    if buckets[root.key]?.label == nil {
+                        buckets[root.key]?.label = root.label
+                    }
+                    break
+                }
+            }
+        }
+
+        return buckets.map { key, bucket in
+            let total = bucket.files.reduce(0 as Int64) { $0 + $1.size }
+            return FileGroup(
+                id: "devCache:\(key)",
+                label: bucket.label,
+                category: .devCaches,
+                totalSize: total,
+                fileCount: bucket.files.count,
+                files: bucket.files,
+                topFiles: topNLargest(bucket.files, count: topFilesPreviewCount),
+                representativeURL: bucket.files[0].url.deletingLastPathComponent()
+            )
+        }
+        .sorted { $0.totalSize > $1.totalSize }
     }
 
     // MARK: - Library-prefix grouping

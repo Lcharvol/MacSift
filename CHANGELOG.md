@@ -7,6 +7,26 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Four new scan categories:**
+  - **Xcode Junk** — `~/Library/Developer/Xcode/DerivedData`, `Archives`,
+    `iOS DeviceSupport`, and `CoreSimulator/Caches`. DerivedData rows are
+    grouped per Xcode project (the `-hash` suffix is stripped from the
+    folder name).
+  - **Dev Caches** — `~/.npm`, `~/.yarn`, `~/.pnpm-store`, `~/.cache/{pip,
+    huggingface,yarn}`, `~/.cargo/registry/cache`, `~/.rustup/toolchains`,
+    `~/go/pkg/mod`, `~/Library/Caches/Homebrew`. Grouped by package manager
+    so you see one row per tool.
+  - **Old Downloads** — files in `~/Downloads` that haven't been modified
+    in the last 90 days. Age-based rather than size-based, classified as
+    `.risky` by default because users often forget what they downloaded
+    for a reason.
+  - **Mail Attachments** — `~/Library/Mail Downloads` and
+    `~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads`.
+    All attachments collapse into a single row.
+- **Empty Trash** affordance after a successful real cleaning. The cleaning
+  report view shows the current Trash size and offers a one-click "Empty
+  Trash" button with its own confirmation alert.
+- 12 new classifier tests covering the four new categories.
 - Versionless release zip (`MacSift.zip`) so deep links don't break on each release.
 - `inaccessibleCount` on `ScanResult`: the results header now reports how many
   files/directories the scanner had to skip due to permissions or I/O errors.

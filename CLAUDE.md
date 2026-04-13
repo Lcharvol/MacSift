@@ -123,6 +123,28 @@ The build script ad-hoc signs the app so TCC remembers the grant across rebuilds
 - Test names with `.app` extensions in paths trigger `.skipsPackageDescendants` in the FileManager enumerator. The scanner explicitly does NOT pass that option for category scans (only for the large-file scan). Don't change this without re-verifying the scanner integration tests.
 - Suites to know about: `FileGrouper`, `BundleNames`, `FileDescriptions · iOS backups`, `CleaningViewModel` (toggleGroup), `CategoryClassifier` (orphan detection), `DiskScanner Integration` (including `progressStreamEmitsDeltas`).
 
+## Categories (as of the file-category refactor)
+
+Eleven categories, each with a classifier rule + grouper strategy:
+
+| Category | Location(s) | Grouping |
+|----------|-------------|----------|
+| `.cache` | `~/Library/Caches` | by bundle id (`BundleNames.humanLabel`) |
+| `.logs` | `~/Library/Logs`, `/private/var/log` | by bundle id; system logs in one bucket |
+| `.tempFiles` | `/tmp`, `NSTemporaryDirectory()` | singleton |
+| `.appData` | `~/Library/Application Support` (orphan only) | by bundle id |
+| `.largeFiles` | anywhere in home > threshold | singleton |
+| `.timeMachineSnapshots` | tmutil local snapshots | singleton |
+| `.iosBackups` | `~/Library/Application Support/MobileSync/Backup` | by backup root folder (device) |
+| `.xcodeJunk` | `~/Library/Developer/Xcode/{DerivedData,Archives,iOS DeviceSupport}`, `~/Library/Developer/CoreSimulator/Caches` | DerivedData grouped by project name (strip `-hash`), others by sub-root |
+| `.devCaches` | `~/.npm`, `~/.yarn`, `~/.pnpm-store`, `~/.cache/{pip,huggingface,yarn}`, `~/.cargo/registry/cache`, `~/.rustup/toolchains`, `~/go/pkg/mod`, `~/Library/Caches/Homebrew` | by package manager |
+| `.oldDownloads` | `~/Downloads` where mtime > 90 days ago | singleton |
+| `.mailDownloads` | `~/Library/Mail Downloads`, `~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads` | all collapsed into one row |
+
+**Classifier ordering matters.** Rules run in this order: iOS Backups → Xcode Junk → Mail → Dev Caches → Caches → Logs → Temp → Orphan AppData → Old Downloads → Large Files. The Xcode Junk check comes BEFORE `.cache` because CoreSimulator caches are under `~/Library/Caches` and would otherwise be classified as generic caches.
+
+**`.oldDownloads` is the only age-based category.** It requires `modificationDate` to be passed into `classify()`. The scanner already fetches it; don't remove the parameter.
+
 ## User-facing features (as of v0.1.0)
 
 - **Inspector panel** (right side, toggled from toolbar). Click a row once to populate it with the group's size, file count, risk level, top-5 largest files, and Reveal in Finder / Quick Look / Copy Path actions. Never a per-row `.contextMenu` — that killed perf at scale.

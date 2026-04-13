@@ -30,6 +30,10 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
     case largeFiles
     case timeMachineSnapshots
     case iosBackups
+    case xcodeJunk
+    case devCaches
+    case oldDownloads
+    case mailDownloads
 
     var id: String { rawValue }
 
@@ -42,6 +46,10 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
         case .largeFiles: "Large Files"
         case .timeMachineSnapshots: "Time Machine Snapshots"
         case .iosBackups: "iOS Backups"
+        case .xcodeJunk: "Xcode Junk"
+        case .devCaches: "Dev Caches"
+        case .oldDownloads: "Old Downloads"
+        case .mailDownloads: "Mail Attachments"
         }
     }
 
@@ -54,14 +62,18 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
         case .largeFiles: "externaldrive"
         case .timeMachineSnapshots: "clock.arrow.circlepath"
         case .iosBackups: "iphone"
+        case .xcodeJunk: "hammer"
+        case .devCaches: "shippingbox"
+        case .oldDownloads: "tray.and.arrow.down"
+        case .mailDownloads: "paperclip"
         }
     }
 
     var riskLevel: RiskLevel {
         switch self {
-        case .cache, .logs, .tempFiles: .safe
-        case .appData, .timeMachineSnapshots: .moderate
-        case .largeFiles, .iosBackups: .risky
+        case .cache, .logs, .tempFiles, .xcodeJunk, .devCaches: .safe
+        case .appData, .timeMachineSnapshots, .mailDownloads: .moderate
+        case .largeFiles, .iosBackups, .oldDownloads: .risky
         }
     }
 
@@ -74,6 +86,10 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
         case .largeFiles: .orange
         case .timeMachineSnapshots: .green
         case .iosBackups: .pink
+        case .xcodeJunk: .indigo
+        case .devCaches: .mint
+        case .oldDownloads: .brown
+        case .mailDownloads: .teal
         }
     }
 }

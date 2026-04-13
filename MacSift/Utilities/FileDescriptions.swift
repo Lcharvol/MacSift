@@ -20,6 +20,26 @@ enum FileDescriptions {
             return "Time Machine local snapshot"
         case .iosBackups:
             return describeIOSBackup(url: url)
+        case .xcodeJunk:
+            if path.contains("deriveddata") { return "Xcode derived data: \(name)" }
+            if path.contains("archives") { return "Xcode archive: \(name)" }
+            if path.contains("devicesupport") { return "iOS debug symbols: \(name)" }
+            if path.contains("coresimulator") { return "Simulator cache: \(name)" }
+            return "Xcode junk: \(name)"
+        case .devCaches:
+            if path.contains(".npm") { return "npm cache: \(name)" }
+            if path.contains(".yarn") { return "yarn cache: \(name)" }
+            if path.contains(".pnpm") { return "pnpm cache: \(name)" }
+            if path.contains("pip") { return "pip cache: \(name)" }
+            if path.contains("cargo") { return "Cargo cache: \(name)" }
+            if path.contains("rustup") { return "Rust toolchain: \(name)" }
+            if path.contains("go/pkg") { return "Go module: \(name)" }
+            if path.contains("homebrew") { return "Homebrew download: \(name)" }
+            return "Dev cache: \(name)"
+        case .oldDownloads:
+            return "Old download: \(name)"
+        case .mailDownloads:
+            return "Mail attachment: \(name)"
         }
     }
 

@@ -62,9 +62,10 @@ The build script produces a signed `.app` bundle in one step. macOS 26
   `/tmp`, `/private/var/log`, and your entire home directory for large files.
 - **Detects** Time Machine local snapshots and iOS device backups (device
   name + date read from `Info.plist`).
-- **Classifies** every file into one of seven categories:
+- **Classifies** every file into one of eleven categories:
   Caches · Logs · Temporary Files · Unused App Data · Large Files ·
-  Time Machine Snapshots · iOS Backups.
+  Time Machine Snapshots · iOS Backups · **Xcode Junk** · **Dev Caches** ·
+  **Old Downloads** · **Mail Attachments**.
 - **Groups** by owning app. `~/Library/Caches/com.apple.Safari/*` — 15,000
   files — shows up as a single **Safari** row. One decision, not fifteen thousand.
 - **Orphan detection** — `Application Support` folders are only flagged as

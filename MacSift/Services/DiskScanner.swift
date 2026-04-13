@@ -55,6 +55,27 @@ struct DiskScanner: Sendable {
             (homeDirectory.appending(path: "Library/Application Support"), nil),
             (URL(filePath: "/private/var/log"), .logs),
             (URL(filePath: "/tmp"), .tempFiles),
+            // Xcode junk — hint nil so the classifier picks the right subcategory
+            // for files that might match multiple rules (e.g., DerivedData vs. a
+            // cache path inside it).
+            (homeDirectory.appending(path: "Library/Developer/Xcode/DerivedData"), .xcodeJunk),
+            (homeDirectory.appending(path: "Library/Developer/Xcode/Archives"), .xcodeJunk),
+            (homeDirectory.appending(path: "Library/Developer/Xcode/iOS DeviceSupport"), .xcodeJunk),
+            (homeDirectory.appending(path: "Library/Developer/CoreSimulator/Caches"), .xcodeJunk),
+            // Developer caches
+            (homeDirectory.appending(path: ".npm"), .devCaches),
+            (homeDirectory.appending(path: ".yarn"), .devCaches),
+            (homeDirectory.appending(path: ".pnpm-store"), .devCaches),
+            (homeDirectory.appending(path: ".cache"), .devCaches),
+            (homeDirectory.appending(path: ".cargo/registry/cache"), .devCaches),
+            (homeDirectory.appending(path: ".rustup/toolchains"), .devCaches),
+            (homeDirectory.appending(path: "go/pkg/mod"), .devCaches),
+            (homeDirectory.appending(path: "Library/Caches/Homebrew"), .devCaches),
+            // Old Downloads — hint nil so the classifier applies the age filter
+            (homeDirectory.appending(path: "Downloads"), nil),
+            // Mail attachments
+            (homeDirectory.appending(path: "Library/Mail Downloads"), .mailDownloads),
+            (homeDirectory.appending(path: "Library/Containers/com.apple.mail/Data/Library/Mail Downloads"), .mailDownloads),
         ]
 
         let classifier = self.classifier
@@ -188,7 +209,7 @@ struct DiskScanner: Sendable {
             let category: FileCategory
             if let hint = hintCategory {
                 category = hint
-            } else if let classified = classifier.classify(url: fileURL, size: size) {
+            } else if let classified = classifier.classify(url: fileURL, size: size, modificationDate: modDate) {
                 category = classified
             } else {
                 continue

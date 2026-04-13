@@ -6,6 +6,12 @@ struct CleaningPreviewView: View {
 
     /// Show a final destructive confirmation when the user is NOT in dry run.
     @State private var showFinalConfirmation = false
+    /// Cached Trash summary, refreshed when the report view appears.
+    @State private var trashSummary: TrashService.Summary?
+    /// Show a confirmation alert before emptying the Trash.
+    @State private var showEmptyTrashConfirmation = false
+    /// Whether the empty-trash action has already run in this session.
+    @State private var trashEmptied = false
 
     /// 10 GB threshold above which we display an extra warning.
     private static let largeDeletionWarningBytes: Int64 = 10 * 1024 * 1024 * 1024
@@ -282,6 +288,13 @@ struct CleaningPreviewView: View {
 
             Spacer()
 
+            // Empty Trash affordance — only shown when we freed something real
+            // (not a dry run) and the Trash actually has items in it.
+            if !appState.isDryRun, let summary = trashSummary, summary.itemCount > 0, !trashEmptied {
+                emptyTrashRow(summary: summary)
+                    .padding(.horizontal, 20)
+            }
+
             Button {
                 cleaningVM.reset()
             } label: {
@@ -293,5 +306,54 @@ struct CleaningPreviewView: View {
             .controlSize(.large)
             .padding(20)
         }
+        .task {
+            // Refresh the Trash summary when the report view appears.
+            // Runs off the main thread because walking the Trash can take a
+            // moment on systems with many items.
+            trashSummary = await Task.detached(priority: .userInitiated) {
+                TrashService.summary()
+            }.value
+        }
+        .alert(
+            "Empty the Trash?",
+            isPresented: $showEmptyTrashConfirmation
+        ) {
+            Button("Cancel", role: .cancel) { }
+            Button("Empty Trash", role: .destructive) {
+                let freed = TrashService.empty()
+                trashEmptied = true
+                trashSummary = .init(itemCount: 0, totalSize: 0)
+                _ = freed  // reserved for future toast
+            }
+        } message: {
+            let size = trashSummary?.totalSize.formattedFileSize ?? "0 B"
+            let count = trashSummary?.itemCount ?? 0
+            Text("This permanently removes ^[\(count) item](inflect: true) (\(size)) from your Trash. This cannot be undone.")
+        }
+    }
+
+    private func emptyTrashRow(summary: TrashService.Summary) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "trash.circle")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Finish the job?")
+                    .font(.callout.weight(.medium))
+                Text("Your Trash contains ^[\(summary.itemCount) item](inflect: true) (\(summary.totalSize.formattedFileSize)).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Empty Trash") {
+                showEmptyTrashConfirmation = true
+            }
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.quinary)
+        )
     }
 }

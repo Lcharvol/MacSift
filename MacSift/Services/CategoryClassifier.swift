@@ -81,13 +81,33 @@ struct CategoryClassifier: Sendable {
         return true
     }
 
-    func classify(url: URL, size: Int64) -> FileCategory? {
+    /// Files older than this threshold in `~/Downloads` are flagged as
+    /// `.oldDownloads`. 90 days is a reasonable "probably forgotten about" line.
+    static let oldDownloadsAgeThresholdDays: TimeInterval = 90
+
+    func classify(url: URL, size: Int64, modificationDate: Date = .distantPast) -> FileCategory? {
         let path = url.path(percentEncoded: false)
         let homePrefix = Self.sharedHomePrefix
 
         // iOS Backups (check before general appData)
         if path.contains("MobileSync/Backup") {
             return .iosBackups
+        }
+
+        // Xcode Junk — must come before generic cache check since some paths
+        // nest under Library/Developer/Xcode.
+        if Self.isXcodeJunk(path: path, homePrefix: homePrefix) {
+            return .xcodeJunk
+        }
+
+        // Mail attachments
+        if Self.isMailDownload(path: path, homePrefix: homePrefix) {
+            return .mailDownloads
+        }
+
+        // Developer package manager caches
+        if Self.isDevCache(path: path, homePrefix: homePrefix) {
+            return .devCaches
         }
 
         // Caches
@@ -109,15 +129,24 @@ struct CategoryClassifier: Sendable {
         // belongs to an app that is no longer installed (orphaned data).
         let appSupportPrefix = "\(homePrefix)Library/Application Support/"
         if path.hasPrefix(appSupportPrefix) {
-            // Extract the first path component after Application Support
             let relative = String(path.dropFirst(appSupportPrefix.count))
             let firstComponent = relative.split(separator: "/").first.map(String.init) ?? ""
             if isOrphanedAppSupport(folderName: firstComponent) {
                 return .appData
             } else {
-                // Belongs to an installed app — leave it alone
                 return nil
             }
+        }
+
+        // Old Downloads — files in ~/Downloads that haven't been touched in
+        // a while. The threshold is age-based, not size-based.
+        let downloadsPrefix = "\(homePrefix)Downloads/"
+        if path.hasPrefix(downloadsPrefix) {
+            let ageDays = Date().timeIntervalSince(modificationDate) / 86_400
+            if ageDays >= Self.oldDownloadsAgeThresholdDays {
+                return .oldDownloads
+            }
+            return nil
         }
 
         // Large files (anywhere in home)
@@ -128,4 +157,56 @@ struct CategoryClassifier: Sendable {
         return nil
     }
 
+    // MARK: - Xcode / developer path detection
+
+    private static let xcodeJunkSubpaths: [String] = [
+        "Library/Developer/Xcode/DerivedData",
+        "Library/Developer/Xcode/Archives",
+        "Library/Developer/Xcode/iOS DeviceSupport",
+        "Library/Developer/Xcode/watchOS DeviceSupport",
+        "Library/Developer/Xcode/tvOS DeviceSupport",
+        "Library/Developer/Xcode/UserData/IB Support",
+        "Library/Developer/CoreSimulator/Caches",
+    ]
+
+    static func isXcodeJunk(path: String, homePrefix: String) -> Bool {
+        for suffix in xcodeJunkSubpaths {
+            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
+        }
+        return false
+    }
+
+    private static let devCacheSubpaths: [String] = [
+        ".npm",
+        ".yarn",
+        ".pnpm-store",
+        ".cache/pip",
+        ".cache/huggingface",
+        ".cache/yarn",
+        ".cargo/registry/cache",
+        ".rustup/toolchains",
+        "go/pkg/mod",
+        "Library/Caches/Homebrew",
+        "Library/Caches/pip",
+        "Library/Caches/com.apple.dt.Xcode",
+    ]
+
+    static func isDevCache(path: String, homePrefix: String) -> Bool {
+        for suffix in devCacheSubpaths {
+            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
+        }
+        return false
+    }
+
+    private static let mailDownloadSubpaths: [String] = [
+        "Library/Mail Downloads",
+        "Library/Containers/com.apple.mail/Data/Library/Mail Downloads",
+    ]
+
+    static func isMailDownload(path: String, homePrefix: String) -> Bool {
+        for suffix in mailDownloadSubpaths {
+            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
+        }
+        return false
+    }
 }

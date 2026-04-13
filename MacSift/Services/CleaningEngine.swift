@@ -19,87 +19,72 @@ struct CleaningProgress: Sendable {
     let freedSoFar: Int64
 }
 
-actor CleaningEngine {
-    private static let neverDeletePrefixes: [String] = [
+/// Per-file outcome from an attempted cleaning. The caller (`clean`) folds
+/// these into the final `CleaningReport`.
+private enum CleaningOutcome {
+    case deleted(bytes: Int64)
+    case failed(reason: String)
+    case missing
+}
+
+struct CleaningEngine: Sendable {
+    /// System paths we NEVER delete, no matter what the scanner surfaces.
+    /// Checked as a prefix match — anything starting with `/System/...` is
+    /// blocked, not just `/System` itself.
+    private static let neverDeletePrefixes: Set<String> = [
         "/System",
         "/usr",
         "/bin",
         "/sbin",
     ]
 
-    private var progressContinuation: AsyncStream<CleaningProgress>.Continuation?
-    private var _progressStream: AsyncStream<CleaningProgress>?
-
-    func progressStream() -> AsyncStream<CleaningProgress> {
-        if let existing = _progressStream {
-            return existing
+    private static func isProtectedPath(_ path: String) -> Bool {
+        guard path.hasPrefix("/") else { return false }
+        for prefix in neverDeletePrefixes {
+            if path == prefix || path.hasPrefix(prefix + "/") { return true }
         }
-        let stream = AsyncStream<CleaningProgress> { continuation in
-            self.progressContinuation = continuation
-        }
-        _progressStream = stream
-        return stream
+        return false
     }
 
-    func clean(files: [ScannedFile], dryRun: Bool) async -> CleaningReport {
+    /// Clean the supplied files. Progress events are emitted to the supplied
+    /// continuation (pass nil if you don't care). The continuation is NOT
+    /// finished by this function — the caller owns its lifecycle.
+    func clean(
+        files: [ScannedFile],
+        dryRun: Bool,
+        progress: AsyncStream<CleaningProgress>.Continuation? = nil
+    ) async -> CleaningReport {
         var deletedCount = 0
         var freedSize: Int64 = 0
         var failedFiles: [(ScannedFile, String)] = []
-        let fm = FileManager.default
 
         for (index, file) in files.enumerated() {
-            let path = file.url.path(percentEncoded: false)
-
-            if Self.neverDeletePrefixes.contains(where: { path.hasPrefix($0) }) {
-                failedFiles.append((file, "System file — deletion blocked for safety"))
-                continue
-            }
-
-            progressContinuation?.yield(CleaningProgress(
+            progress?.yield(CleaningProgress(
                 processed: index + 1,
                 total: files.count,
                 currentFile: file.name,
                 freedSoFar: freedSize
             ))
 
+            let outcome: CleaningOutcome
             if dryRun {
-                deletedCount += 1
-                freedSize += file.size
-                continue
+                outcome = .deleted(bytes: file.size)
+            } else if file.category == .timeMachineSnapshots {
+                outcome = await Self.cleanTimeMachineSnapshot(file)
+            } else {
+                outcome = Self.cleanFile(file)
             }
 
-            // Time Machine snapshots have a synthetic URL; dispatch to tmutil.
-            if file.category == .timeMachineSnapshots {
-                let dateString = String(file.url.lastPathComponent.dropFirst("com.apple.TimeMachine.".count).dropLast(".local".count))
-                do {
-                    try await TimeMachineService.deleteSnapshot(dateString: dateString)
-                    deletedCount += 1
-                    freedSize += file.size
-                } catch {
-                    let msg = error.localizedDescription
-                    let hint = msg.contains("not permitted") || msg.contains("requires") || msg.contains("must be run")
-                        ? "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots \(dateString)` in Terminal."
-                        : msg
-                    failedFiles.append((file, hint))
-                }
-                continue
-            }
-
-            guard fm.fileExists(atPath: path) else { continue }
-
-            // Move to the user's Trash so the action is fully reversible from
-            // Finder. trashItem is the synchronous throwing API for this.
-            do {
-                var resultingURL: NSURL?
-                try fm.trashItem(at: file.url, resultingItemURL: &resultingURL)
+            switch outcome {
+            case .deleted(let bytes):
                 deletedCount += 1
-                freedSize += file.size
-            } catch {
-                failedFiles.append((file, error.localizedDescription))
+                freedSize += bytes
+            case .failed(let reason):
+                failedFiles.append((file, reason))
+            case .missing:
+                continue
             }
         }
-
-        progressContinuation?.finish()
 
         return CleaningReport(
             deletedCount: deletedCount,
@@ -107,5 +92,47 @@ actor CleaningEngine {
             failedFiles: failedFiles,
             totalProcessed: files.count
         )
+    }
+
+    /// Move a single file to the user's Trash. Returns the outcome — caller
+    /// is responsible for folding it into the aggregate report.
+    private static func cleanFile(_ file: ScannedFile) -> CleaningOutcome {
+        let path = file.url.path(percentEncoded: false)
+
+        if isProtectedPath(path) {
+            return .failed(reason: "System file — deletion blocked for safety")
+        }
+
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: path) else { return .missing }
+
+        do {
+            var resultingURL: NSURL?
+            try fm.trashItem(at: file.url, resultingItemURL: &resultingURL)
+            return .deleted(bytes: file.size)
+        } catch {
+            return .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// Time Machine snapshots have a synthetic URL; dispatch to `tmutil`
+    /// via `TimeMachineService` and translate permission errors into a hint
+    /// pointing the user at the sudo form.
+    private static func cleanTimeMachineSnapshot(_ file: ScannedFile) async -> CleaningOutcome {
+        let dateString = String(
+            file.url.lastPathComponent
+                .dropFirst("com.apple.TimeMachine.".count)
+                .dropLast(".local".count)
+        )
+        do {
+            try await TimeMachineService.deleteSnapshot(dateString: dateString)
+            return .deleted(bytes: file.size)
+        } catch {
+            let msg = error.localizedDescription
+            let hint = msg.contains("not permitted") || msg.contains("requires") || msg.contains("must be run")
+                ? "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots \(dateString)` in Terminal."
+                : msg
+            return .failed(reason: hint)
+        }
     }
 }

@@ -98,7 +98,9 @@ struct MainView: View {
                 NSApp.dockTile.badgeLabel = nil
             }
         }
-        .onChange(of: cleaningVM.selectedIDs) { _, _ in
+        .onChange(of: cleaningVM.selectionVersion) { _, _ in
+            // Observe the int counter instead of the Set itself — equality
+            // on a Set<String> with thousands of entries is O(n) per render.
             refreshSelectionSummary()
         }
         .onChange(of: cleaningVM.state) { _, newState in
@@ -131,7 +133,7 @@ struct MainView: View {
             cleaningVM.selectAllSafe(from: scanVM.result)
         }
         .onReceive(NotificationCenter.default.publisher(for: .macSiftDeselectAll)) { _ in
-            cleaningVM.selectedIDs.removeAll()
+            cleaningVM.setSelectedIDs([])
         }
     }
 

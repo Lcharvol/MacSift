@@ -63,7 +63,7 @@ struct CleaningViewModelTests {
 
         let vm = makeVM(with: files)
         // Pre-select all
-        vm.selectedIDs = Set(files.map(\.id))
+        vm.setSelectedIDs(Set(files.map(\.id)))
 
         vm.toggleGroup(group)
 
@@ -76,7 +76,7 @@ struct CleaningViewModelTests {
 
         let vm = makeVM(with: files)
         // Select only one
-        vm.selectedIDs = [files[0].id]
+        vm.setSelectedIDs([files[0].id])
 
         vm.toggleGroup(group)
 
@@ -90,7 +90,7 @@ struct CleaningViewModelTests {
         let group = makeGroup(files: groupFiles)
 
         let vm = makeVM(with: groupFiles + [otherFile])
-        vm.selectedIDs = [otherFile.id]
+        vm.setSelectedIDs([otherFile.id])
 
         vm.toggleGroup(group)
 

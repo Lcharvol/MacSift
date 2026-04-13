@@ -18,6 +18,51 @@ struct ScanRootResult: Sendable {
     var inaccessibleCount: Int
 }
 
+/// Small helper that buffers per-file delta counts and only yields a
+/// `ScanProgress` event when the buffered count crosses the threshold.
+/// Both scan functions had this pattern inline — extracting it keeps them
+/// shorter and ensures the "final flush" semantics stay in sync.
+private struct ProgressThrottler {
+    let threshold: Int
+    let category: FileCategory?
+    let continuation: AsyncStream<ScanProgress>.Continuation?
+
+    private var bufferedFiles = 0
+    private var bufferedBytes: Int64 = 0
+
+    init(threshold: Int, category: FileCategory?, continuation: AsyncStream<ScanProgress>.Continuation?) {
+        self.threshold = threshold
+        self.category = category
+        self.continuation = continuation
+    }
+
+    mutating func add(bytes: Int64, currentPath: @autoclosure () -> String) {
+        bufferedFiles += 1
+        bufferedBytes += bytes
+        if bufferedFiles >= threshold {
+            flush(currentPath: currentPath())
+        }
+    }
+
+    mutating func tick(currentPath: @autoclosure () -> String) {
+        if bufferedFiles >= threshold {
+            flush(currentPath: currentPath())
+        }
+    }
+
+    mutating func flush(currentPath: String) {
+        guard bufferedFiles > 0 else { return }
+        continuation?.yield(ScanProgress(
+            deltaFiles: bufferedFiles,
+            deltaSize: bufferedBytes,
+            currentPath: currentPath,
+            category: category
+        ))
+        bufferedFiles = 0
+        bufferedBytes = 0
+    }
+}
+
 struct DiskScanner: Sendable {
     let classifier: CategoryClassifier
     let exclusionManager: ExclusionManager
@@ -166,8 +211,7 @@ struct DiskScanner: Sendable {
 
         var files: [ScannedFile] = []
         var inaccessible = 0
-        var deltaFiles = 0
-        var deltaSize: Int64 = 0
+        var throttler = ProgressThrottler(threshold: 100, category: hintCategory, continuation: progress)
 
         var cancelCheckCounter = 0
         while let next = enumerator.nextObject() {
@@ -225,31 +269,10 @@ struct DiskScanner: Sendable {
                 modificationDate: modDate,
                 isDirectory: false
             ))
-            deltaFiles += 1
-            deltaSize += size
-
-            // Throttle progress: emit a delta every 100 files
-            if deltaFiles >= 100 {
-                progress?.yield(ScanProgress(
-                    deltaFiles: deltaFiles,
-                    deltaSize: deltaSize,
-                    currentPath: fileURL.lastPathComponent,
-                    category: category
-                ))
-                deltaFiles = 0
-                deltaSize = 0
-            }
+            throttler.add(bytes: size, currentPath: fileURL.lastPathComponent)
         }
 
-        // Final flush of any remaining delta
-        if deltaFiles > 0 {
-            progress?.yield(ScanProgress(
-                deltaFiles: deltaFiles,
-                deltaSize: deltaSize,
-                currentPath: directory.lastPathComponent,
-                category: hintCategory
-            ))
-        }
+        throttler.flush(currentPath: directory.lastPathComponent)
 
         return ScanRootResult(files: files, inaccessibleCount: inaccessible)
     }
@@ -311,8 +334,10 @@ struct DiskScanner: Sendable {
         let homePrefix = homePath.hasSuffix("/") ? homePath : homePath + "/"
         var files: [ScannedFile] = []
         var inaccessible = 0
-        var deltaFiles = 0
-        var deltaSize: Int64 = 0
+        // Large-file scan walks many small files between hits, so we ask the
+        // throttler to flush on a visited-count cadence (threshold 1 means
+        // any buffered delta goes out at the next tick).
+        var throttler = ProgressThrottler(threshold: 1, category: .largeFiles, continuation: progress)
         var visited = 0
 
         while let next = enumerator.nextObject() {
@@ -322,16 +347,8 @@ struct DiskScanner: Sendable {
             guard let fileURL = next as? URL else { continue }
 
             visited += 1
-            // Throttle by visited count (we walk many small files between large ones)
             if visited % 500 == 0 {
-                progress?.yield(ScanProgress(
-                    deltaFiles: deltaFiles,
-                    deltaSize: deltaSize,
-                    currentPath: fileURL.lastPathComponent,
-                    category: .largeFiles
-                ))
-                deltaFiles = 0
-                deltaSize = 0
+                throttler.flush(currentPath: fileURL.lastPathComponent)
             }
 
             let filePath = fileURL.path(percentEncoded: false)
@@ -375,19 +392,10 @@ struct DiskScanner: Sendable {
                 modificationDate: modDate,
                 isDirectory: false
             ))
-            deltaFiles += 1
-            deltaSize += size
+            throttler.add(bytes: size, currentPath: fileURL.lastPathComponent)
         }
 
-        // Final flush
-        if deltaFiles > 0 {
-            progress?.yield(ScanProgress(
-                deltaFiles: deltaFiles,
-                deltaSize: deltaSize,
-                currentPath: directory.lastPathComponent,
-                category: .largeFiles
-            ))
-        }
+        throttler.flush(currentPath: directory.lastPathComponent)
 
         return ScanRootResult(files: files, inaccessibleCount: inaccessible)
     }

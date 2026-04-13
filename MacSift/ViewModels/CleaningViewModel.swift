@@ -10,10 +10,23 @@ final class CleaningViewModel: ObservableObject {
     }
 
     @Published var state: State = .idle
-    @Published var selectedIDs: Set<String> = []
+    /// Backing storage for the current selection. Kept private so every
+    /// mutation bumps `selectionVersion` — observers use the int instead
+    /// of comparing the whole Set on each SwiftUI render.
+    @Published private(set) var selectedIDs: Set<String> = []
+    /// Increments on every mutation of `selectedIDs`. SwiftUI views
+    /// should `onChange(of: selectionVersion)` instead of the Set itself
+    /// — comparing a 10k-element Set for equality is O(n) per render.
+    @Published private(set) var selectionVersion: Int = 0
     @Published var report: CleaningReport?
     @Published var cleaningProgress: CleaningProgress?
     @Published var showPreview: Bool = false
+
+    /// Replace the selection wholesale. Bumps `selectionVersion` exactly once.
+    func setSelectedIDs(_ newValue: Set<String>) {
+        selectedIDs = newValue
+        selectionVersion &+= 1
+    }
 
     private let appState: AppState
     // Index for O(1) lookup by ID — populated when the scan completes
@@ -59,7 +72,7 @@ final class CleaningViewModel: ObservableObject {
             if Task.isCancelled { return }
             guard let self else { return }
             self.fileIndex = dict
-            self.selectedIDs = self.selectedIDs.intersection(dict.keys)
+            self.setSelectedIDs(self.selectedIDs.intersection(dict.keys))
         }
     }
 
@@ -113,16 +126,17 @@ final class CleaningViewModel: ObservableObject {
     }
 
     func toggleFile(_ file: ScannedFile) {
-        if selectedIDs.contains(file.id) {
-            selectedIDs.remove(file.id)
+        var next = selectedIDs
+        if next.contains(file.id) {
+            next.remove(file.id)
         } else {
-            selectedIDs.insert(file.id)
+            next.insert(file.id)
         }
+        setSelectedIDs(next)
     }
 
     /// Toggle every file inside a `FileGroup`. If all files are already
-    /// selected, deselect them all; otherwise select all of them. Mutations
-    /// are batched into one assignment to avoid per-id @Published cascades.
+    /// selected, deselect them all; otherwise select all of them.
     func toggleGroup(_ group: FileGroup) {
         let groupIDs = group.fileIDs
         var newSelection = selectedIDs
@@ -131,17 +145,15 @@ final class CleaningViewModel: ObservableObject {
         } else {
             newSelection.formUnion(groupIDs)
         }
-        selectedIDs = newSelection
+        setSelectedIDs(newSelection)
     }
 
     func selectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
-        // Build the new set locally then assign once — avoids 1 @Published
-        // notification per inserted item, which freezes the UI for large categories.
         var newSelection = selectedIDs
         for file in files {
             newSelection.insert(file.id)
         }
-        selectedIDs = newSelection
+        setSelectedIDs(newSelection)
     }
 
     func deselectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
@@ -149,7 +161,7 @@ final class CleaningViewModel: ObservableObject {
         for file in files {
             newSelection.remove(file.id)
         }
-        selectedIDs = newSelection
+        setSelectedIDs(newSelection)
     }
 
     func selectAllSafe(from result: ScanResult) {
@@ -159,7 +171,7 @@ final class CleaningViewModel: ObservableObject {
                 newSelection.insert(file.id)
             }
         }
-        selectedIDs = newSelection
+        setSelectedIDs(newSelection)
     }
 
     func showCleaningPreview() {
@@ -183,7 +195,7 @@ final class CleaningViewModel: ObservableObject {
 
         let engine = CleaningEngine()
 
-        let stream = await engine.progressStream()
+        let (stream, continuation) = AsyncStream<CleaningProgress>.makeStream()
         let progressTask = Task { [weak self] in
             for await progress in stream {
                 await MainActor.run {
@@ -194,8 +206,10 @@ final class CleaningViewModel: ObservableObject {
 
         let cleaningReport = await engine.clean(
             files: selectedFiles,
-            dryRun: appState.isDryRun
+            dryRun: appState.isDryRun,
+            progress: continuation
         )
+        continuation.finish()
 
         progressTask.cancel()
 
@@ -205,7 +219,7 @@ final class CleaningViewModel: ObservableObject {
         }
 
         self.report = cleaningReport
-        self.selectedIDs.removeAll()
+        self.setSelectedIDs([])
         self.state = .completed
     }
 

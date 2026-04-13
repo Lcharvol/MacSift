@@ -212,20 +212,16 @@ struct SettingsView: View {
     }
 
     private func resetAllSettings() {
-        let defaults = UserDefaults.standard
-        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "oldDownloadsAgeDays",
-                    "excludedPaths", "lifetimeScanCount", "lifetimeCleanedBytes"]
-        {
-            defaults.removeObject(forKey: key)
-        }
-        // Reapply defaults on the live AppState so the UI updates immediately
+        // Setting each @Published property triggers its didSet which writes
+        // the default value back to UserDefaults — no need to removeObject
+        // first (that was redundant and only fired didSet a second time).
         appState.mode = .simple
         appState.isDryRun = true
         appState.largeFileThresholdMB = 500
         appState.oldDownloadsAgeDays = 90
         appState.lifetimeScanCount = 0
         appState.lifetimeCleanedBytes = 0
-        // Clear exclusions
+        // Clear exclusions — persisted via ExclusionManager's own storage.
         for url in exclusionManager.excludedPaths {
             exclusionManager.removeExclusion(url)
         }

@@ -87,19 +87,24 @@ final class ScanViewModel: ObservableObject {
 
         let scanResult = await scanner.scan()
 
+        // Sort off the main thread — with 10k+ files this would freeze the UI
+        // for hundreds of milliseconds at the end of the scan.
+        let prepared: (byCategory: [FileCategory: [ScannedFile]], all: [ScannedFile]) =
+            await Task.detached(priority: .userInitiated) {
+                let byCategory = scanResult.filesByCategory.mapValues { files in
+                    files.sorted { $0.size > $1.size }
+                }
+                let all = byCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
+                return (byCategory, all)
+            }.value
+
         let snapshots = (try? await TimeMachineService.listSnapshots()) ?? []
 
         progressTask.cancel()
 
-        // Pre-sort once so the UI doesn't re-sort on every selection toggle
-        let sortedByCategory = scanResult.filesByCategory.mapValues { files in
-            files.sorted { $0.size > $1.size }
-        }
-        let allSorted = sortedByCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
-
         self.result = scanResult
-        self.sortedFilesByCategory = sortedByCategory
-        self.allSortedFiles = allSorted
+        self.sortedFilesByCategory = prepared.byCategory
+        self.allSortedFiles = prepared.all
         self.tmSnapshots = snapshots
         self.state = .completed
     }

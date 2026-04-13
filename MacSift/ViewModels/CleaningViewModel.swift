@@ -24,15 +24,23 @@ final class CleaningViewModel: ObservableObject {
     }
 
     func updateFileIndex(from result: ScanResult) {
-        var index: [UUID: ScannedFile] = [:]
-        for files in result.filesByCategory.values {
-            for file in files {
-                index[file.id] = file
-            }
+        // Build the index off the main thread to avoid blocking the UI when
+        // the scan finishes (50k+ files = noticeable freeze).
+        Task {
+            let index: [UUID: ScannedFile] = await Task.detached(priority: .userInitiated) {
+                var dict: [UUID: ScannedFile] = [:]
+                for files in result.filesByCategory.values {
+                    for file in files {
+                        dict[file.id] = file
+                    }
+                }
+                return dict
+            }.value
+
+            self.fileIndex = index
+            // Drop selections that no longer exist
+            self.selectedIDs = selectedIDs.intersection(index.keys)
         }
-        self.fileIndex = index
-        // Drop selections that no longer exist
-        self.selectedIDs = selectedIDs.intersection(index.keys)
     }
 
     var selectedFiles: [ScannedFile] {

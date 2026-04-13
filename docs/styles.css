@@ -318,7 +318,7 @@ code {
 .mockup {
     flex: 1;
     display: grid;
-    grid-template-columns: 220px 1fr 220px;
+    grid-template-columns: minmax(170px, 200px) minmax(0, 1fr);
     background: #0a0b0f;
     color: var(--text);
     font-size: 12px;
@@ -686,13 +686,11 @@ code {
 
 /* ----- Inspector -------------------------------------------------------- */
 
+/* The inspector column is not shown in the hero mockup — the sidebar + main
+   area alone carry the story without overflowing narrow hero columns. The
+   real app's inspector is shown separately in the "How it works" prose. */
 .mk-inspector {
-    padding: 18px 16px;
-    border-left: 1px solid var(--rule);
-    background: rgba(255, 255, 255, 0.02);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: none;
 }
 
 .mk-inspector__icon {
@@ -1149,12 +1147,6 @@ code {
     }
 }
 
-@media (max-width: 960px) {
-    /* On tablet, hide the inspector column to let the rest breathe */
-    .mockup { grid-template-columns: 200px 1fr; }
-    .mk-inspector { display: none; }
-}
-
 @media (max-width: 640px) {
     .nav__links > a:not(.nav__github):not(:last-child) { display: none; }
     .hero { padding-top: 130px; padding-bottom: 80px; }
@@ -1164,7 +1156,7 @@ code {
     .what__list li { grid-template-columns: 1fr auto; gap: 8px; }
     .what__list .mono { grid-column: 1 / -1; }
     .footer__inner { flex-direction: column; gap: 16px; text-align: center; }
-    /* On phones, stack the mockup vertically */
+    /* On phones, hide the sidebar and show only the main area */
     .mockup { grid-template-columns: 1fr; }
     .mk-sidebar { display: none; }
 }

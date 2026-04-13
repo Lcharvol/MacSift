@@ -995,6 +995,48 @@ code {
     line-height: 1.65;
 }
 
+.install__option {
+    padding: 28px 0;
+    border-top: 1px solid var(--rule-soft);
+    max-width: 760px;
+}
+
+.install__option:first-of-type {
+    border-top: 1px solid var(--rule);
+    margin-top: 12px;
+}
+
+.install__option h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+
+.install__detail {
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 64ch;
+    margin-bottom: 14px;
+}
+
+.install__detail a {
+    color: var(--text);
+    border-bottom: 1px solid var(--rule);
+}
+
+.install__detail a:hover {
+    border-bottom-color: var(--accent);
+}
+
+.install__detail strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
 /* ========================================================================
    FAQ
    ======================================================================== */

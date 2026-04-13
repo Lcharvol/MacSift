@@ -49,15 +49,15 @@
                         Trash (so you can always undo), and gets out of your way.
                     </p>
                     <div class="hero__actions">
-                        <a href="https://github.com/Lcharvol/MacSift" class="btn btn--primary" target="_blank" rel="noopener">
-                            Get it on GitHub
+                        <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift-0.1.0.zip" class="btn btn--primary">
+                            Download for macOS
                             <span class="btn__arrow" aria-hidden="true">→</span>
                         </a>
-                        <a href="#how" class="btn btn--text">Read how it works</a>
+                        <a href="#install" class="btn btn--text">Or build from source</a>
                     </div>
                     <p class="hero__fineprint">
-                        Free &amp; open source. No network calls. No telemetry. No DMG yet —
-                        you clone and run a one-line build.
+                        v0.1.0 · Apple Silicon · macOS 26 (Tahoe) · 1.5&nbsp;MB · free &amp; open source.
+                        First launch: right-click → Open (ad-hoc signed, no Developer ID).
                     </p>
                 </div>
 
@@ -192,21 +192,40 @@
         <!-- INSTALL -->
         <section class="install" id="install">
             <div class="container">
-                <h2 class="install__title">Install from source.</h2>
+                <h2 class="install__title">Two ways to install.</h2>
                 <p class="install__lede">
-                    MacSift is a SwiftPM project — no <code>.xcodeproj</code>, no Xcode GUI
-                    required. The build script produces a signed <code>.app</code> bundle.
+                    Pick whichever you trust more — the pre-built zip from GitHub
+                    Releases, or clone and build the exact same binary yourself.
                 </p>
-                <pre class="code-block">
+
+                <div class="install__option">
+                    <h3>Option A · Download the release</h3>
+                    <p class="install__detail">
+                        <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift-0.1.0.zip">MacSift-0.1.0.zip</a> (1.5&nbsp;MB).
+                        Unzip, drag <code>MacSift.app</code> to Applications, then
+                        <strong>right-click → Open</strong> the first time to get past Gatekeeper.
+                        The app is ad-hoc signed (no paid Developer ID), so macOS asks once
+                        and remembers forever.
+                    </p>
+                </div>
+
+                <div class="install__option">
+                    <h3>Option B · Build from source</h3>
+                    <p class="install__detail">
+                        SwiftPM project, no <code>.xcodeproj</code>, no Xcode GUI required.
+                        Produces the same binary the release ships with.
+                    </p>
+                    <pre class="code-block">
 <span class="code-block__prompt">$</span> git clone https://github.com/Lcharvol/MacSift.git
 <span class="code-block__prompt">$</span> cd MacSift
 <span class="code-block__prompt">$</span> ./build-app.sh &amp;&amp; open MacSift.app<button class="copy-btn" data-copy="git clone https://github.com/Lcharvol/MacSift.git&#10;cd MacSift&#10;./build-app.sh && open MacSift.app">Copy</button>
 </pre>
+                </div>
+
                 <p class="install__note">
-                    Requires macOS 26 (Tahoe) and the Xcode 26 command-line tools. The app
-                    will ask for Full Disk Access on first launch — you grant it once in
-                    System Settings and it stays granted across rebuilds (the script
-                    ad-hoc-signs the bundle so TCC remembers it).
+                    Both options require macOS 26 (Tahoe) on Apple Silicon and Full Disk
+                    Access (granted once in System Settings → Privacy &amp; Security on
+                    first launch).
                 </p>
             </div>
         </section>
@@ -229,12 +248,14 @@
                     </details>
 
                     <details class="faq-item">
-                        <summary>Why is there no DMG?</summary>
+                        <summary>Why does Gatekeeper warn me on first launch?</summary>
                         <p>
-                            MacSift isn't notarized with an Apple Developer account, so I don't
-                            want to distribute a DMG that Gatekeeper would refuse to open on
-                            anyone else's Mac. Building from source is one command and produces
-                            the same binary I use.
+                            The app ships ad-hoc signed, not notarized — I don't have a paid
+                            Apple Developer account to notarize with. That means Gatekeeper
+                            asks once the first time you open it (right-click → Open →
+                            confirm). Every launch after that is silent. If you'd rather
+                            trust the source than trust me, option B in the install section
+                            produces the exact same binary from scratch in a few seconds.
                         </p>
                     </details>
 

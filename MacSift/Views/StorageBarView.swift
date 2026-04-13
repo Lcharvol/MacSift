@@ -6,23 +6,30 @@ struct StorageBarView: View {
 
     @State private var hoveredCategory: FileCategory?
 
-    private var entries: [(FileCategory, Int64)] {
-        FileCategory.allCases.compactMap { category in
+    /// Precomputed once per render in `body` and threaded into the sub-views.
+    /// Previously `entries` was a computed property read 3-4 times per render,
+    /// each time iterating categories and sorting.
+    private struct Snapshot {
+        let entries: [(FileCategory, Int64)]
+        let totalSize: Int64
+    }
+
+    private func snapshot() -> Snapshot {
+        let pairs: [(FileCategory, Int64)] = FileCategory.allCases.compactMap { category in
             let size = result.sizeByCategory[category] ?? 0
             return size > 0 ? (category, size) : nil
         }
-        .sorted { $0.1 > $1.1 }
-    }
-
-    private var totalSize: Int64 {
-        entries.reduce(0) { $0 + $1.1 }
+        let sorted = pairs.sorted { $0.1 > $1.1 }
+        let total = sorted.reduce(0 as Int64) { $0 + $1.1 }
+        return Snapshot(entries: sorted, totalSize: total)
     }
 
     var body: some View {
+        let snap = snapshot()
         VStack(alignment: .leading, spacing: 14) {
-            header
-            bar
-            legend
+            header(totalSize: snap.totalSize)
+            bar(entries: snap.entries, totalSize: snap.totalSize)
+            legend(entries: snap.entries)
         }
         .padding(18)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -30,7 +37,7 @@ struct StorageBarView: View {
 
     // MARK: - Header
 
-    private var header: some View {
+    private func header(totalSize: Int64) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Storage Found")
                 .font(.headline)
@@ -44,7 +51,7 @@ struct StorageBarView: View {
 
     // MARK: - Bar
 
-    private var bar: some View {
+    private func bar(entries: [(FileCategory, Int64)], totalSize: Int64) -> some View {
         GeometryReader { geo in
             let width = geo.size.width
             let total = max(totalSize, 1)
@@ -89,7 +96,7 @@ struct StorageBarView: View {
 
     // MARK: - Legend
 
-    private var legend: some View {
+    private func legend(entries: [(FileCategory, Int64)]) -> some View {
         FlowLayout(spacing: 14) {
             ForEach(entries, id: \.0) { entry in
                 let (category, size) = entry

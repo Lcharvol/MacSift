@@ -95,7 +95,7 @@ struct MainView: View {
 
             CategoryListView(
                 sizeByCategory: scanVM.result.sizeByCategory,
-                countByCategory: scanVM.result.filesByCategory.mapValues { $0.count },
+                countByCategory: scanVM.result.countByCategory,
                 selectedCategory: selectedCategoryBinding
             )
             .scrollContentBackground(.hidden)

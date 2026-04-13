@@ -20,6 +20,17 @@ struct MainView: View {
     /// When non-nil, the file list shows every ScannedFile in this group
     /// instead of the grouped view. Acts as a "drill down" for power users.
     @State private var expandedGroup: FileGroup?
+    /// Cached multi-selection summary. Recomputed ONLY when selectedIDs or
+    /// allSortedGroups change — never on every MainView body re-render.
+    /// Without this cache, every keystroke in the search field triggered
+    /// an O(all files) iteration inside the inspector closure, which on
+    /// big scans (50k+ files) produced visible freezes.
+    @State private var cachedSelectionSummary: SelectionSummary = SelectionSummary(
+        groupCount: 0, fileCount: 0, totalSize: 0, countByCategory: [:]
+    )
+    /// Tracks the currently-running freed-banner dismissal task so rapid
+    /// repeated cleanings don't pile up sleeping tasks in memory.
+    @State private var bannerDismissTask: Task<Void, Never>?
     /// Size of the most recent cleaning report — used to show a "freed X GB"
     /// banner after the auto-rescan finishes.
     @State private var pendingFreedSize: Int64 = 0
@@ -71,8 +82,8 @@ struct MainView: View {
         .onChange(of: scanVM.state) { _, newState in
             if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
-                // Show the number of .safe groups as a Dock badge — the user
-                // can see at a glance how many things are waiting to be cleaned.
+                refreshSelectionSummary()
+                // Show the number of .safe groups as a Dock badge.
                 let safeCount = scanVM.allSortedGroups.filter { $0.category.riskLevel == .safe }.count
                 NSApp.dockTile.badgeLabel = safeCount > 0 ? "\(safeCount)" : nil
 
@@ -81,16 +92,14 @@ struct MainView: View {
                 if pendingFreedSize > 0 {
                     freedBanner = "You just freed \(pendingFreedSize.formattedFileSize)."
                     pendingFreedSize = 0
-                    Task {
-                        try? await Task.sleep(nanoseconds: 5_000_000_000)
-                        await MainActor.run {
-                            withAnimation { freedBanner = nil }
-                        }
-                    }
+                    scheduleBannerDismissal()
                 }
             } else if newState.isScanning {
                 NSApp.dockTile.badgeLabel = nil
             }
+        }
+        .onChange(of: cleaningVM.selectedIDs) { _, _ in
+            refreshSelectionSummary()
         }
         .onChange(of: cleaningVM.state) { _, newState in
             // Auto-rescan after a successful real (non-dry-run) cleaning so
@@ -278,13 +287,30 @@ struct MainView: View {
         .inspector(isPresented: $isInspectorPresented) {
             InspectorView(
                 group: inspectedGroup,
-                selectionSummary: inspectedGroup == nil
-                    ? cleaningVM.selectionSummary(using: scanVM.allSortedGroups)
-                    : nil,
+                selectionSummary: inspectedGroup == nil ? cachedSelectionSummary : nil,
                 onExclude: { url in exclusionManager.addExclusion(url) },
                 onExpand: { group in expandedGroup = group }
             )
             .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
+        }
+    }
+
+    /// Recompute the multi-selection summary. Called from onChange handlers
+    /// that fire ONLY when the selection or the scan result changes —
+    /// not on every view body re-render.
+    private func refreshSelectionSummary() {
+        cachedSelectionSummary = cleaningVM.selectionSummary(using: scanVM.allSortedGroups)
+    }
+
+    /// Dismiss the freed banner after 5 seconds. Cancels any previous
+    /// pending dismissal so rapid clean+rescan cycles don't pile up sleeping
+    /// tasks — each call replaces the timer.
+    private func scheduleBannerDismissal() {
+        bannerDismissTask?.cancel()
+        bannerDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if Task.isCancelled { return }
+            withAnimation { freedBanner = nil }
         }
     }
 

@@ -34,6 +34,16 @@ enum FileGrouper {
         return heap.reversed()
     }
 
+    /// Pre-compute the most recent modification date across all files so
+    /// the "Most Recent" sort doesn't walk every file on every render.
+    private static func mostRecentDate(in files: [ScannedFile]) -> Date {
+        var result = Date.distantPast
+        for file in files where file.modificationDate > result {
+            result = file.modificationDate
+        }
+        return result
+    }
+
     static func group(_ files: [ScannedFile]) -> [FileGroup] {
         guard !files.isEmpty else { return [] }
         // All files in this batch should belong to the same category — but we
@@ -61,6 +71,7 @@ enum FileGrouper {
                 fileCount: files.count,
                 files: files,
                 topFiles: topNLargest(files, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: files),
                 representativeURL: representative
             )]
         case .timeMachineSnapshots, .tempFiles, .largeFiles, .oldDownloads:
@@ -131,6 +142,7 @@ enum FileGrouper {
                 fileCount: bucketFiles.count,
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: bucketFiles),
                 representativeURL: bucketFiles[0].url.deletingLastPathComponent()
             )
         }
@@ -186,6 +198,7 @@ enum FileGrouper {
                 fileCount: bucket.files.count,
                 files: bucket.files,
                 topFiles: topNLargest(bucket.files, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: bucket.files),
                 representativeURL: bucket.files[0].url.deletingLastPathComponent()
             )
         }
@@ -246,6 +259,7 @@ enum FileGrouper {
                 fileCount: bucketFiles.count,
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: bucketFiles),
                 representativeURL: representative
             ))
         }
@@ -260,6 +274,7 @@ enum FileGrouper {
                 fileCount: systemBucket.count,
                 files: systemBucket,
                 topFiles: topNLargest(systemBucket, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: systemBucket),
                 representativeURL: systemBucket[0].url
             ))
         }
@@ -303,6 +318,7 @@ enum FileGrouper {
                 fileCount: bucketFiles.count,
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
+                mostRecentModificationDate: mostRecentDate(in: bucketFiles),
                 representativeURL: backupRoot
             )
         }
@@ -320,6 +336,7 @@ enum FileGrouper {
             fileCount: 1,
             files: [file],
             topFiles: [file],
+            mostRecentModificationDate: file.modificationDate,
             representativeURL: file.url
         )
     }

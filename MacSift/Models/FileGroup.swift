@@ -16,6 +16,9 @@ struct FileGroup: Identifiable, Hashable, Sendable {
     /// Pre-computed top 5 largest files for the inspector. Avoids re-sorting
     /// the full `files` array on every render.
     let topFiles: [ScannedFile]
+    /// Pre-computed most recent modification date across all files in this
+    /// group. Used by the "Most Recent" sort option without walking files.
+    let mostRecentModificationDate: Date
     /// Best representative URL for "Reveal in Finder" style actions.
     let representativeURL: URL
     /// True when this group contains more than one file. Used by the UI to

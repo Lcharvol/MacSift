@@ -21,30 +21,45 @@ final class CleaningViewModel: ObservableObject {
     /// Tracks the in-flight updateFileIndex task so a rapid re-scan can
     /// cancel the previous build before it overwrites a fresher index.
     private var indexBuildTask: Task<Void, Never>?
+    /// The detached inner task that actually walks the file tree. Kept as
+    /// a separate handle so we can cancel it directly — `Task.detached`
+    /// does NOT inherit cancellation from the surrounding task, so the
+    /// outer cancellation alone would let the heavy work keep running.
+    private var indexBuildInnerTask: Task<[String: ScannedFile], Never>?
 
     init(appState: AppState) {
         self.appState = appState
     }
 
     func updateFileIndex(from result: ScanResult) {
-        // Cancel any in-flight index build so two rapid re-scans don't race
-        // (a stale index overwriting a fresh one).
+        // Cancel any in-flight index build (both the outer wrapper AND the
+        // detached inner task, because detached tasks don't inherit
+        // cancellation from enclosing tasks).
+        indexBuildInnerTask?.cancel()
         indexBuildTask?.cancel()
-        indexBuildTask = Task { [weak self] in
-            let index: [String: ScannedFile] = await Task.detached(priority: .userInitiated) {
-                var dict: [String: ScannedFile] = [:]
-                for files in result.filesByCategory.values {
-                    for file in files {
-                        dict[file.id] = file
-                    }
-                }
-                return dict
-            }.value
 
+        let inner = Task.detached(priority: .userInitiated) { () -> [String: ScannedFile] in
+            var dict: [String: ScannedFile] = [:]
+            var counter = 0
+            for files in result.filesByCategory.values {
+                for file in files {
+                    counter += 1
+                    // Check cancellation periodically so an abandoned build
+                    // stops walking within milliseconds of the cancel call.
+                    if counter % 2000 == 0 && Task.isCancelled { return dict }
+                    dict[file.id] = file
+                }
+            }
+            return dict
+        }
+        indexBuildInnerTask = inner
+
+        indexBuildTask = Task { [weak self] in
+            let dict = await inner.value
             if Task.isCancelled { return }
             guard let self else { return }
-            self.fileIndex = index
-            self.selectedIDs = self.selectedIDs.intersection(index.keys)
+            self.fileIndex = dict
+            self.selectedIDs = self.selectedIDs.intersection(dict.keys)
         }
     }
 

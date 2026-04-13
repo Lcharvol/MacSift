@@ -25,6 +25,7 @@ struct CleaningViewModelTests {
             fileCount: files.count,
             files: files,
             topFiles: files,
+            mostRecentModificationDate: .now,
             representativeURL: URL(filePath: "/tmp/group-test")
         )
     }

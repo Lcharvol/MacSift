@@ -17,6 +17,9 @@ struct SelectionSummary: Sendable {
 
 struct InspectorView: View {
     let group: FileGroup?
+    /// Pre-computed multi-selection summary. Computed upstream only when the
+    /// selection actually changes (never per-keystroke), so the inspector's
+    /// body can read it cheaply.
     let selectionSummary: SelectionSummary?
     let onExclude: ((URL) -> Void)?
     let onExpand: ((FileGroup) -> Void)?

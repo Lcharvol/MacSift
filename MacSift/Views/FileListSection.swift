@@ -57,11 +57,10 @@ struct FileListSection: View {
             case .nameAsc:
                 return filtered.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
             case .dateDesc:
-                // Use the most recent file inside each group as the sort key.
-                return filtered.sorted { a, b in
-                    let aDate = a.files.map(\.modificationDate).max() ?? .distantPast
-                    let bDate = b.files.map(\.modificationDate).max() ?? .distantPast
-                    return aDate > bDate
+                // Use the pre-computed mostRecentModificationDate so we
+                // don't walk every file per render.
+                return filtered.sorted {
+                    $0.mostRecentModificationDate > $1.mostRecentModificationDate
                 }
             }
         }()

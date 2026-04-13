@@ -325,6 +325,16 @@ code {
     min-height: 520px;
 }
 
+/* Safety net: any SVG inside the mockup defaults to 14×14 unless a more
+   specific rule sets a different size. Prevents browsers from falling back
+   to the 300×150 intrinsic size when an SVG has no width/height attribute. */
+.mockup svg {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
 /* ----- Sidebar ---------------------------------------------------------- */
 
 .mk-sidebar {

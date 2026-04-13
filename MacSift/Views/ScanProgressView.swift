@@ -3,7 +3,9 @@ import SwiftUI
 struct ScanProgressView: View {
     let progress: ScanProgress?
 
-    @State private var pulse = false
+    @State private var rotate = false
+    @State private var breathe = false
+    @State private var glow = false
 
     var body: some View {
         ZStack {
@@ -17,31 +19,70 @@ struct ScanProgressView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 28) {
+            VStack(spacing: 32) {
                 ZStack {
+                    // Outer breathing glow
                     Circle()
-                        .stroke(.blue.opacity(0.15), lineWidth: 3)
-                        .frame(width: 110, height: 110)
-
-                    Circle()
-                        .trim(from: 0, to: 0.3)
-                        .stroke(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                        .fill(
+                            RadialGradient(
+                                colors: [.blue.opacity(0.18), .purple.opacity(0.08), .clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 90
+                            )
                         )
-                        .frame(width: 110, height: 110)
-                        .rotationEffect(.degrees(pulse ? 360 : 0))
+                        .frame(width: 180, height: 180)
+                        .scaleEffect(glow ? 1.08 : 0.92)
+                        .opacity(glow ? 0.9 : 0.5)
+                        .blur(radius: 12)
                         .animation(
-                            .linear(duration: 1.2).repeatForever(autoreverses: false),
-                            value: pulse
+                            .easeInOut(duration: 2.4).repeatForever(autoreverses: true),
+                            value: glow
                         )
 
+                    // Track ring
+                    Circle()
+                        .stroke(.blue.opacity(0.10), lineWidth: 2.5)
+                        .frame(width: 118, height: 118)
+
+                    // Animated arc with gradient tail
+                    Circle()
+                        .trim(from: 0, to: 0.55)
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: .blue.opacity(0.0), location: 0.0),
+                                    .init(color: .blue.opacity(0.6), location: 0.35),
+                                    .init(color: .purple, location: 1.0),
+                                ]),
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .frame(width: 118, height: 118)
+                        .rotationEffect(.degrees(rotate ? 360 : 0))
+                        .animation(
+                            .linear(duration: 3.2).repeatForever(autoreverses: false),
+                            value: rotate
+                        )
+
+                    // Subtle inner ring (counter-rotating, slower)
+                    Circle()
+                        .trim(from: 0, to: 0.15)
+                        .stroke(
+                            .purple.opacity(0.5),
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                        )
+                        .frame(width: 96, height: 96)
+                        .rotationEffect(.degrees(rotate ? -360 : 0))
+                        .animation(
+                            .linear(duration: 4.8).repeatForever(autoreverses: false),
+                            value: rotate
+                        )
+
+                    // Breathing icon
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 36, weight: .light))
+                        .font(.system(size: 34, weight: .light))
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [.blue, .purple],
@@ -49,8 +90,17 @@ struct ScanProgressView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
+                        .scaleEffect(breathe ? 1.05 : 0.97)
+                        .animation(
+                            .easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                            value: breathe
+                        )
                 }
-                .onAppear { pulse = true }
+                .onAppear {
+                    rotate = true
+                    breathe = true
+                    glow = true
+                }
 
                 VStack(spacing: 6) {
                     Text("Scanning your disk")
@@ -71,8 +121,8 @@ struct ScanProgressView: View {
                                     endPoint: .trailing
                                 )
                             )
-                            .contentTransition(.numericText())
-                            .animation(.easeOut, value: progress.filesFound)
+                            .contentTransition(.numericText(countsDown: false))
+                            .animation(.smooth(duration: 0.45), value: progress.currentSize)
 
                         HStack(spacing: 18) {
                             Label("\(progress.filesFound) files", systemImage: "doc.fill")

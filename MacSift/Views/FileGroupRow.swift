@@ -22,9 +22,14 @@ struct FileGroupRow: View, Equatable {
 
     var body: some View {
         HStack(spacing: 12) {
-            checkbox
-                .contentShape(Rectangle())
-                .onTapGesture { onToggle() }
+            // Use a Button so the tap is consumed by the checkbox before the
+            // row's own onTapGesture (which opens the inspector) can fire.
+            Button(action: onToggle) {
+                checkbox
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
             Image(systemName: group.category.iconName)
                 .foregroundStyle(group.category.displayColor)

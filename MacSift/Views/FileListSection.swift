@@ -91,6 +91,19 @@ struct FileListSection: View {
                     .padding(.vertical, 12)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
+                } else if showAllFiles && totalAvailable > Self.defaultCap {
+                    HStack {
+                        Spacer()
+                        Button("Show less") {
+                            showAllFiles = false
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)

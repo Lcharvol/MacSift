@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: swift test
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build
+        run: swift build -v
+
+      - name: Test
+        run: swift test -v
+
+# Note: the project targets macOS 26 (Tahoe). GitHub's hosted macOS runners
+# may lag behind the latest release — this workflow will fail until the
+# runner catches up. Replace `macos-latest` with an explicit `macos-26` label
+# once GitHub ships it, or wire up a self-hosted runner on your own Mac.

@@ -120,8 +120,7 @@ struct InspectorView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            let topFive = group.files.sorted { $0.size > $1.size }.prefix(5)
-            ForEach(Array(topFive), id: \.id) { file in
+            ForEach(group.topFiles, id: \.id) { file in
                 HStack {
                     Text(file.name)
                         .font(.caption)

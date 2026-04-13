@@ -85,14 +85,24 @@ struct SettingsView: View {
                     Spacer()
 
                     Menu {
-                        Button("All suggested") {
-                            addDefaultExclusions(includeAll: true)
+                        let allAdded = defaultSuggestions.allSatisfy { exclusionManager.isExcluded($0.url) }
+                        Button("Add all") {
+                            addDefaultExclusions()
                         }
+                        .disabled(allAdded)
                         Divider()
                         ForEach(defaultSuggestions, id: \.url) { suggestion in
-                            Button(suggestion.label) {
+                            let alreadyAdded = exclusionManager.isExcluded(suggestion.url)
+                            Button {
                                 exclusionManager.addExclusion(suggestion.url)
+                            } label: {
+                                if alreadyAdded {
+                                    Label(suggestion.label, systemImage: "checkmark")
+                                } else {
+                                    Text(suggestion.label)
+                                }
                             }
+                            .disabled(alreadyAdded)
                         }
                     } label: {
                         Label("Suggested…", systemImage: "wand.and.stars")
@@ -142,7 +152,7 @@ struct SettingsView: View {
         ]
     }
 
-    private func addDefaultExclusions(includeAll: Bool) {
+    private func addDefaultExclusions() {
         for s in defaultSuggestions {
             exclusionManager.addExclusion(s.url)
         }

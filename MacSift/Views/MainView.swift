@@ -8,7 +8,10 @@ struct MainView: View {
     // re-opening the window restores the user's last view preferences.
     @SceneStorage("MainView.selectedCategoryRaw") private var selectedCategoryRaw: String = ""
     @SceneStorage("MainView.showAllFiles") private var showAllFiles = false
-    @SceneStorage("MainView.isInspectorPresented") private var isInspectorPresented = false
+    // Inspector state is intentionally NOT persisted — without an inspectedGroup
+    // (which is in-memory only), an open inspector after relaunch would just
+    // show the empty placeholder, which is confusing.
+    @State private var isInspectorPresented = false
     @State private var searchQuery: String = ""
     @State private var inspectedGroup: FileGroup?
 
@@ -36,6 +39,17 @@ struct MainView: View {
             detailContent
                 .background(.background)
         }
+        // Drop a folder anywhere on the window to scan JUST that folder.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url, url.hasDirectoryPath else { return }
+                Task { @MainActor in
+                    scanVM.startScan(folder: url)
+                }
+            }
+            return true
+        }
         .sheet(isPresented: $cleaningVM.showPreview) {
             CleaningPreviewView(cleaningVM: cleaningVM, appState: appState)
         }
@@ -55,8 +69,9 @@ struct MainView: View {
             }
         }
         .onChange(of: selectedCategoryRaw) { _, _ in
-            showAllFiles = false  // reset cap when switching categories
-            searchQuery = ""      // clear filter so the new category shows everything
+            showAllFiles = false      // reset cap when switching categories
+            searchQuery = ""          // clear filter so the new category shows everything
+            inspectedGroup = nil      // clear stale inspector content
         }
         .onReceive(NotificationCenter.default.publisher(for: .macSiftStartScan)) { _ in
             scanVM.startScan()
@@ -133,77 +148,16 @@ struct MainView: View {
     private var detailContent: some View {
         switch scanVM.state {
         case .idle:
-            welcomeView
+            WelcomeView(
+                hasFullDiskAccess: scanVM.hasFullDiskAccess,
+                onStartScan: { scanVM.startScan() },
+                onOpenFullDiskAccess: { FullDiskAccess.openSystemSettings() }
+            )
         case .scanning, .cancelling:
             ScanProgressView(progress: scanVM.displayProgress)
         case .completed:
             resultsView
         }
-    }
-
-
-    private var welcomeView: some View {
-        VStack(spacing: 28) {
-            Image(systemName: "externaldrive.badge.checkmark")
-                .font(.system(size: 56, weight: .regular))
-                .foregroundStyle(.tint)
-                .symbolRenderingMode(.hierarchical)
-                .padding(28)
-                .glassEffect(.regular, in: Circle())
-
-            VStack(spacing: 6) {
-                Text("Welcome to MacSift")
-                    .font(.largeTitle.weight(.semibold))
-                Text("Discover what's taking up space, with full transparency.")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            if !scanVM.hasFullDiskAccess {
-                fullDiskAccessBanner
-                    .padding(.top, 4)
-            }
-
-            Button {
-                scanVM.startScan()
-            } label: {
-                Label("Start Scan", systemImage: "magnifyingglass")
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.extraLarge)
-            .padding(.top, 4)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var fullDiskAccessBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Full Disk Access Required")
-                    .font(.callout.weight(.medium))
-                Text("Some system files won't be scanned without it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button("Grant Access") {
-                FullDiskAccess.openSystemSettings()
-            }
-            .buttonStyle(.glass)
-            .controlSize(.small)
-        }
-        .padding(14)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .frame(maxWidth: 480)
     }
 
     // MARK: - Results
@@ -300,11 +254,16 @@ struct MainView: View {
         let count = scanVM.result.totalFileCount
         let size = scanVM.result.totalSize.formattedFileSize
         let duration = scanVM.result.scanDuration
+        var parts = ["\(count) files", size]
         if duration > 0 {
-            let durationStr = String(format: "%.1fs", duration)
-            return "\(count) files · \(size) · scanned in \(durationStr)"
+            parts.append("scanned in \(String(format: "%.1fs", duration))")
         }
-        return "\(count) files · \(size)"
+        if let completedAt = scanVM.state.completedScan?.completedAt {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            parts.append(formatter.localizedString(for: completedAt, relativeTo: Date()))
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var bottomBar: some View {
@@ -322,7 +281,18 @@ struct MainView: View {
 
             Spacer()
 
-            if appState.mode == .simple {
+            if let category = selectedCategory,
+               let files = scanVM.sortedFilesByCategory[category],
+               !files.isEmpty
+            {
+                Button {
+                    cleaningVM.selectAllInCategory(category, files: files)
+                } label: {
+                    Label("Select all in \(category.label)", systemImage: "checkmark.circle")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+            } else if appState.mode == .simple {
                 Button {
                     cleaningVM.selectAllSafe(from: scanVM.result)
                 } label: {

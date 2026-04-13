@@ -12,6 +12,28 @@ import Foundation
 ///   so it stays as a singleton group.
 /// - `.tempFiles` / `.largeFiles`: kept as singleton groups (one per file).
 enum FileGrouper {
+    /// How many largest files to keep around for the inspector preview.
+    static let topFilesPreviewCount = 5
+
+    /// Returns the top-N largest files without paying for a full sort.
+    /// O(n log k) where k is the desired count.
+    private static func topNLargest(_ files: [ScannedFile], count: Int) -> [ScannedFile] {
+        guard files.count > count else {
+            return files.sorted { $0.size > $1.size }
+        }
+        // Partial sort: keep a min-heap of size N; replace the smallest as we go.
+        var heap = Array(files.prefix(count))
+        heap.sort { $0.size < $1.size }
+        for file in files.dropFirst(count) {
+            if file.size > heap[0].size {
+                heap[0] = file
+                // Re-sort the small heap (count is tiny, so this is fine)
+                heap.sort { $0.size < $1.size }
+            }
+        }
+        return heap.reversed()
+    }
+
     static func group(_ files: [ScannedFile]) -> [FileGroup] {
         guard !files.isEmpty else { return [] }
         // All files in this batch should belong to the same category — but we
@@ -71,7 +93,7 @@ enum FileGrouper {
 
         for (key, bucketFiles) in buckets {
             let total = bucketFiles.reduce(0 as Int64) { $0 + $1.size }
-            let label = humanLabelForBundleKey(key)
+            let label = BundleNames.humanLabel(for: key)
             // Representative URL = the parent folder (the first matching root + key)
             let representative = bucketFiles[0].url.deletingLastPathComponent()
             groups.append(FileGroup(
@@ -81,6 +103,7 @@ enum FileGrouper {
                 totalSize: total,
                 fileCount: bucketFiles.count,
                 files: bucketFiles,
+                topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
                 representativeURL: representative
             ))
         }
@@ -94,50 +117,12 @@ enum FileGrouper {
                 totalSize: total,
                 fileCount: systemBucket.count,
                 files: systemBucket,
+                topFiles: topNLargest(systemBucket, count: topFilesPreviewCount),
                 representativeURL: systemBucket[0].url
             ))
         }
 
         return groups.sorted { $0.totalSize > $1.totalSize }
-    }
-
-    /// Translates reverse-DNS bundle ids and folder names into human labels.
-    private static func humanLabelForBundleKey(_ key: String) -> String {
-        let lowered = key.lowercased()
-        let knownApps: [(pattern: String, label: String)] = [
-            ("com.apple.safari", "Safari"),
-            ("com.apple.mail", "Mail"),
-            ("com.apple.dt.xcode", "Xcode"),
-            ("com.apple.dt", "Xcode"),
-            ("com.apple.finder", "Finder"),
-            ("com.apple.spotlight", "Spotlight"),
-            ("com.apple.messages", "Messages"),
-            ("com.apple.notes", "Notes"),
-            ("com.google.chrome", "Google Chrome"),
-            ("org.mozilla.firefox", "Firefox"),
-            ("com.spotify.client", "Spotify"),
-            ("com.tinyspeck.slackmacgap", "Slack"),
-            ("com.hnc.discord", "Discord"),
-            ("com.figma.desktop", "Figma"),
-            ("com.microsoft.vscode", "Visual Studio Code"),
-            ("com.docker.docker", "Docker"),
-        ]
-        for app in knownApps {
-            if lowered == app.pattern || lowered.hasPrefix(app.pattern + ".") {
-                return app.label
-            }
-        }
-        // Generic reverse-DNS handling: take the last meaningful segment
-        if lowered.contains(".") {
-            let segments = key.split(separator: ".").map(String.init)
-            if let last = segments.last, last != "app" {
-                return last.capitalized
-            }
-            if segments.count >= 2 {
-                return segments[segments.count - 2].capitalized
-            }
-        }
-        return key
     }
 
     // MARK: - iOS Backups grouping
@@ -175,6 +160,7 @@ enum FileGrouper {
                 totalSize: total,
                 fileCount: bucketFiles.count,
                 files: bucketFiles,
+                topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
                 representativeURL: backupRoot
             )
         }
@@ -191,6 +177,7 @@ enum FileGrouper {
             totalSize: file.size,
             fileCount: 1,
             files: [file],
+            topFiles: [file],
             representativeURL: file.url
         )
     }

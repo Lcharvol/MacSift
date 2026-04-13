@@ -13,6 +13,9 @@ struct FileGroup: Identifiable, Hashable, Sendable {
     let fileCount: Int
     /// All files contained in this group. For singleton groups this has one element.
     let files: [ScannedFile]
+    /// Pre-computed top 5 largest files for the inspector. Avoids re-sorting
+    /// the full `files` array on every render.
+    let topFiles: [ScannedFile]
     /// Best representative URL for "Reveal in Finder" style actions.
     let representativeURL: URL
     /// True when this group contains more than one file. Used by the UI to

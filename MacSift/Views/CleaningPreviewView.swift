@@ -10,6 +10,15 @@ struct CleaningPreviewView: View {
     /// 10 GB threshold above which we display an extra warning.
     private static let largeDeletionWarningBytes: Int64 = 10 * 1024 * 1024 * 1024
 
+    /// Build the confirm button label, accounting for grouped selections so the
+    /// user understands that one tick may include thousands of underlying files.
+    private var confirmButtonLabel: String {
+        let count = cleaningVM.selectedCount
+        let size = cleaningVM.selectedSize.formattedFileSize
+        let verb = appState.isDryRun ? "Simulate" : "Move to Trash —"
+        return "\(verb) \(count) files (\(size))"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -130,14 +139,9 @@ struct CleaningPreviewView: View {
                         showFinalConfirmation = true
                     }
                 } label: {
-                    Label(
-                        appState.isDryRun
-                            ? "Simulate \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))"
-                            : "Move \(cleaningVM.selectedCount) files to Trash (\(cleaningVM.selectedSize.formattedFileSize))",
-                        systemImage: appState.isDryRun ? "play" : "trash"
-                    )
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+                    Label(confirmButtonLabel, systemImage: appState.isDryRun ? "play" : "trash")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                 }
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)

@@ -28,14 +28,42 @@ The user is on macOS 26.2 / Xcode 26.3. Deployment target is macOS 26.0.
 ```
 MacSift/
 ├── App/                   # MacSiftApp entry point + AppState (@Published mode, dryRun, threshold)
-├── Models/                # FileCategory, ScannedFile, ScanResult — pure value types, Sendable
-├── Services/              # DiskScanner, CategoryClassifier, CleaningEngine, TimeMachineService, ExclusionManager
+├── Models/                # FileCategory, ScannedFile, ScanResult, FileGroup — pure value types, Sendable
+├── Services/              # DiskScanner, CategoryClassifier, FileGrouper, CleaningEngine,
+│                            TimeMachineService, ExclusionManager
 ├── ViewModels/            # ScanViewModel, CleaningViewModel — @MainActor, @Published, orchestrate services
-├── Views/                 # SwiftUI views — kept dumb, take values not VMs where possible
-└── Utilities/             # FileSize+Formatting, FileDescriptions, Permissions
+├── Views/                 # SwiftUI views — WelcomeView, ScanProgressView, FileListSection,
+│                            FileGroupRow, InspectorView, MainView, …
+└── Utilities/             # FileSize+Formatting, FileDescriptions, BundleNames, Permissions
 ```
 
 Keep the structure flat. Don't introduce package boundaries or sub-frameworks.
+
+## File grouping architecture
+
+`ScannedFile` is one underlying OS file. `FileGroup` is a display-layer
+aggregation — multiple ScannedFiles that share a common owner (e.g., all files
+under `~/Library/Caches/com.apple.Safari/` collapse into one "Safari" row).
+
+- **`FileGrouper`** (Services) turns `[ScannedFile]` into `[FileGroup]` using
+  per-category rules:
+    - `.cache` / `.logs` / `.appData`: group by the first path component after
+      `Library/<root>/` (the bundle id / folder name).
+    - `.iosBackups`: group by the backup root folder under `MobileSync/Backup/`.
+    - `.timeMachineSnapshots`: already 1:1 (each snapshot is one synthetic file).
+    - `.tempFiles` / `.largeFiles`: kept as singleton groups.
+- **Selection is still file-level** (`CleaningViewModel.selectedIDs: Set<String>`).
+  Toggling a group selects/deselects all its underlying file ids at once via
+  `toggleGroup`. A group is "fully selected" when all its file ids are in the
+  selection set, "partially selected" when some are.
+- **`FileGroup.topFiles`** is pre-computed at scan time (top N by size, via a
+  partial sort). The inspector reads it directly — never sort the full
+  `group.files` array in a view body.
+- **`BundleNames.humanLabel(for:)`** translates `com.apple.Safari` → "Safari".
+  Known apps are matched first; unknown reverse-DNS ids fall through to a
+  heuristic that picks the most meaningful segment.
+- **Rendering**: `FileListSection` renders `FileGroupRow`s, not individual files.
+  Singleton groups still appear as one-row entries.
 
 ## Conventions
 

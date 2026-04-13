@@ -48,4 +48,40 @@ struct CategoryClassifierTests {
         let url = home.appending(path: "Documents/medium_file.txt")
         #expect(customClassifier.classify(url: url, size: 101) == .largeFiles)
     }
+
+    // MARK: - Orphaned app support
+
+    @Test func orphanedAppSupportIsDetectedAsAppData() {
+        // Use a classifier with NO installed apps so everything in
+        // Application Support is considered orphaned.
+        let classifier = CategoryClassifier(installedAppBundleNames: [])
+        let url = home.appending(path: "Library/Application Support/com.vendor.deletedapp/Data.db")
+        #expect(classifier.classify(url: url, size: 1000) == .appData)
+    }
+
+    @Test func installedAppSupportIsLeftAlone() {
+        // Safari is "installed" — its folder should NOT be flagged.
+        let classifier = CategoryClassifier(installedAppBundleNames: ["safari"])
+        let url = home.appending(path: "Library/Application Support/com.apple.Safari/Bookmarks.plist")
+        #expect(classifier.classify(url: url, size: 1000) == nil)
+    }
+
+    @Test func isOrphanedAppSupportMatchesExactName() {
+        let classifier = CategoryClassifier(installedAppBundleNames: ["notion"])
+        #expect(classifier.isOrphanedAppSupport(folderName: "Notion") == false)
+        #expect(classifier.isOrphanedAppSupport(folderName: "notion") == false)
+        #expect(classifier.isOrphanedAppSupport(folderName: "Obsidian") == true)
+    }
+
+    @Test func isOrphanedAppSupportMatchesReverseDNS() {
+        // Reverse-DNS folder names like "com.apple.Safari" should match against
+        // the "safari" entry in the installed set.
+        let classifier = CategoryClassifier(installedAppBundleNames: ["safari"])
+        #expect(classifier.isOrphanedAppSupport(folderName: "com.apple.Safari") == false)
+    }
+
+    @Test func isOrphanedAppSupportFlagsUnknownVendors() {
+        let classifier = CategoryClassifier(installedAppBundleNames: ["safari"])
+        #expect(classifier.isOrphanedAppSupport(folderName: "com.deleted.vendor.oldapp") == true)
+    }
 }

@@ -145,20 +145,24 @@ code {
 }
 
 /* ========================================================================
-   Hero — asymmetric, text left, visual right
+   Hero — editorial text on top, full-width app window below
    ======================================================================== */
 
 .hero {
     padding: 160px 32px 120px;
-    max-width: 1160px;
+    max-width: 1220px;
     margin: 0 auto;
 }
 
 .hero__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 72px;
-    align-items: center;
+}
+
+.hero__text {
+    max-width: 680px;
 }
 
 .hero__kicker {
@@ -258,6 +262,7 @@ code {
 
 .hero__art {
     position: relative;
+    width: 100%;
 }
 
 .app-window {
@@ -268,6 +273,11 @@ code {
     box-shadow:
         0 30px 70px rgba(0, 0, 0, 0.5),
         0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+    /* Lock the window to a realistic aspect so content has room to breathe.
+       The min-height on __body handled this before but constraining here
+       lets the layout read as a proper app screenshot at any width. */
+    margin: 0 auto;
+    max-width: 1120px;
 }
 
 .app-window__chrome {
@@ -300,7 +310,7 @@ code {
 }
 
 .app-window__body {
-    min-height: 540px;
+    min-height: 600px;
     display: flex;
 }
 
@@ -1171,7 +1181,6 @@ code {
 
 @media (max-width: 960px) {
     .hero__grid {
-        grid-template-columns: 1fr;
         gap: 48px;
     }
     .what__grid {

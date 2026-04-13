@@ -93,8 +93,9 @@ struct CleaningPreviewView: View {
                         systemImage: appState.isDryRun ? "play" : "trash"
                     )
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .controlSize(.large)
                 .tint(appState.isDryRun ? .accentColor : .red)
             }
@@ -238,8 +239,9 @@ struct CleaningPreviewView: View {
             } label: {
                 Text("Done")
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .controlSize(.large)
             .padding(20)
         }

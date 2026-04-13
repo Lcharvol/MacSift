@@ -68,7 +68,7 @@ struct MainView: View {
                 )
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .controlSize(.large)
             .disabled(scanVM.state == .scanning)
         }
@@ -119,11 +119,13 @@ struct MainView: View {
     }
 
     private var welcomeView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 28) {
             Image(systemName: "externaldrive.badge.checkmark")
-                .font(.system(size: 64, weight: .regular))
+                .font(.system(size: 56, weight: .regular))
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
+                .padding(28)
+                .glassEffect(.regular, in: Circle())
 
             VStack(spacing: 6) {
                 Text("Welcome to MacSift")
@@ -143,9 +145,10 @@ struct MainView: View {
                 Task { await scanVM.startScan() }
             } label: {
                 Label("Start Scan", systemImage: "magnifyingglass")
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .controlSize(.extraLarge)
             .padding(.top, 4)
         }
@@ -171,13 +174,11 @@ struct MainView: View {
             Button("Grant Access") {
                 FullDiskAccess.openSystemSettings()
             }
+            .buttonStyle(.glass)
             .controlSize(.small)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(.quinary)
-        )
+        .padding(14)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .frame(maxWidth: 480)
     }
 
@@ -298,6 +299,7 @@ struct MainView: View {
                 } label: {
                     Label("Select all safe", systemImage: "checkmark.shield")
                 }
+                .buttonStyle(.glass)
                 .controlSize(.large)
             }
 
@@ -307,13 +309,16 @@ struct MainView: View {
                 Label("Clean Selected", systemImage: "trash")
                     .padding(.horizontal, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .tint(.red)
             .controlSize(.large)
             .disabled(cleaningVM.selectedIDs.isEmpty)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.bar)
+        .background(.thinMaterial)
+        .overlay(alignment: .top) {
+            Divider().opacity(0.5)
+        }
     }
 }

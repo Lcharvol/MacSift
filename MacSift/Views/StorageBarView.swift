@@ -24,6 +24,8 @@ struct StorageBarView: View {
             bar
             legend
         }
+        .padding(18)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     // MARK: - Header

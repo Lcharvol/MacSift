@@ -29,6 +29,8 @@ struct ScanProgressView: View {
                     .font(.system(size: 30, weight: .light))
                     .foregroundStyle(.secondary)
             }
+            .padding(20)
+            .glassEffect(.regular, in: Circle())
             .onAppear { rotate = true }
 
             VStack(spacing: 6) {

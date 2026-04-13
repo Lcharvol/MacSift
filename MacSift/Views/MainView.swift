@@ -51,47 +51,25 @@ struct MainView: View {
     private var sidebarHeader: some View {
         VStack(spacing: 14) {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles.square.filled.on.square")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                Image(systemName: "externaldrive.badge.checkmark")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.tint)
                 Text("MacSift")
-                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.semibold))
                 Spacer()
             }
 
             Button {
                 Task { await scanVM.startScan() }
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: scanVM.state == .scanning ? "arrow.triangle.2.circlepath" : "magnifyingglass")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(scanVM.state == .scanning ? "Scanning..." : "Start Scan")
-                        .font(.system(.body, weight: .semibold))
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue, .blue.opacity(0.8)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                Label(
+                    scanVM.state == .scanning ? "Scanning..." : "Start Scan",
+                    systemImage: scanVM.state == .scanning ? "arrow.triangle.2.circlepath" : "magnifyingglass"
                 )
-                .foregroundStyle(.white)
-                .shadow(color: .blue.opacity(0.25), radius: 6, y: 2)
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .disabled(scanVM.state == .scanning)
         }
         .padding(16)
@@ -118,8 +96,8 @@ struct MainView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text(scanVM.result.totalSize.formattedFileSize)
-                        .font(.system(.callout, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .font(.callout.weight(.semibold))
+                        .monospacedDigit()
                 }
             }
         }
@@ -141,93 +119,48 @@ struct MainView: View {
     }
 
     private var welcomeView: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color.blue.opacity(0.04)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        VStack(spacing: 24) {
+            Image(systemName: "externaldrive.badge.checkmark")
+                .font(.system(size: 64, weight: .regular))
+                .foregroundStyle(.tint)
+                .symbolRenderingMode(.hierarchical)
 
-            VStack(spacing: 28) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.15), .purple.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 140, height: 140)
-                        .blur(radius: 20)
-
-                    Image(systemName: "externaldrive.badge.checkmark")
-                        .font(.system(size: 72, weight: .light))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-
-                VStack(spacing: 8) {
-                    Text("Welcome to MacSift")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Discover what's taking up space, with full transparency.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-
-                if !scanVM.hasFullDiskAccess {
-                    fullDiskAccessBanner
-                }
-
-                Button {
-                    Task { await scanVM.startScan() }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Start Scan")
-                            .font(.system(.title3, design: .rounded, weight: .semibold))
-                    }
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 14)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .foregroundStyle(.white)
-                    .shadow(color: .blue.opacity(0.35), radius: 12, y: 4)
-                }
-                .buttonStyle(.plain)
+            VStack(spacing: 6) {
+                Text("Welcome to MacSift")
+                    .font(.largeTitle.weight(.semibold))
+                Text("Discover what's taking up space, with full transparency.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(40)
+
+            if !scanVM.hasFullDiskAccess {
+                fullDiskAccessBanner
+                    .padding(.top, 4)
+            }
+
+            Button {
+                Task { await scanVM.startScan() }
+            } label: {
+                Label("Start Scan", systemImage: "magnifyingglass")
+                    .padding(.horizontal, 16)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.extraLarge)
+            .padding(.top, 4)
         }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var fullDiskAccessBanner: some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.shield.fill")
-                .font(.title3)
+            Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("Full Disk Access Required")
-                    .font(.callout.weight(.semibold))
+                    .font(.callout.weight(.medium))
                 Text("Some system files won't be scanned without it.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -238,18 +171,12 @@ struct MainView: View {
             Button("Grant Access") {
                 FullDiskAccess.openSystemSettings()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
             .controlSize(.small)
         }
-        .padding(14)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.orange.opacity(0.3), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.quinary)
         )
         .frame(maxWidth: 480)
     }
@@ -280,7 +207,7 @@ struct MainView: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(selectedCategory?.label ?? "All Categories")
-                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.semibold))
                 Text("\(scanVM.result.totalFileCount) files · \(scanVM.result.totalSize.formattedFileSize)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -357,23 +284,10 @@ struct MainView: View {
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if cleaningVM.selectedCount > 0 {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.blue)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("\(cleaningVM.selectedCount) selected")
-                            .font(.system(.callout, weight: .semibold))
-                        Text(cleaningVM.selectedSize.formattedFileSize)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(.blue.opacity(0.1))
-                )
+                Text("^[\(cleaningVM.selectedCount) file](inflect: true) · \(cleaningVM.selectedSize.formattedFileSize)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
 
             Spacer()
@@ -382,22 +296,16 @@ struct MainView: View {
                 Button {
                     cleaningVM.selectAllSafe(from: scanVM.result)
                 } label: {
-                    Label("Select all safe", systemImage: "checkmark.shield.fill")
-                        .font(.system(.callout, weight: .medium))
+                    Label("Select all safe", systemImage: "checkmark.shield")
                 }
-                .buttonStyle(.bordered)
                 .controlSize(.large)
             }
 
             Button {
                 cleaningVM.showCleaningPreview()
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "trash.fill")
-                    Text("Clean Selected")
-                        .fontWeight(.semibold)
-                }
-                .padding(.horizontal, 8)
+                Label("Clean Selected", systemImage: "trash")
+                    .padding(.horizontal, 4)
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
@@ -405,7 +313,7 @@ struct MainView: View {
             .disabled(cleaningVM.selectedIDs.isEmpty)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
         .background(.bar)
     }
 }

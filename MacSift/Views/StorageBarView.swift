@@ -19,20 +19,11 @@ struct StorageBarView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             header
             bar
             legend
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.quaternary.opacity(0.5), lineWidth: 1)
-        )
     }
 
     // MARK: - Header
@@ -40,11 +31,12 @@ struct StorageBarView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Storage Found")
-                .font(.system(.title3, design: .rounded).weight(.bold))
+                .font(.headline)
             Spacer()
             Text("\(totalSize.formattedFileSize) recoverable")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
     }
 
@@ -71,8 +63,7 @@ struct StorageBarView: View {
                     Rectangle()
                         .fill(category.displayColor)
                         .frame(width: segWidth)
-                        .opacity(isHovered || isSelected ? 1.0 : 0.92)
-                        .scaleEffect(y: isHovered || isSelected ? 1.15 : 1.0, anchor: .center)
+                        .opacity((isHovered || isSelected) ? 1.0 : 0.85)
                         .onHover { hovering in
                             hoveredCategory = hovering ? category : nil
                         }
@@ -91,7 +82,7 @@ struct StorageBarView: View {
             }
             .clipShape(Capsule())
         }
-        .frame(height: 22)
+        .frame(height: 18)
     }
 
     // MARK: - Legend
@@ -105,31 +96,20 @@ struct StorageBarView: View {
                 Button {
                     selectedCategory = isSelected ? nil : category
                 } label: {
-                    HStack(spacing: 7) {
+                    HStack(spacing: 6) {
                         Circle()
                             .fill(category.displayColor)
-                            .frame(width: 9, height: 9)
+                            .frame(width: 8, height: 8)
                         Text(category.label)
-                            .font(.system(.callout).weight(isSelected ? .semibold : .medium))
-                            .foregroundStyle(.primary)
+                            .font(.callout)
+                            .foregroundStyle(isSelected ? .primary : .secondary)
                         Text(size.formattedFileSize)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                             .monospacedDigit()
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(isSelected ? category.displayColor.opacity(0.15) : .clear)
-                    )
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(isSelected ? category.displayColor.opacity(0.4) : .clear, lineWidth: 1)
-                    )
                 }
                 .buttonStyle(.plain)
-                .animation(.easeInOut(duration: 0.15), value: isSelected)
             }
         }
     }

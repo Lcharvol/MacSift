@@ -20,30 +20,19 @@ struct CleaningPreviewView: View {
                 }
             }
         }
-        .frame(width: 580, height: 520)
-        .background(.regularMaterial)
+        .frame(width: 560, height: 500)
     }
 
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(headerTitle)
-                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.semibold))
                 Text(headerSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button {
-                cleaningVM.cancelPreview()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24, height: 24)
-                    .background(Circle().fill(.quinary))
-            }
-            .buttonStyle(.plain)
         }
         .padding(20)
     }
@@ -97,31 +86,17 @@ struct CleaningPreviewView: View {
                 Button {
                     Task { await cleaningVM.confirmCleaning() }
                 } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: appState.isDryRun ? "play.fill" : "trash.fill")
-                        Text(appState.isDryRun
-                             ? "Simulate \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))"
-                             : "Delete \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: appState.isDryRun
-                                        ? [.blue, .blue.opacity(0.85)]
-                                        : [.red, .red.opacity(0.85)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
+                    Label(
+                        appState.isDryRun
+                            ? "Simulate \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))"
+                            : "Delete \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))",
+                        systemImage: appState.isDryRun ? "play" : "trash"
                     )
-                    .foregroundStyle(.white)
-                    .shadow(color: (appState.isDryRun ? Color.blue : Color.red).opacity(0.3), radius: 8, y: 3)
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .tint(appState.isDryRun ? .accentColor : .red)
             }
             .padding(20)
         }
@@ -163,15 +138,12 @@ struct CleaningPreviewView: View {
             .background(Capsule().fill(.quinary))
 
             Text(categorySize.formattedFileSize)
-                .font(.system(.callout, design: .rounded, weight: .semibold))
+                .font(.callout.weight(.semibold))
                 .monospacedDigit()
                 .frame(minWidth: 70, alignment: .trailing)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.background.secondary.opacity(0.5))
-        )
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
     }
 
     // MARK: - Cleaning progress
@@ -191,7 +163,7 @@ struct CleaningPreviewView: View {
             if let progress = cleaningVM.cleaningProgress {
                 VStack(spacing: 8) {
                     Text("\(progress.processed) / \(progress.total)")
-                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .font(.title.weight(.semibold))
                         .monospacedDigit()
                     Text(progress.currentFile)
                         .font(.caption)
@@ -199,8 +171,8 @@ struct CleaningPreviewView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Text("Freed: \(progress.freedSoFar.formattedFileSize)")
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -215,21 +187,17 @@ struct CleaningPreviewView: View {
         VStack(spacing: 20) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(report.failedFiles.isEmpty ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
-                    .frame(width: 90, height: 90)
-                Image(systemName: report.failedFiles.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 50))
-                    .foregroundStyle(report.failedFiles.isEmpty ? .green : .orange)
-            }
+            Image(systemName: report.failedFiles.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(report.failedFiles.isEmpty ? .green : .orange)
+                .symbolRenderingMode(.hierarchical)
 
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Text(report.freedSize.formattedFileSize)
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(.green)
+                    .font(.system(size: 40, weight: .semibold))
+                    .monospacedDigit()
 
-                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be" : "")freed")
+                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be " : "")freed")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -269,16 +237,10 @@ struct CleaningPreviewView: View {
                 cleaningVM.reset()
             } label: {
                 Text("Done")
-                    .font(.system(.body, weight: .semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.blue)
-                    )
-                    .foregroundStyle(.white)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .padding(20)
         }
     }

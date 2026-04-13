@@ -24,6 +24,13 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(largeFileThresholdMB, forKey: "largeFileThresholdMB") }
     }
 
+    /// Files in ~/Downloads older than this many days are flagged as
+    /// `.oldDownloads`. Default 90 — users with very aggressive cleanup
+    /// habits might want 30; conservative users might set 365.
+    @Published var oldDownloadsAgeDays: Int {
+        didSet { UserDefaults.standard.set(oldDownloadsAgeDays, forKey: "oldDownloadsAgeDays") }
+    }
+
     /// Total number of scans run since install. Incremented once per
     /// completed scan in `ScanViewModel`.
     @Published var lifetimeScanCount: Int {
@@ -41,6 +48,7 @@ final class AppState: ObservableObject {
         self.mode = Mode(rawValue: savedMode) ?? .simple
         self.isDryRun = UserDefaults.standard.object(forKey: "isDryRun") as? Bool ?? true
         self.largeFileThresholdMB = UserDefaults.standard.object(forKey: "largeFileThresholdMB") as? Int ?? 500
+        self.oldDownloadsAgeDays = UserDefaults.standard.object(forKey: "oldDownloadsAgeDays") as? Int ?? 90
         self.lifetimeScanCount = UserDefaults.standard.integer(forKey: "lifetimeScanCount")
         self.lifetimeCleanedBytes = Int64(UserDefaults.standard.integer(forKey: "lifetimeCleanedBytes"))
     }

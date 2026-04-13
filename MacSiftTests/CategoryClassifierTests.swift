@@ -162,6 +162,19 @@ struct CategoryClassifierTests {
         #expect(classifier.classify(url: url, size: threshold + 1, modificationDate: old) == .oldDownloads)
     }
 
+    @Test func configurableOldDownloadsThreshold() {
+        // Custom classifier with a tight 30-day threshold: a 45-day-old file
+        // qualifies as .oldDownloads. With the default 90-day threshold it
+        // would not.
+        let strict = CategoryClassifier(oldDownloadsAgeThresholdDays: 30)
+        let url = home.appending(path: "Downloads/lastMonth.zip")
+        let fortyFiveDaysAgo = Date().addingTimeInterval(-45 * 86400)
+        #expect(strict.classify(url: url, size: 1000, modificationDate: fortyFiveDaysAgo) == .oldDownloads)
+
+        let lax = CategoryClassifier(oldDownloadsAgeThresholdDays: 180)
+        #expect(lax.classify(url: url, size: 1000, modificationDate: fortyFiveDaysAgo) == nil)
+    }
+
     // MARK: - Mail Attachments
 
     @Test func classifiesMailDownloads() {

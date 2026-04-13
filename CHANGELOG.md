@@ -6,6 +6,33 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-04-13
+
+### Added
+- **Configurable Old Downloads age threshold** in Settings. The default
+  is still 90 days, but you can now set anything from 1 to 365. Useful
+  if you use your Downloads folder as short-term staging (set 7 days)
+  or if you prefer a conservative one-year cutoff.
+
+### Performance
+- **Selection summary is now cached** in MainView `@State` and recomputed
+  only when `selectedIDs` or the completed scan changes. Previously, the
+  inspector closure ran `selectionSummary(using: allGroups)` on every
+  parent re-render (including every search-field keystroke), which
+  iterated every file in every group. On scans with 50k+ files this
+  caused visible freezes while typing.
+- **`FileGroup.mostRecentModificationDate`** is now pre-computed at scan
+  time. The "Most Recent" sort option previously walked every file in
+  every group on every render; now it reads a cached `Date`.
+- **`freedBanner` dismissal task** cancels the previous timer on
+  re-trigger instead of piling up sleeping tasks in memory.
+- **`CleaningViewModel.updateFileIndex`** now cancels the detached inner
+  task as well as the outer wrapper. Previously, a cancelled index build
+  kept walking the file tree to completion because cancellation didn't
+  propagate across `Task.detached`.
+
+## [0.1.3] — 2026-04-13
+
 ### Fixed
 - **Downloads double-count bug** shipped in v0.1.2. Files in `~/Downloads`
   that were simultaneously > 500 MB and > 90 days old appeared in both

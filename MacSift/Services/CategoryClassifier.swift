@@ -2,31 +2,40 @@ import Foundation
 
 struct CategoryClassifier: Sendable {
     let largeFileThresholdBytes: Int64
+    /// Age threshold in days for flagging a file in ~/Downloads as
+    /// `.oldDownloads`. Defaults to 90 if not specified.
+    let oldDownloadsAgeThresholdDays: Double
     /// Lowercased bundle names of installed apps, e.g. {"safari", "xcode"}.
     /// Used to detect orphaned Application Support folders.
     let installedAppBundleNames: Set<String>
 
     /// Default init with an empty installed-app set. Call
-    /// `CategoryClassifier.withInstalledApps(thresholdBytes:)` to get a
-    /// properly populated classifier — that function walks /Applications
+    /// `CategoryClassifier.withInstalledApps(...)` to get a properly
+    /// populated classifier — that function walks /Applications
     /// asynchronously off the calling thread.
     init(
         largeFileThresholdBytes: Int64 = 500 * 1024 * 1024,
+        oldDownloadsAgeThresholdDays: Double = 90,
         installedAppBundleNames: Set<String> = []
     ) {
         self.largeFileThresholdBytes = largeFileThresholdBytes
+        self.oldDownloadsAgeThresholdDays = oldDownloadsAgeThresholdDays
         self.installedAppBundleNames = installedAppBundleNames
     }
 
     /// Builds a classifier with the installed-app set populated from
     /// /Applications and ~/Applications. The disk walk runs on a detached
     /// task so callers on the main actor don't block.
-    static func withInstalledApps(largeFileThresholdBytes: Int64 = 500 * 1024 * 1024) async -> CategoryClassifier {
+    static func withInstalledApps(
+        largeFileThresholdBytes: Int64 = 500 * 1024 * 1024,
+        oldDownloadsAgeThresholdDays: Double = 90
+    ) async -> CategoryClassifier {
         let names = await Task.detached(priority: .userInitiated) {
             Self.scanInstalledAppBundleNames()
         }.value
         return CategoryClassifier(
             largeFileThresholdBytes: largeFileThresholdBytes,
+            oldDownloadsAgeThresholdDays: oldDownloadsAgeThresholdDays,
             installedAppBundleNames: names
         )
     }
@@ -80,10 +89,6 @@ struct CategoryClassifier: Sendable {
         }
         return true
     }
-
-    /// Files older than this threshold in `~/Downloads` are flagged as
-    /// `.oldDownloads`. 90 days is a reasonable "probably forgotten about" line.
-    static let oldDownloadsAgeThresholdDays: TimeInterval = 90
 
     func classify(url: URL, size: Int64, modificationDate: Date = .distantPast) -> FileCategory? {
         let path = url.path(percentEncoded: false)
@@ -145,7 +150,7 @@ struct CategoryClassifier: Sendable {
         let downloadsPrefix = "\(homePrefix)Downloads/"
         if path.hasPrefix(downloadsPrefix) {
             let ageDays = Date().timeIntervalSince(modificationDate) / 86_400
-            if ageDays >= Self.oldDownloadsAgeThresholdDays {
+            if ageDays >= oldDownloadsAgeThresholdDays {
                 return .oldDownloads
             }
             // Recent Downloads file: keep going — if it's large enough, the

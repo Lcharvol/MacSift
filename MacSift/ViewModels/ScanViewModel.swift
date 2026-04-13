@@ -164,7 +164,8 @@ final class ScanViewModel: ObservableObject {
     /// set for orphan detection — this happens on a background thread.
     private func makeScanner() async -> DiskScanner {
         let classifier = await CategoryClassifier.withInstalledApps(
-            largeFileThresholdBytes: appState.largeFileThresholdBytes
+            largeFileThresholdBytes: appState.largeFileThresholdBytes,
+            oldDownloadsAgeThresholdDays: Double(appState.oldDownloadsAgeDays)
         )
         return DiskScanner(
             classifier: classifier,

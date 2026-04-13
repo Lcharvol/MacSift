@@ -35,6 +35,16 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                HStack {
+                    Text("Old Downloads threshold")
+                    Spacer()
+                    TextField("days", value: $appState.oldDownloadsAgeDays, format: .number)
+                        .frame(width: 80)
+                        .textFieldStyle(.roundedBorder)
+                    Text("days")
+                        .foregroundStyle(.secondary)
+                }
+
                 if thresholdChanged {
                     HStack(spacing: 6) {
                         Image(systemName: "info.circle")
@@ -203,8 +213,8 @@ struct SettingsView: View {
 
     private func resetAllSettings() {
         let defaults = UserDefaults.standard
-        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "excludedPaths",
-                    "lifetimeScanCount", "lifetimeCleanedBytes"]
+        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "oldDownloadsAgeDays",
+                    "excludedPaths", "lifetimeScanCount", "lifetimeCleanedBytes"]
         {
             defaults.removeObject(forKey: key)
         }
@@ -212,6 +222,7 @@ struct SettingsView: View {
         appState.mode = .simple
         appState.isDryRun = true
         appState.largeFileThresholdMB = 500
+        appState.oldDownloadsAgeDays = 90
         appState.lifetimeScanCount = 0
         appState.lifetimeCleanedBytes = 0
         // Clear exclusions

@@ -6,8 +6,38 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Downloads double-count bug** shipped in v0.1.2. Files in `~/Downloads`
+  that were simultaneously > 500 MB and > 90 days old appeared in both
+  `.oldDownloads` and `.largeFiles`. Fix: `scanForLargeFiles` now skips
+  `Downloads/` (handled by its own scan target), and the classifier lets
+  recent-but-large Downloads files fall through to the `.largeFiles` rule
+  so they're still found. Regression tests added.
+
 ### Added
-- **Four new scan categories:**
+- **Freed-space banner** after auto-rescan. "You just freed X GB" green
+  banner above the results, auto-dismissed after 5 seconds.
+- **Exclude from inspector**: one-click button in the detail panel that
+  adds the current folder to the exclusion list.
+- **Expand grouped row**: "Show all N files" in the inspector opens a
+  drill-down view listing every individual file in the group. Back button
+  returns to the grouped view.
+- **File list sorting menu** in the toolbar: Size (default), Name, or
+  Most Recent. Persisted across launches via `@SceneStorage`.
+- **macOS notification** when a long scan finishes in the background.
+  Only fires if the scan took > 30s AND the app is not key. Local only,
+  zero network.
+- **Inspector multi-select mode**: when multiple rows are ticked but no
+  single group is selected, the inspector shows an aggregate summary
+  (group count, file count, total size, breakdown by category).
+- **Dock badge** with the count of safe groups after a scan. Clears on
+  new scan.
+- **Live storage bar during scanning**: per-category accumulator in
+  `ScanDisplayProgress.sizeByCategory`. The scan progress screen now
+  shows the breakdown forming in real time as the scan runs.
+- **Lifetime stats** in Settings: total scans run + total space cleaned
+  since install. Stored in UserDefaults, wiped by the Reset button.
+- **Four new scan categories** (shipped in v0.1.2, documented here):
   - **Xcode Junk** — `~/Library/Developer/Xcode/DerivedData`, `Archives`,
     `iOS DeviceSupport`, and `CoreSimulator/Caches`. DerivedData rows are
     grouped per Xcode project (the `-hash` suffix is stripped from the

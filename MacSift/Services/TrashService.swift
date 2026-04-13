@@ -23,9 +23,15 @@ enum TrashService {
         ) else {
             return Summary(itemCount: 0, totalSize: 0)
         }
+        return summary(of: trashURL)
+    }
 
+    /// Testable variant: summarize any directory as if it were a Trash folder.
+    /// Used in tests with a temporary directory populated with fake items.
+    static func summary(of directory: URL) -> Summary {
+        let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(
-            at: trashURL,
+            at: directory,
             includingPropertiesForKeys: [.fileSizeKey, .totalFileAllocatedSizeKey, .isDirectoryKey]
         ) else {
             return Summary(itemCount: 0, totalSize: 0)
@@ -80,12 +86,17 @@ enum TrashService {
         ) else {
             return before
         }
+        emptyDirectory(trashURL)
+        return before
+    }
 
-        if let contents = try? fm.contentsOfDirectory(at: trashURL, includingPropertiesForKeys: nil) {
+    /// Testable variant: wipe everything from a given directory.
+    static func emptyDirectory(_ directory: URL) {
+        let fm = FileManager.default
+        if let contents = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
             for item in contents {
                 try? fm.removeItem(at: item)
             }
         }
-        return before
     }
 }

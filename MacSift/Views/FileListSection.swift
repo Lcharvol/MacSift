@@ -1,5 +1,21 @@
 import SwiftUI
 
+/// How the file list is ordered. Persisted via @SceneStorage in MainView.
+enum FileListSortOption: String, CaseIterable, Identifiable {
+    case sizeDesc
+    case nameAsc
+    case dateDesc
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .sizeDesc: "Size (largest first)"
+        case .nameAsc: "Name"
+        case .dateDesc: "Most recent"
+        }
+    }
+}
+
 /// Isolated view for the file list. Renders aggregated `FileGroup`s instead
 /// of raw files so that things like "Safari cache" appear as a single row
 /// even when they contain thousands of underlying files.
@@ -9,6 +25,7 @@ struct FileListSection: View {
     let selectedCategory: FileCategory?
     let searchQuery: String
     let isAdvanced: Bool
+    let sortOption: FileListSortOption
     let selectedIDs: Set<String>
     let inspectedGroupID: String?
     @Binding var showAllFiles: Bool
@@ -31,8 +48,26 @@ struct FileListSection: View {
             return baseGroups.filter { $0.label.lowercased().contains(q) }
         }()
 
+        let sorted: [FileGroup] = {
+            switch sortOption {
+            case .sizeDesc:
+                // The base array is already sorted by size desc in ScanViewModel,
+                // so this is a no-op when the sort hasn't changed.
+                return filtered.sorted { $0.totalSize > $1.totalSize }
+            case .nameAsc:
+                return filtered.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+            case .dateDesc:
+                // Use the most recent file inside each group as the sort key.
+                return filtered.sorted { a, b in
+                    let aDate = a.files.map(\.modificationDate).max() ?? .distantPast
+                    let bDate = b.files.map(\.modificationDate).max() ?? .distantPast
+                    return aDate > bDate
+                }
+            }
+        }()
+
         let limit = showAllFiles ? Int.max : Self.defaultCap
-        return Array(filtered.prefix(limit))
+        return Array(sorted.prefix(limit))
     }
 
     private var totalAvailable: Int {

@@ -72,9 +72,42 @@ struct ScanProgressView: View {
                         .transition(.opacity)
                         .animation(.easeInOut(duration: 0.3), value: progress.currentPath)
                 }
+
+                // Live per-category storage bar. Renders as soon as any
+                // category has something, which gives immediate visual
+                // feedback that the scan is making progress.
+                if !progress.sizeByCategory.isEmpty {
+                    liveStorageBar(from: progress.sizeByCategory)
+                        .frame(maxWidth: 380)
+                        .padding(.top, 8)
+                }
             }
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func liveStorageBar(from sizes: [FileCategory: Int64]) -> some View {
+        let sorted = sizes
+            .filter { $0.value > 0 }
+            .sorted { $0.value > $1.value }
+        let total = max(sorted.reduce(0 as Int64) { $0 + $1.value }, 1)
+
+        return GeometryReader { geo in
+            let w = geo.size.width
+            let spacing: CGFloat = 2
+            HStack(spacing: spacing) {
+                ForEach(Array(sorted.enumerated()), id: \.offset) { _, entry in
+                    let fraction = CGFloat(entry.value) / CGFloat(total)
+                    Rectangle()
+                        .fill(entry.key.displayColor)
+                        .frame(width: max(4, w * fraction - spacing))
+                        .opacity(0.9)
+                }
+            }
+            .clipShape(Capsule())
+        }
+        .frame(height: 8)
+        .animation(.easeOut(duration: 0.3), value: sorted.count)
     }
 }

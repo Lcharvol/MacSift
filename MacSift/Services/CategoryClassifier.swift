@@ -139,14 +139,17 @@ struct CategoryClassifier: Sendable {
         }
 
         // Old Downloads — files in ~/Downloads that haven't been touched in
-        // a while. The threshold is age-based, not size-based.
+        // a while. The threshold is age-based, not size-based. Recent files
+        // fall through to the .largeFiles check below so they're still
+        // flagged if they're big.
         let downloadsPrefix = "\(homePrefix)Downloads/"
         if path.hasPrefix(downloadsPrefix) {
             let ageDays = Date().timeIntervalSince(modificationDate) / 86_400
             if ageDays >= Self.oldDownloadsAgeThresholdDays {
                 return .oldDownloads
             }
-            return nil
+            // Recent Downloads file: keep going — if it's large enough, the
+            // next check returns .largeFiles; otherwise nil.
         }
 
         // Large files (anywhere in home)

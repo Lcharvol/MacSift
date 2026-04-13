@@ -143,6 +143,25 @@ struct CategoryClassifierTests {
         #expect(classifier.classify(url: url, size: 1000, modificationDate: recentDate) == nil)
     }
 
+    @Test func recentLargeDownloadClassifiesAsLargeFiles() {
+        // Regression: previously a recent file in ~/Downloads returned nil
+        // regardless of size. After the double-count fix, recent files fall
+        // through to the .largeFiles check and big ones are still flagged.
+        let url = home.appending(path: "Downloads/RecentInstaller.dmg")
+        let recent = Date().addingTimeInterval(-5 * 86400)
+        let threshold: Int64 = 500 * 1024 * 1024
+        #expect(classifier.classify(url: url, size: threshold + 1, modificationDate: recent) == .largeFiles)
+    }
+
+    @Test func oldLargeDownloadPrefersOldDownloads() {
+        // A file that matches both .oldDownloads (age) and .largeFiles (size)
+        // should be classified as .oldDownloads — that check runs first.
+        let url = home.appending(path: "Downloads/OldBigVideo.mov")
+        let old = Date().addingTimeInterval(-200 * 86400)
+        let threshold: Int64 = 500 * 1024 * 1024
+        #expect(classifier.classify(url: url, size: threshold + 1, modificationDate: old) == .oldDownloads)
+    }
+
     // MARK: - Mail Attachments
 
     @Test func classifiesMailDownloads() {

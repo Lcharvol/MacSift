@@ -7,6 +7,9 @@ struct ScanDisplayProgress: Equatable {
     var totalSize: Int64 = 0
     var currentPath: String = ""
     var currentCategory: FileCategory? = nil
+    /// Per-category size breakdown, used to draw a live preview of the
+    /// storage bar as the scan progresses.
+    var sizeByCategory: [FileCategory: Int64] = [:]
 }
 
 /// Bundled completed-scan state. Keeping the result, sorted views, and
@@ -143,7 +146,17 @@ final class ScanViewModel: ObservableObject {
             scanResult: scanResult,
             snapshots: snapshots
         )
+        // Bump lifetime counter — one per completed (not cancelled) scan.
+        appState.lifetimeScanCount += 1
         state = .completed(completed)
+
+        // Post a local notification if the scan took a while and the user
+        // isn't looking at the window right now.
+        ScanNotifications.notifyIfBackgroundLongScan(
+            duration: scanResult.scanDuration,
+            fileCount: completed.result.totalFileCount,
+            totalSize: completed.result.totalSize
+        )
     }
 
     /// Build the scanner with the current settings and optional custom root.
@@ -166,6 +179,7 @@ final class ScanViewModel: ObservableObject {
         Task { [weak self] in
             var totalFiles = 0
             var totalSize: Int64 = 0
+            var sizeByCategory: [FileCategory: Int64] = [:]
             var lastUpdate = Date.distantPast
             let minInterval: TimeInterval = 0.25
             var lastPath = ""
@@ -176,6 +190,9 @@ final class ScanViewModel: ObservableObject {
                 totalSize += delta.deltaSize
                 lastPath = delta.currentPath
                 lastCategory = delta.category
+                if let cat = delta.category {
+                    sizeByCategory[cat, default: 0] += delta.deltaSize
+                }
 
                 let now = Date()
                 if now.timeIntervalSince(lastUpdate) >= minInterval {
@@ -184,7 +201,8 @@ final class ScanViewModel: ObservableObject {
                         totalFiles: totalFiles,
                         totalSize: totalSize,
                         currentPath: lastPath,
-                        currentCategory: lastCategory
+                        currentCategory: lastCategory,
+                        sizeByCategory: sizeByCategory
                     )
                     await MainActor.run { self?.displayProgress = snapshot }
                 }
@@ -195,7 +213,8 @@ final class ScanViewModel: ObservableObject {
                 totalFiles: totalFiles,
                 totalSize: totalSize,
                 currentPath: lastPath,
-                currentCategory: lastCategory
+                currentCategory: lastCategory,
+                sizeByCategory: sizeByCategory
             )
             await MainActor.run { self?.displayProgress = finalSnapshot }
         }

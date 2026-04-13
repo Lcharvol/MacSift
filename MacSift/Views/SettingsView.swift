@@ -112,6 +112,23 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Stats") {
+                HStack {
+                    Text("Scans run")
+                    Spacer()
+                    Text("\(appState.lifetimeScanCount)")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                HStack {
+                    Text("Total cleaned")
+                    Spacer()
+                    Text(appState.lifetimeCleanedBytes.formattedFileSize)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+
             Section("Permissions") {
                 HStack {
                     Text("Full Disk Access")
@@ -186,13 +203,17 @@ struct SettingsView: View {
 
     private func resetAllSettings() {
         let defaults = UserDefaults.standard
-        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "excludedPaths"] {
+        for key in ["appMode", "isDryRun", "largeFileThresholdMB", "excludedPaths",
+                    "lifetimeScanCount", "lifetimeCleanedBytes"]
+        {
             defaults.removeObject(forKey: key)
         }
         // Reapply defaults on the live AppState so the UI updates immediately
         appState.mode = .simple
         appState.isDryRun = true
         appState.largeFileThresholdMB = 500
+        appState.lifetimeScanCount = 0
+        appState.lifetimeCleanedBytes = 0
         // Clear exclusions
         for url in exclusionManager.excludedPaths {
             exclusionManager.removeExclusion(url)

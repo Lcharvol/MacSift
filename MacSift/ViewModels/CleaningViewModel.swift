@@ -58,6 +58,33 @@ final class CleaningViewModel: ObservableObject {
         }
     }
 
+    /// Build an aggregate summary from the current selection + the scan's
+    /// grouped view. `allGroups` is typically `scanVM.allSortedGroups`.
+    func selectionSummary(using allGroups: [FileGroup]) -> SelectionSummary {
+        guard !selectedIDs.isEmpty else {
+            return SelectionSummary(groupCount: 0, fileCount: 0, totalSize: 0, countByCategory: [:])
+        }
+        var groupCount = 0
+        var fileCount = 0
+        var total: Int64 = 0
+        var counts: [FileCategory: Int] = [:]
+        for group in allGroups {
+            // A group counts if ANY of its files are selected (partial or full)
+            let selectedFilesInGroup = group.files.filter { selectedIDs.contains($0.id) }
+            guard !selectedFilesInGroup.isEmpty else { continue }
+            groupCount += 1
+            fileCount += selectedFilesInGroup.count
+            total += selectedFilesInGroup.reduce(0) { $0 + $1.size }
+            counts[group.category, default: 0] += selectedFilesInGroup.count
+        }
+        return SelectionSummary(
+            groupCount: groupCount,
+            fileCount: fileCount,
+            totalSize: total,
+            countByCategory: counts
+        )
+    }
+
     var selectedCount: Int {
         selectedIDs.count
     }
@@ -156,6 +183,11 @@ final class CleaningViewModel: ObservableObject {
         )
 
         progressTask.cancel()
+
+        // Bump the lifetime counter only for real (non-dry-run) cleanings.
+        if !appState.isDryRun && cleaningReport.freedSize > 0 {
+            appState.lifetimeCleanedBytes += cleaningReport.freedSize
+        }
 
         self.report = cleaningReport
         self.selectedIDs.removeAll()

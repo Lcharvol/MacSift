@@ -276,11 +276,14 @@ struct DiskScanner: Sendable {
         }
 
         // Skip the entire Library (already scanned by other tasks), version control,
-        // node_modules, build outputs, and Trash — these can have millions of small files
-        // and dramatically slow down the large-file scan.
+        // node_modules, build outputs, Trash, and Downloads (handled by its own
+        // scan target). These can have millions of small files and dramatically
+        // slow down the large-file scan — and scanning them here would also
+        // double-count files that belong to another explicit scan target.
         let skipPrefixes = [
             "Library/",
             ".Trash",
+            "Downloads/",
             "node_modules",
             ".git",
             ".cache",
@@ -297,6 +300,7 @@ struct DiskScanner: Sendable {
             "venv",
             ".venv",
             "__pycache__",
+            "go/pkg/mod",
         ]
         let skipNames: Set<String> = [
             "node_modules", ".git", ".cache", "Pods", "DerivedData",

@@ -1,19 +1,30 @@
 import SwiftUI
+import AppKit
 
 struct MainView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var exclusionManager: ExclusionManager
     @StateObject private var scanVM: ScanViewModel
     @StateObject private var cleaningVM: CleaningViewModel
     // Per-window UI state. SceneStorage persists these across app launches so
     // re-opening the window restores the user's last view preferences.
     @SceneStorage("MainView.selectedCategoryRaw") private var selectedCategoryRaw: String = ""
     @SceneStorage("MainView.showAllFiles") private var showAllFiles = false
+    @SceneStorage("MainView.sortOptionRaw") private var sortOptionRaw: String = FileListSortOption.sizeDesc.rawValue
     // Inspector state is intentionally NOT persisted — without an inspectedGroup
     // (which is in-memory only), an open inspector after relaunch would just
     // show the empty placeholder, which is confusing.
     @State private var isInspectorPresented = false
     @State private var searchQuery: String = ""
     @State private var inspectedGroup: FileGroup?
+    /// When non-nil, the file list shows every ScannedFile in this group
+    /// instead of the grouped view. Acts as a "drill down" for power users.
+    @State private var expandedGroup: FileGroup?
+    /// Size of the most recent cleaning report — used to show a "freed X GB"
+    /// banner after the auto-rescan finishes.
+    @State private var pendingFreedSize: Int64 = 0
+    /// The visible banner message. When non-nil, shown above the results.
+    @State private var freedBanner: String?
 
     private var selectedCategory: FileCategory? {
         FileCategory(rawValue: selectedCategoryRaw)
@@ -24,6 +35,10 @@ struct MainView: View {
             get: { FileCategory(rawValue: selectedCategoryRaw) },
             set: { selectedCategoryRaw = $0?.rawValue ?? "" }
         )
+    }
+
+    private var sortOption: FileListSortOption {
+        FileListSortOption(rawValue: sortOptionRaw) ?? .sizeDesc
     }
 
     init(exclusionManager: ExclusionManager, appState: AppState) {
@@ -56,6 +71,25 @@ struct MainView: View {
         .onChange(of: scanVM.state) { _, newState in
             if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
+                // Show the number of .safe groups as a Dock badge — the user
+                // can see at a glance how many things are waiting to be cleaned.
+                let safeCount = scanVM.allSortedGroups.filter { $0.category.riskLevel == .safe }.count
+                NSApp.dockTile.badgeLabel = safeCount > 0 ? "\(safeCount)" : nil
+
+                // Post-cleanup banner: show "You freed X" for a few seconds
+                // after an auto-rescan triggered by a real cleanup.
+                if pendingFreedSize > 0 {
+                    freedBanner = "You just freed \(pendingFreedSize.formattedFileSize)."
+                    pendingFreedSize = 0
+                    Task {
+                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                        await MainActor.run {
+                            withAnimation { freedBanner = nil }
+                        }
+                    }
+                }
+            } else if newState.isScanning {
+                NSApp.dockTile.badgeLabel = nil
             }
         }
         .onChange(of: cleaningVM.state) { _, newState in
@@ -63,8 +97,12 @@ struct MainView: View {
             // the displayed sizes reflect the new state on disk.
             if newState == .completed,
                appState.isDryRun == false,
-               (cleaningVM.report?.deletedCount ?? 0) > 0
+               let report = cleaningVM.report,
+               report.deletedCount > 0
             {
+                // Remember the freed size so we can show a banner after the
+                // next scan completes.
+                pendingFreedSize = report.freedSize
                 scanVM.startScan()
             }
         }
@@ -72,6 +110,7 @@ struct MainView: View {
             showAllFiles = false      // reset cap when switching categories
             searchQuery = ""          // clear filter so the new category shows everything
             inspectedGroup = nil      // clear stale inspector content
+            expandedGroup = nil       // collapse any drill-down
         }
         .onReceive(NotificationCenter.default.publisher(for: .macSiftStartScan)) { _ in
             scanVM.startScan()
@@ -164,6 +203,28 @@ struct MainView: View {
 
     private var resultsView: some View {
         VStack(spacing: 0) {
+            if let freedBanner {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(freedBanner)
+                        .font(.callout.weight(.medium))
+                    Spacer()
+                    Button {
+                        withAnimation { self.freedBanner = nil }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.green.opacity(0.1))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             resultsHeader
 
             StorageBarView(
@@ -183,6 +244,21 @@ struct MainView: View {
         .searchable(text: $searchQuery, placement: .toolbar, prompt: "Filter by name")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Sort by", selection: Binding(
+                        get: { sortOption },
+                        set: { sortOptionRaw = $0.rawValue }
+                    )) {
+                        ForEach(FileListSortOption.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                }
+                .help("Sort file list")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button {
                     scanVM.startScan()
                 } label: {
@@ -200,8 +276,15 @@ struct MainView: View {
             }
         }
         .inspector(isPresented: $isInspectorPresented) {
-            InspectorView(group: inspectedGroup)
-                .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
+            InspectorView(
+                group: inspectedGroup,
+                selectionSummary: inspectedGroup == nil
+                    ? cleaningVM.selectionSummary(using: scanVM.allSortedGroups)
+                    : nil,
+                onExclude: { url in exclusionManager.addExclusion(url) },
+                onExpand: { group in expandedGroup = group }
+            )
+            .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
         }
     }
 
@@ -233,21 +316,31 @@ struct MainView: View {
 
     @ViewBuilder
     private var fileListView: some View {
-        FileListSection(
-            groupsByCategory: scanVM.groupsByCategory,
-            allSortedGroups: scanVM.allSortedGroups,
-            selectedCategory: selectedCategory,
-            searchQuery: searchQuery,
-            isAdvanced: appState.mode == .advanced,
-            selectedIDs: cleaningVM.selectedIDs,
-            inspectedGroupID: inspectedGroup?.id,
-            showAllFiles: $showAllFiles,
-            onToggleGroup: { [weak cleaningVM] group in cleaningVM?.toggleGroup(group) },
-            onInspectGroup: { group in
-                inspectedGroup = group
-                isInspectorPresented = true
-            }
-        )
+        if let expanded = expandedGroup {
+            ExpandedGroupView(
+                group: expanded,
+                selectedIDs: cleaningVM.selectedIDs,
+                onToggleFile: { [weak cleaningVM] file in cleaningVM?.toggleFile(file) },
+                onClose: { expandedGroup = nil }
+            )
+        } else {
+            FileListSection(
+                groupsByCategory: scanVM.groupsByCategory,
+                allSortedGroups: scanVM.allSortedGroups,
+                selectedCategory: selectedCategory,
+                searchQuery: searchQuery,
+                isAdvanced: appState.mode == .advanced,
+                sortOption: sortOption,
+                selectedIDs: cleaningVM.selectedIDs,
+                inspectedGroupID: inspectedGroup?.id,
+                showAllFiles: $showAllFiles,
+                onToggleGroup: { [weak cleaningVM] group in cleaningVM?.toggleGroup(group) },
+                onInspectGroup: { group in
+                    inspectedGroup = group
+                    isInspectorPresented = true
+                }
+            )
+        }
     }
 
     private var headerSubtitle: String {

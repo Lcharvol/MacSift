@@ -5,15 +5,102 @@ import QuickLookUI
 /// Detail panel shown in the right-side inspector when the user single-clicks
 /// a file group. Hosts the per-file actions that used to live in a per-row
 /// context menu (which was too expensive at scale).
+/// Aggregate of the current multi-selection. When multiple groups are
+/// ticked and no single group is being inspected, the inspector shows
+/// this summary instead of a per-group detail.
+struct SelectionSummary: Sendable {
+    let groupCount: Int
+    let fileCount: Int
+    let totalSize: Int64
+    let countByCategory: [FileCategory: Int]
+}
+
 struct InspectorView: View {
     let group: FileGroup?
+    let selectionSummary: SelectionSummary?
+    let onExclude: ((URL) -> Void)?
+    let onExpand: ((FileGroup) -> Void)?
+
+    @State private var excluded = false
+
+    init(
+        group: FileGroup?,
+        selectionSummary: SelectionSummary? = nil,
+        onExclude: ((URL) -> Void)? = nil,
+        onExpand: ((FileGroup) -> Void)? = nil
+    ) {
+        self.group = group
+        self.selectionSummary = selectionSummary
+        self.onExclude = onExclude
+        self.onExpand = onExpand
+    }
 
     var body: some View {
         if let group {
             content(for: group)
+        } else if let summary = selectionSummary, summary.groupCount > 0 {
+            multiSelectionContent(for: summary)
         } else {
             placeholder
         }
+    }
+
+    // MARK: - Multi-selection summary
+
+    private func multiSelectionContent(for summary: SelectionSummary) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Selection")
+                            .font(.headline)
+                        Text("^[\(summary.groupCount) group](inflect: true) ticked")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 16) {
+                    statTile(title: "Total", value: summary.totalSize.formattedFileSize)
+                    statTile(title: "Files", value: "\(summary.fileCount)")
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Breakdown by category")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ForEach(
+                    summary.countByCategory
+                        .sorted { $0.value > $1.value }
+                        .filter { $0.value > 0 },
+                    id: \.key
+                ) { entry in
+                    HStack {
+                        Image(systemName: entry.key.iconName)
+                            .foregroundStyle(entry.key.displayColor)
+                            .frame(width: 16)
+                        Text(entry.key.label)
+                            .font(.caption)
+                        Spacer()
+                        Text("\(entry.value)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func content(for group: FileGroup) -> some View {
@@ -111,6 +198,33 @@ struct InspectorView: View {
             }
             .buttonStyle(.glass)
             .controlSize(.large)
+
+            if group.isAggregated, onExpand != nil {
+                Button {
+                    onExpand?(group)
+                } label: {
+                    Label("Show all \(group.fileCount) files", systemImage: "list.bullet.below.rectangle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+            }
+
+            if onExclude != nil {
+                Button {
+                    onExclude?(group.representativeURL)
+                    excluded = true
+                } label: {
+                    Label(
+                        excluded ? "Excluded from future scans" : "Exclude from future scans",
+                        systemImage: excluded ? "checkmark.circle" : "minus.circle"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .disabled(excluded)
+            }
         }
     }
 

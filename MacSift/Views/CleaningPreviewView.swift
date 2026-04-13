@@ -6,149 +6,280 @@ struct CleaningPreviewView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Cleaning Preview")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                Button("Cancel") {
-                    cleaningVM.cancelPreview()
+            header
+
+            Divider().opacity(0.5)
+
+            Group {
+                if cleaningVM.state == .cleaning {
+                    cleaningProgressView
+                } else if let report = cleaningVM.report {
+                    cleaningReportView(report)
+                } else {
+                    previewContent
                 }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-
-            Divider()
-
-            if cleaningVM.state == .cleaning {
-                cleaningProgressView
-            } else if let report = cleaningVM.report {
-                cleaningReportView(report)
-            } else {
-                previewContent
             }
         }
-        .frame(width: 550, height: 450)
+        .frame(width: 580, height: 520)
+        .background(.regularMaterial)
     }
 
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(headerTitle)
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+                Text(headerSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                cleaningVM.cancelPreview()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(.quinary))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+    }
+
+    private var headerTitle: String {
+        if cleaningVM.state == .cleaning { return "Cleaning..." }
+        if cleaningVM.report != nil { return appState.isDryRun ? "Dry Run Complete" : "Cleaning Complete" }
+        return "Review Before Cleaning"
+    }
+
+    private var headerSubtitle: String {
+        if cleaningVM.state == .cleaning { return "Processing files" }
+        if cleaningVM.report != nil { return "Summary of the operation" }
+        return "Confirm what will be removed"
+    }
+
+    // MARK: - Preview
+
     private var previewContent: some View {
-        VStack(spacing: 16) {
-            List {
-                ForEach(FileCategory.allCases) { category in
-                    let files = cleaningVM.selectedByCategory[category] ?? []
-                    if !files.isEmpty {
-                        let categorySize = files.reduce(0 as Int64) { $0 + $1.size }
-                        HStack {
-                            Image(systemName: category.iconName)
-                                .foregroundStyle(category.displayColor)
-                            Text(category.label)
-                            Spacer()
-                            Circle()
-                                .fill(category.riskLevel.color)
-                                .frame(width: 8, height: 8)
-                            Text("\(files.count) files")
-                                .foregroundStyle(.secondary)
-                            Text(categorySize.formattedFileSize)
-                                .fontWeight(.medium)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(FileCategory.allCases) { category in
+                        let files = cleaningVM.selectedByCategory[category] ?? []
+                        if !files.isEmpty {
+                            categoryRow(category: category, files: files)
                         }
                     }
                 }
+                .padding(20)
             }
 
-            Toggle("Dry Run (simulate only)", isOn: $appState.isDryRun)
-                .padding(.horizontal)
+            Divider().opacity(0.5)
 
-            if appState.isDryRun {
-                HStack {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(.blue)
-                    Text("Dry run mode: no files will actually be deleted.")
-                        .font(.callout)
+            VStack(spacing: 14) {
+                Toggle(isOn: $appState.isDryRun) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "shield.lefthalf.filled")
+                            .foregroundStyle(.blue)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Dry Run")
+                                .font(.callout.weight(.semibold))
+                            Text("Simulate without deleting")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
-                .padding(.horizontal)
-            }
+                .toggleStyle(.switch)
 
-            Button {
-                Task { await cleaningVM.confirmCleaning() }
-            } label: {
-                Text("Delete \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))")
+                Button {
+                    Task { await cleaningVM.confirmCleaning() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: appState.isDryRun ? "play.fill" : "trash.fill")
+                        Text(appState.isDryRun
+                             ? "Simulate \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))"
+                             : "Delete \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))")
+                            .fontWeight(.semibold)
+                    }
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: appState.isDryRun
+                                        ? [.blue, .blue.opacity(0.85)]
+                                        : [.red, .red.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
+                    .foregroundStyle(.white)
+                    .shadow(color: (appState.isDryRun ? Color.blue : Color.red).opacity(0.3), radius: 8, y: 3)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(appState.isDryRun ? .blue : .red)
-            .controlSize(.large)
-            .padding()
+            .padding(20)
         }
     }
 
+    private func categoryRow(category: FileCategory, files: [ScannedFile]) -> some View {
+        let categorySize = files.reduce(0 as Int64) { $0 + $1.size }
+
+        return HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(category.displayColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: category.iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(category.displayColor)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.label)
+                    .font(.callout.weight(.semibold))
+                Text("\(files.count) files")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(category.riskLevel.color)
+                    .frame(width: 6, height: 6)
+                Text(category.riskLevel.label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(.quinary))
+
+            Text(categorySize.formattedFileSize)
+                .font(.system(.callout, design: .rounded, weight: .semibold))
+                .monospacedDigit()
+                .frame(minWidth: 70, alignment: .trailing)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.background.secondary.opacity(0.5))
+        )
+    }
+
+    // MARK: - Cleaning progress
+
     private var cleaningProgressView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             ProgressView(
                 value: Double(cleaningVM.cleaningProgress?.processed ?? 0),
                 total: Double(cleaningVM.cleaningProgress?.total ?? 1)
             )
-            .padding(.horizontal)
+            .progressViewStyle(.linear)
+            .tint(.blue)
+            .padding(.horizontal, 40)
 
             if let progress = cleaningVM.cleaningProgress {
-                Text("Processing \(progress.processed)/\(progress.total)")
-                    .font(.headline)
-                Text(progress.currentFile)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Freed: \(progress.freedSoFar.formattedFileSize)")
-                    .font(.callout)
+                VStack(spacing: 8) {
+                    Text("\(progress.processed) / \(progress.total)")
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                    Text(progress.currentFile)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text("Freed: \(progress.freedSoFar.formattedFileSize)")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
             }
 
             Spacer()
         }
+        .padding(20)
     }
 
+    // MARK: - Report
+
     private func cleaningReportView(_ report: CleaningReport) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
 
-            Image(systemName: report.failedFiles.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(report.failedFiles.isEmpty ? .green : .orange)
+            ZStack {
+                Circle()
+                    .fill(report.failedFiles.isEmpty ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                    .frame(width: 90, height: 90)
+                Image(systemName: report.failedFiles.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(report.failedFiles.isEmpty ? .green : .orange)
+            }
 
-            Text(appState.isDryRun ? "Dry Run Complete" : "Cleaning Complete")
-                .font(.title2)
-                .fontWeight(.bold)
+            VStack(spacing: 6) {
+                Text(report.freedSize.formattedFileSize)
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.green)
 
-            VStack(spacing: 4) {
-                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be" : "") deleted")
-                Text("\(report.freedSize.formattedFileSize) \(appState.isDryRun ? "would be" : "") freed")
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be" : "")freed")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             if !report.failedFiles.isEmpty {
-                Divider()
-                Text("\(report.failedFiles.count) files could not be deleted:")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(report.failedFiles.count) files could not be deleted")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
 
-                List(Array(report.failedFiles.prefix(10).enumerated()), id: \.offset) { _, item in
-                    VStack(alignment: .leading) {
-                        Text(item.0.name)
-                            .fontWeight(.medium)
-                        Text(item.1)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(report.failedFiles.prefix(5).enumerated()), id: \.offset) { _, item in
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.0.name)
+                                        .font(.caption.weight(.medium))
+                                    Text(item.1)
+                                        .font(.caption2)
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
                     }
+                    .frame(maxHeight: 100)
                 }
-                .frame(maxHeight: 150)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(.orange.opacity(0.08))
+                )
+                .padding(.horizontal, 20)
             }
 
             Spacer()
 
-            Button("Done") {
+            Button {
                 cleaningVM.reset()
+            } label: {
+                Text("Done")
+                    .font(.system(.body, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.blue)
+                    )
+                    .foregroundStyle(.white)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
+            .buttonStyle(.plain)
+            .padding(20)
         }
     }
 }

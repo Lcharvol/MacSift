@@ -19,6 +19,11 @@ mkdir -p "$BUNDLE/Contents/Resources"
 
 cp "$BIN_PATH/$APP_NAME" "$BUNDLE/Contents/MacOS/$APP_NAME"
 
+# Embed app icon if present
+if [ -f "AppIcon.icns" ]; then
+    cp AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
+fi
+
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -26,6 +31,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <dict>
     <key>CFBundleExecutable</key>
     <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
     <key>CFBundleName</key>

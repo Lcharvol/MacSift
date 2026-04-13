@@ -311,20 +311,21 @@ struct MainView: View {
             return scanVM.allSortedFiles
         }()
 
-        return ScrollView {
-            LazyVStack(spacing: 6) {
-                ForEach(files) { file in
-                    FileDetailView(
-                        file: file,
-                        isSelected: cleaningVM.selectedIDs.contains(file.id),
-                        isAdvanced: appState.mode == .advanced,
-                        onToggle: { cleaningVM.toggleFile(file) }
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+        // List wraps NSTableView on macOS — far faster than LazyVStack for thousands of rows.
+        // FileDetailView is Equatable so SwiftUI skips re-rendering rows whose props didn't change.
+        return List(files) { file in
+            FileDetailView(
+                file: file,
+                isSelected: cleaningVM.selectedIDs.contains(file.id),
+                isAdvanced: appState.mode == .advanced,
+                onToggle: { cleaningVM.toggleFile(file) }
+            )
+            .equatable()
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
         }
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
     }
 

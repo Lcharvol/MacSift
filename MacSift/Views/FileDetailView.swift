@@ -1,34 +1,40 @@
 import SwiftUI
 
-struct FileDetailView: View {
+struct FileDetailView: View, Equatable {
     let file: ScannedFile
     let isSelected: Bool
     let isAdvanced: Bool
     let onToggle: () -> Void
 
-    @State private var isHovering = false
+    // Equatable: SwiftUI re-renders only when these change. The closure is ignored
+    // (it captures the same VM and is stable across renders).
+    nonisolated static func == (lhs: FileDetailView, rhs: FileDetailView) -> Bool {
+        lhs.file.id == rhs.file.id
+            && lhs.isSelected == rhs.isSelected
+            && lhs.isAdvanced == rhs.isAdvanced
+    }
 
     var body: some View {
         HStack(spacing: 14) {
-            Button(action: onToggle) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.blue : Color.clear)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(isSelected ? Color.clear : Color.secondary.opacity(0.4), lineWidth: 1.5)
-                        )
-                        .frame(width: 20, height: 20)
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+            // Checkbox — simple, no animations to keep scrolling smooth
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.blue : Color.clear)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(isSelected ? Color.clear : Color.secondary.opacity(0.4), lineWidth: 1.5)
+                    )
+                    .frame(width: 20, height: 20)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
                 }
             }
-            .buttonStyle(.plain)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+            .contentShape(Rectangle())
+            .onTapGesture { onToggle() }
 
+            // Category icon tile
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(file.category.displayColor.opacity(0.15))
@@ -40,7 +46,7 @@ struct FileDetailView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(file.name)
-                    .font(.system(.callout, weight: .semibold))
+                    .font(.system(.callout).weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -62,7 +68,7 @@ struct FileDetailView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(file.size.formattedFileSize)
-                    .font(.system(.callout, design: .rounded, weight: .semibold))
+                    .font(.system(.callout, design: .rounded).weight(.semibold))
                     .monospacedDigit()
 
                 if isAdvanced {
@@ -83,24 +89,9 @@ struct FileDetailView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(rowBackground)
+                .fill(isSelected ? Color.blue.opacity(0.10) : Color.gray.opacity(0.06))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(isSelected ? Color.blue.opacity(0.35) : .clear, lineWidth: 1)
-        )
-        .onHover { isHovering = $0 }
-        .animation(.easeInOut(duration: 0.12), value: isHovering)
-        .animation(.easeInOut(duration: 0.12), value: isSelected)
-    }
-
-    private var rowBackground: AnyShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(.blue.opacity(0.08))
-        } else if isHovering {
-            return AnyShapeStyle(.quinary)
-        } else {
-            return AnyShapeStyle(.background.secondary.opacity(0.5))
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { onToggle() }
     }
 }

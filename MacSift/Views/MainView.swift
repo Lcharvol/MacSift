@@ -22,6 +22,11 @@ struct MainView: View {
         .sheet(isPresented: $cleaningVM.showPreview) {
             CleaningPreviewView(cleaningVM: cleaningVM, appState: appState)
         }
+        .onChange(of: scanVM.state) { _, newState in
+            if newState == .completed {
+                cleaningVM.updateFileIndex(from: scanVM.result)
+            }
+        }
     }
 
     // MARK: - Sidebar
@@ -299,11 +304,12 @@ struct MainView: View {
     }
 
     private var fileListView: some View {
+        // Use pre-sorted cached lists from ScanViewModel — avoids re-sorting on every selection toggle
         let files: [ScannedFile] = {
             if let category = selectedCategory {
-                return (scanVM.result.filesByCategory[category] ?? []).sorted { $0.size > $1.size }
+                return scanVM.sortedFilesByCategory[category] ?? []
             }
-            return scanVM.result.filesByCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
+            return scanVM.allSortedFiles
         }()
 
         return ScrollView {
@@ -311,7 +317,7 @@ struct MainView: View {
                 ForEach(files) { file in
                     FileDetailView(
                         file: file,
-                        isSelected: cleaningVM.selectedFiles.contains(file),
+                        isSelected: cleaningVM.selectedIDs.contains(file.id),
                         isAdvanced: appState.mode == .advanced,
                         onToggle: { cleaningVM.toggleFile(file) }
                     )
@@ -371,7 +377,7 @@ struct MainView: View {
             .buttonStyle(.borderedProminent)
             .tint(.red)
             .controlSize(.large)
-            .disabled(cleaningVM.selectedFiles.isEmpty)
+            .disabled(cleaningVM.selectedIDs.isEmpty)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)

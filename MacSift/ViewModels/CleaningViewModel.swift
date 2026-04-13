@@ -10,46 +10,70 @@ final class CleaningViewModel: ObservableObject {
     }
 
     @Published var state: State = .idle
-    @Published var selectedFiles: Set<ScannedFile> = []
+    @Published var selectedIDs: Set<UUID> = []
     @Published var report: CleaningReport?
     @Published var cleaningProgress: CleaningProgress?
     @Published var showPreview: Bool = false
 
     private let appState: AppState
+    // Index for O(1) lookup by ID — populated when the scan completes
+    private var fileIndex: [UUID: ScannedFile] = [:]
 
     init(appState: AppState) {
         self.appState = appState
     }
 
+    func updateFileIndex(from result: ScanResult) {
+        var index: [UUID: ScannedFile] = [:]
+        for files in result.filesByCategory.values {
+            for file in files {
+                index[file.id] = file
+            }
+        }
+        self.fileIndex = index
+        // Drop selections that no longer exist
+        self.selectedIDs = selectedIDs.intersection(index.keys)
+    }
+
+    var selectedFiles: [ScannedFile] {
+        selectedIDs.compactMap { fileIndex[$0] }
+    }
+
     var selectedSize: Int64 {
-        selectedFiles.reduce(0) { $0 + $1.size }
+        selectedIDs.reduce(0) { acc, id in
+            acc + (fileIndex[id]?.size ?? 0)
+        }
     }
 
     var selectedCount: Int {
-        selectedFiles.count
+        selectedIDs.count
     }
 
     var selectedByCategory: [FileCategory: [ScannedFile]] {
-        Dictionary(grouping: Array(selectedFiles), by: \.category)
+        Dictionary(grouping: selectedFiles, by: \.category)
+    }
+
+    func isSelected(_ file: ScannedFile) -> Bool {
+        selectedIDs.contains(file.id)
     }
 
     func toggleFile(_ file: ScannedFile) {
-        if selectedFiles.contains(file) {
-            selectedFiles.remove(file)
+        if selectedIDs.contains(file.id) {
+            selectedIDs.remove(file.id)
         } else {
-            selectedFiles.insert(file)
+            selectedIDs.insert(file.id)
         }
     }
 
     func selectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
         for file in files {
-            selectedFiles.insert(file)
+            selectedIDs.insert(file.id)
         }
     }
 
     func deselectAllInCategory(_ category: FileCategory, files: [ScannedFile]) {
         for file in files {
-            selectedFiles.remove(file)
+            selectedIDs.remove(file.id)
         }
     }
 
@@ -57,14 +81,14 @@ final class CleaningViewModel: ObservableObject {
         for (category, files) in result.filesByCategory {
             if category.riskLevel == .safe {
                 for file in files {
-                    selectedFiles.insert(file)
+                    selectedIDs.insert(file.id)
                 }
             }
         }
     }
 
     func showCleaningPreview() {
-        guard !selectedFiles.isEmpty else { return }
+        guard !selectedIDs.isEmpty else { return }
         showPreview = true
         state = .previewing
     }
@@ -89,14 +113,14 @@ final class CleaningViewModel: ObservableObject {
         }
 
         let cleaningReport = await engine.clean(
-            files: Array(selectedFiles),
+            files: selectedFiles,
             dryRun: appState.isDryRun
         )
 
         progressTask.cancel()
 
         self.report = cleaningReport
-        self.selectedFiles.removeAll()
+        self.selectedIDs.removeAll()
         self.state = .completed
     }
 

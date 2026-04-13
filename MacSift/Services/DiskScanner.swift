@@ -58,6 +58,7 @@ actor DiskScanner {
         let classifier = self.classifier
         let maxDepth = self.maxDepth
         let homeDirectory = self.homeDirectory
+        let continuation = self.progressContinuation
 
         var allFiles: [FileCategory: [ScannedFile]] = [:]
 
@@ -69,7 +70,8 @@ actor DiskScanner {
                         hintCategory: hintCategory,
                         classifier: classifier,
                         excludedPaths: excludedPaths,
-                        maxDepth: maxDepth
+                        maxDepth: maxDepth,
+                        progress: continuation
                     )
                 }
             }
@@ -78,7 +80,8 @@ actor DiskScanner {
                 Self.scanForLargeFiles(
                     in: homeDirectory,
                     classifier: classifier,
-                    excludedPaths: excludedPaths
+                    excludedPaths: excludedPaths,
+                    progress: continuation
                 )
             }
 
@@ -107,7 +110,8 @@ actor DiskScanner {
         hintCategory: FileCategory?,
         classifier: CategoryClassifier,
         excludedPaths: [String],
-        maxDepth: Int
+        maxDepth: Int,
+        progress: AsyncStream<ScanProgress>.Continuation?
     ) -> [ScannedFile] {
         let fm = FileManager.default
 
@@ -124,6 +128,8 @@ actor DiskScanner {
         ) else { return [] }
 
         var files: [ScannedFile] = []
+        var totalSize: Int64 = 0
+        var sinceLastYield = 0
 
         while let next = enumerator.nextObject() {
             guard let fileURL = next as? URL else { continue }
@@ -171,6 +177,29 @@ actor DiskScanner {
                 modificationDate: modDate,
                 isDirectory: false
             ))
+            totalSize += size
+            sinceLastYield += 1
+
+            // Throttle progress events: yield every 100 files instead of per-file
+            if sinceLastYield >= 100 {
+                progress?.yield(ScanProgress(
+                    filesFound: files.count,
+                    currentSize: totalSize,
+                    currentPath: fileURL.lastPathComponent,
+                    category: category
+                ))
+                sinceLastYield = 0
+            }
+        }
+
+        // Final yield so the UI sees the last batch
+        if !files.isEmpty {
+            progress?.yield(ScanProgress(
+                filesFound: files.count,
+                currentSize: totalSize,
+                currentPath: directory.lastPathComponent,
+                category: hintCategory
+            ))
         }
 
         return files
@@ -179,7 +208,8 @@ actor DiskScanner {
     private static func scanForLargeFiles(
         in directory: URL,
         classifier: CategoryClassifier,
-        excludedPaths: [String]
+        excludedPaths: [String],
+        progress: AsyncStream<ScanProgress>.Continuation?
     ) -> [ScannedFile] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else { return [] }
@@ -192,16 +222,63 @@ actor DiskScanner {
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else { return [] }
 
-        let skipPrefixes = ["Library/Caches", "Library/Logs", "Library/Application Support"]
+        // Skip the entire Library (already scanned by other tasks), version control,
+        // node_modules, build outputs, and Trash — these can have millions of small files
+        // and dramatically slow down the large-file scan.
+        let skipPrefixes = [
+            "Library/",
+            ".Trash",
+            "node_modules",
+            ".git",
+            ".cache",
+            ".cargo",
+            ".rustup",
+            ".npm",
+            ".pnpm-store",
+            ".yarn",
+            "Pods",
+            "DerivedData",
+            ".build",
+            ".next",
+            ".nuxt",
+            "venv",
+            ".venv",
+            "__pycache__",
+        ]
+        let skipNames: Set<String> = [
+            "node_modules", ".git", ".cache", "Pods", "DerivedData",
+            ".build", ".next", ".nuxt", "venv", ".venv", "__pycache__",
+            ".Trash", ".npm", ".pnpm-store", ".yarn",
+        ]
         let homePath = directory.path(percentEncoded: false)
         let homePrefix = homePath.hasSuffix("/") ? homePath : homePath + "/"
         var files: [ScannedFile] = []
+        var totalSize: Int64 = 0
+        var visited = 0
 
         while let next = enumerator.nextObject() {
             guard let fileURL = next as? URL else { continue }
 
+            visited += 1
+            // Throttle progress every 500 files (large file scan walks more files than category scans)
+            if visited % 500 == 0 {
+                progress?.yield(ScanProgress(
+                    filesFound: files.count,
+                    currentSize: totalSize,
+                    currentPath: fileURL.lastPathComponent,
+                    category: .largeFiles
+                ))
+            }
+
             let filePath = fileURL.path(percentEncoded: false)
             let relativePath = filePath.hasPrefix(homePrefix) ? String(filePath.dropFirst(homePrefix.count)) : filePath
+
+            // Quick name-based skip (avoids prefix walk for common cases)
+            let lastComponent = fileURL.lastPathComponent
+            if skipNames.contains(lastComponent) {
+                enumerator.skipDescendants()
+                continue
+            }
 
             if skipPrefixes.contains(where: { relativePath.hasPrefix($0) }) {
                 enumerator.skipDescendants()
@@ -231,6 +308,7 @@ actor DiskScanner {
                 modificationDate: modDate,
                 isDirectory: false
             ))
+            totalSize += size
         }
 
         return files

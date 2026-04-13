@@ -10,6 +10,8 @@ final class ScanViewModel: ObservableObject {
 
     @Published var state: State = .idle
     @Published var result: ScanResult = .empty
+    @Published var sortedFilesByCategory: [FileCategory: [ScannedFile]] = [:]
+    @Published var allSortedFiles: [ScannedFile] = []
     @Published var progress: ScanProgress?
     @Published var tmSnapshots: [TMSnapshot] = []
     @Published var hasFullDiskAccess: Bool = false
@@ -45,7 +47,15 @@ final class ScanViewModel: ObservableObject {
 
         progressTask.cancel()
 
+        // Pre-sort once so the UI doesn't re-sort on every selection toggle
+        let sortedByCategory = scanResult.filesByCategory.mapValues { files in
+            files.sorted { $0.size > $1.size }
+        }
+        let allSorted = sortedByCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
+
         self.result = scanResult
+        self.sortedFilesByCategory = sortedByCategory
+        self.allSortedFiles = allSorted
         self.tmSnapshots = snapshots
         self.state = .completed
     }

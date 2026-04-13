@@ -150,6 +150,9 @@ struct ScanProgressView: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .frame(maxWidth: 380)
+                            .id(progress.currentPath)
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.3), value: progress.currentPath)
                     }
                     .padding(24)
                     .background(

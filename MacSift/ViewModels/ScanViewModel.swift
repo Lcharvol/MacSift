@@ -34,9 +34,16 @@ final class ScanViewModel: ObservableObject {
 
         let stream = await scanner.progressStream()
         let progressTask = Task { [weak self] in
+            // Throttle UI updates to ~4/sec so the displayed numbers and path don't flicker
+            var lastUpdate = Date.distantPast
+            let minInterval: TimeInterval = 0.25
             for await scanProgress in stream {
-                await MainActor.run {
-                    self?.progress = scanProgress
+                let now = Date()
+                if now.timeIntervalSince(lastUpdate) >= minInterval {
+                    lastUpdate = now
+                    await MainActor.run {
+                        self?.progress = scanProgress
+                    }
                 }
             }
         }

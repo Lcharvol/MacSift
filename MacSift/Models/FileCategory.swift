@@ -49,10 +49,10 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
         switch self {
         case .cache: "folder.badge.gearshape"
         case .logs: "doc.text"
-        case .tempFiles: "clock.arrow.circlepath"
+        case .tempFiles: "tray.full"
         case .appData: "app.dashed"
         case .largeFiles: "externaldrive"
-        case .timeMachineSnapshots: "timemachine"
+        case .timeMachineSnapshots: "clock.arrow.circlepath"
         case .iosBackups: "iphone"
         }
     }

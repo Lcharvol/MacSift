@@ -260,11 +260,10 @@ struct MainView: View {
         VStack(spacing: 0) {
             resultsHeader
 
-            TreemapView(
+            StorageBarView(
                 result: scanVM.result,
                 selectedCategory: $selectedCategory
             )
-            .frame(height: 240)
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
 

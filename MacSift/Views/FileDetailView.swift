@@ -1,4 +1,6 @@
 import SwiftUI
+import AppKit
+import QuickLookUI
 
 struct FileDetailView: View, Equatable {
     let file: ScannedFile
@@ -63,5 +65,54 @@ struct FileDetailView: View, Equatable {
         )
         .contentShape(Rectangle())
         .onTapGesture { onToggle() }
+        .contextMenu {
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([file.url])
+            } label: {
+                Label("Reveal in Finder", systemImage: "magnifyingglass")
+            }
+
+            Button {
+                QuickLookPreview.show(url: file.url)
+            } label: {
+                Label("Quick Look", systemImage: "eye")
+            }
+
+            Divider()
+
+            Button {
+                let pb = NSPasteboard.general
+                pb.clearContents()
+                pb.setString(file.path, forType: .string)
+            } label: {
+                Label("Copy Path", systemImage: "doc.on.doc")
+            }
+        }
+    }
+}
+
+// MARK: - Quick Look helper
+
+@MainActor
+final class QuickLookPreview: NSObject, QLPreviewPanelDataSource {
+    static let shared = QuickLookPreview()
+    private var url: URL?
+
+    static func show(url: URL) {
+        shared.url = url
+        guard let panel = QLPreviewPanel.shared() else { return }
+        panel.dataSource = shared
+        panel.makeKeyAndOrderFront(nil)
+        panel.reloadData()
+    }
+
+    nonisolated func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        1
+    }
+
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        MainActor.assumeIsolated {
+            self.url as NSURL?
+        }
     }
 }

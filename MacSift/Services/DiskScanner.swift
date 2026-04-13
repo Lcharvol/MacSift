@@ -10,14 +10,11 @@ struct ScanProgress: Sendable {
     let category: FileCategory?
 }
 
-actor DiskScanner {
-    private let classifier: CategoryClassifier
-    private let exclusionManager: ExclusionManager
-    private let homeDirectory: URL
-    private let maxDepth: Int
-
-    private var progressContinuation: AsyncStream<ScanProgress>.Continuation?
-    private var _progressStream: AsyncStream<ScanProgress>?
+struct DiskScanner: Sendable {
+    let classifier: CategoryClassifier
+    let exclusionManager: ExclusionManager
+    let homeDirectory: URL
+    let maxDepth: Int
 
     init(
         classifier: CategoryClassifier,
@@ -31,18 +28,10 @@ actor DiskScanner {
         self.maxDepth = maxDepth
     }
 
-    func progressStream() -> AsyncStream<ScanProgress> {
-        if let existing = _progressStream {
-            return existing
-        }
-        let stream = AsyncStream<ScanProgress> { continuation in
-            self.progressContinuation = continuation
-        }
-        _progressStream = stream
-        return stream
-    }
-
-    func scan() async -> ScanResult {
+    /// Run a scan and emit progress to the supplied continuation. Cancellation
+    /// is honored via Task cancellation — pass nil for the continuation if you
+    /// don't need progress events.
+    func scan(progress: AsyncStream<ScanProgress>.Continuation? = nil) async -> ScanResult {
         let startTime = Date()
 
         // Snapshot exclusions once at the start (avoids hot-loop hops to MainActor)
@@ -53,6 +42,8 @@ actor DiskScanner {
         let scanTargets: [(URL, FileCategory?)] = [
             (homeDirectory.appending(path: "Library/Caches"), .cache),
             (homeDirectory.appending(path: "Library/Logs"), .logs),
+            // Hint nil so the classifier handles it: iOS backups inside this tree
+            // need to be tagged as .iosBackups, the rest falls back to .appData.
             (homeDirectory.appending(path: "Library/Application Support"), nil),
             (URL(filePath: "/private/var/log"), .logs),
             (URL(filePath: "/tmp"), .tempFiles),
@@ -61,7 +52,6 @@ actor DiskScanner {
         let classifier = self.classifier
         let maxDepth = self.maxDepth
         let homeDirectory = self.homeDirectory
-        let continuation = self.progressContinuation
 
         var allFiles: [FileCategory: [ScannedFile]] = [:]
 
@@ -74,7 +64,7 @@ actor DiskScanner {
                         classifier: classifier,
                         excludedPaths: excludedPaths,
                         maxDepth: maxDepth,
-                        progress: continuation
+                        progress: progress
                     )
                 }
             }
@@ -84,7 +74,7 @@ actor DiskScanner {
                     in: homeDirectory,
                     classifier: classifier,
                     excludedPaths: excludedPaths,
-                    progress: continuation
+                    progress: progress
                 )
             }
 
@@ -96,7 +86,7 @@ actor DiskScanner {
         }
 
         let duration = Date().timeIntervalSince(startTime)
-        progressContinuation?.finish()
+        progress?.finish()
 
         return ScanResult(filesByCategory: allFiles, scanDuration: duration)
     }
@@ -134,7 +124,14 @@ actor DiskScanner {
         var deltaFiles = 0
         var deltaSize: Int64 = 0
 
+        var cancelCheckCounter = 0
         while let next = enumerator.nextObject() {
+            // Cooperative cancellation: bail out cleanly if the surrounding
+            // Task was cancelled. Check periodically to avoid syscall overhead.
+            cancelCheckCounter += 1
+            if cancelCheckCounter % 200 == 0 && Task.isCancelled {
+                return files
+            }
             guard let fileURL = next as? URL else { continue }
 
             if enumerator.level > maxDepth {
@@ -262,6 +259,9 @@ actor DiskScanner {
         var visited = 0
 
         while let next = enumerator.nextObject() {
+            if visited % 200 == 0 && Task.isCancelled {
+                return files
+            }
             guard let fileURL = next as? URL else { continue }
 
             visited += 1

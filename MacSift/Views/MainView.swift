@@ -5,6 +5,8 @@ struct MainView: View {
     @StateObject private var scanVM: ScanViewModel
     @StateObject private var cleaningVM: CleaningViewModel
     @State private var selectedCategory: FileCategory?
+    @State private var showAllFiles = false
+    @State private var searchQuery: String = ""
 
     init(exclusionManager: ExclusionManager, appState: AppState) {
         _scanVM = StateObject(wrappedValue: ScanViewModel(exclusionManager: exclusionManager, appState: appState))
@@ -23,9 +25,24 @@ struct MainView: View {
             CleaningPreviewView(cleaningVM: cleaningVM, appState: appState)
         }
         .onChange(of: scanVM.state) { _, newState in
-            if newState == .completed {
+            if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
             }
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            showAllFiles = false  // reset cap when switching categories
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .macSiftStartScan)) { _ in
+            scanVM.startScan()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .macSiftCancelScan)) { _ in
+            scanVM.cancelScan()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .macSiftSelectAllSafe)) { _ in
+            cleaningVM.selectAllSafe(from: scanVM.result)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .macSiftDeselectAll)) { _ in
+            cleaningVM.selectedIDs.removeAll()
         }
     }
 
@@ -40,11 +57,6 @@ struct MainView: View {
                 selectedCategory: $selectedCategory
             )
             .scrollContentBackground(.hidden)
-
-            Divider()
-                .opacity(0.5)
-
-            sidebarFooter
         }
     }
 
@@ -60,48 +72,22 @@ struct MainView: View {
             }
 
             Button {
-                Task { await scanVM.startScan() }
+                if scanVM.state.isScanning {
+                    scanVM.cancelScan()
+                } else {
+                    scanVM.startScan()
+                }
             } label: {
                 Label(
-                    scanVM.state == .scanning ? "Scanning..." : "Start Scan",
-                    systemImage: scanVM.state == .scanning ? "arrow.triangle.2.circlepath" : "magnifyingglass"
+                    scanVM.state.isScanning ? "Cancel Scan" : "Start Scan",
+                    systemImage: scanVM.state.isScanning ? "stop.circle" : "magnifyingglass"
                 )
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
-            .disabled(scanVM.state == .scanning)
         }
         .padding(16)
-    }
-
-    private var sidebarFooter: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: appState.mode == .simple ? "wand.and.stars" : "slider.horizontal.3")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("Mode", selection: $appState.mode) {
-                    Text("Simple").tag(AppState.Mode.simple)
-                    Text("Advanced").tag(AppState.Mode.advanced)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            if scanVM.result.totalSize > 0 {
-                HStack {
-                    Text("Total found")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(scanVM.result.totalSize.formattedFileSize)
-                        .font(.callout.weight(.semibold))
-                        .monospacedDigit()
-                }
-            }
-        }
-        .padding(14)
     }
 
     // MARK: - Detail
@@ -117,6 +103,7 @@ struct MainView: View {
             resultsView
         }
     }
+
 
     private var welcomeView: some View {
         VStack(spacing: 28) {
@@ -142,7 +129,7 @@ struct MainView: View {
             }
 
             Button {
-                Task { await scanVM.startScan() }
+                scanVM.startScan()
             } label: {
                 Label("Start Scan", systemImage: "magnifyingglass")
                     .padding(.horizontal, 18)
@@ -202,6 +189,17 @@ struct MainView: View {
 
             bottomBar
         }
+        .searchable(text: $searchQuery, placement: .toolbar, prompt: "Filter by name")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    scanVM.startScan()
+                } label: {
+                    Label("Rescan", systemImage: "arrow.clockwise")
+                }
+                .help("Rescan disk (⌘R)")
+            }
+        }
     }
 
     private var resultsHeader: some View {
@@ -230,56 +228,86 @@ struct MainView: View {
         .padding(.bottom, 12)
     }
 
+    @ViewBuilder
     private var fileListView: some View {
         // Use pre-sorted cached lists from ScanViewModel — avoids re-sorting on every selection toggle
-        let files: [ScannedFile] = {
+        let baseFiles: [ScannedFile] = {
             if let category = selectedCategory {
                 return scanVM.sortedFilesByCategory[category] ?? []
             }
             return scanVM.allSortedFiles
         }()
 
-        // Cap displayed rows for instant category switching. With 10k+ files, even a
-        // diffed update is slow; rendering 1k is plenty since the list is sorted by size
-        // and users rarely scroll past the top files.
-        let displayLimit = 1000
-        let displayed = Array(files.prefix(displayLimit))
-        let hiddenCount = files.count - displayed.count
+        // Apply search filter (case-insensitive substring match on name)
+        let files: [ScannedFile] = {
+            let query = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
+            guard !query.isEmpty else { return baseFiles }
+            return baseFiles.filter { $0.name.lowercased().contains(query) }
+        }()
 
-        // List wraps NSTableView on macOS — far faster than LazyVStack for thousands of rows.
-        // FileDetailView is Equatable so SwiftUI skips re-rendering rows whose props didn't change.
-        // .id(selectedCategory) forces List to recreate fresh on category switch instead of
-        // running an O(n) diff against the previous array.
-        return List {
-            ForEach(displayed) { file in
-                FileDetailView(
-                    file: file,
-                    isSelected: cleaningVM.selectedIDs.contains(file.id),
-                    isAdvanced: appState.mode == .advanced,
-                    onToggle: { cleaningVM.toggleFile(file) }
-                )
-                .equatable()
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
-            }
+        if files.isEmpty {
+            emptyState
+        } else {
+            // Cap displayed rows for instant category switching. With 10k+ files, even a
+            // diffed update is slow; rendering 1k is plenty since the list is sorted by size
+            // and users rarely scroll past the top files.
+            let displayLimit = showAllFiles ? Int.max : 1000
+            let displayed = Array(files.prefix(displayLimit))
+            let hiddenCount = files.count - displayed.count
 
-            if hiddenCount > 0 {
-                HStack {
-                    Spacer()
-                    Text("+ \(hiddenCount) smaller files not shown")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+            List {
+                ForEach(displayed) { file in
+                    FileDetailView(
+                        file: file,
+                        isSelected: cleaningVM.selectedIDs.contains(file.id),
+                        isAdvanced: appState.mode == .advanced,
+                        onToggle: { cleaningVM.toggleFile(file) }
+                    )
+                    .equatable()
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
                 }
-                .padding(.vertical, 12)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+
+                if hiddenCount > 0 {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 6) {
+                            Text("+ \(hiddenCount) smaller files not shown")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Show all") {
+                                showAllFiles = true
+                            }
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .id(selectedCategory)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .id(selectedCategory)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 44))
+                .foregroundStyle(.tertiary)
+            Text(selectedCategory == nil ? "No files found" : "No \(selectedCategory!.label.lowercased()) found")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text("Your disk looks clean for this category.")
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var bottomBar: some View {

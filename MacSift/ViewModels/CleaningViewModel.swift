@@ -10,14 +10,14 @@ final class CleaningViewModel: ObservableObject {
     }
 
     @Published var state: State = .idle
-    @Published var selectedIDs: Set<UUID> = []
+    @Published var selectedIDs: Set<String> = []
     @Published var report: CleaningReport?
     @Published var cleaningProgress: CleaningProgress?
     @Published var showPreview: Bool = false
 
     private let appState: AppState
     // Index for O(1) lookup by ID — populated when the scan completes
-    private var fileIndex: [UUID: ScannedFile] = [:]
+    private var fileIndex: [String: ScannedFile] = [:]
 
     init(appState: AppState) {
         self.appState = appState
@@ -27,8 +27,8 @@ final class CleaningViewModel: ObservableObject {
         // Build the index off the main thread to avoid blocking the UI when
         // the scan finishes (50k+ files = noticeable freeze).
         Task {
-            let index: [UUID: ScannedFile] = await Task.detached(priority: .userInitiated) {
-                var dict: [UUID: ScannedFile] = [:]
+            let index: [String: ScannedFile] = await Task.detached(priority: .userInitiated) {
+                var dict: [String: ScannedFile] = [:]
                 for files in result.filesByCategory.values {
                     for file in files {
                         dict[file.id] = file
@@ -38,7 +38,7 @@ final class CleaningViewModel: ObservableObject {
             }.value
 
             self.fileIndex = index
-            // Drop selections that no longer exist
+            // Drop selections whose files no longer exist in the latest scan
             self.selectedIDs = selectedIDs.intersection(index.keys)
         }
     }
@@ -103,6 +103,9 @@ final class CleaningViewModel: ObservableObject {
 
     func showCleaningPreview() {
         guard !selectedIDs.isEmpty else { return }
+        // Clear any stale report from a previous run
+        report = nil
+        cleaningProgress = nil
         showPreview = true
         state = .previewing
     }
@@ -110,6 +113,8 @@ final class CleaningViewModel: ObservableObject {
     func cancelPreview() {
         showPreview = false
         state = .idle
+        report = nil
+        cleaningProgress = nil
     }
 
     func confirmCleaning() async {

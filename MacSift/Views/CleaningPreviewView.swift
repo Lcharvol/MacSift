@@ -4,6 +4,12 @@ struct CleaningPreviewView: View {
     @ObservedObject var cleaningVM: CleaningViewModel
     @ObservedObject var appState: AppState
 
+    /// Show a final destructive confirmation when the user is NOT in dry run.
+    @State private var showFinalConfirmation = false
+
+    /// 10 GB threshold above which we display an extra warning.
+    private static let largeDeletionWarningBytes: Int64 = 10 * 1024 * 1024 * 1024
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -21,6 +27,34 @@ struct CleaningPreviewView: View {
             }
         }
         .frame(width: 560, height: 500)
+        .alert(
+            destructiveAlertTitle,
+            isPresented: $showFinalConfirmation,
+            actions: {
+                Button("Cancel", role: .cancel) { }
+                Button("Move to Trash", role: .destructive) {
+                    Task { await cleaningVM.confirmCleaning() }
+                }
+            },
+            message: {
+                Text(destructiveAlertMessage)
+            }
+        )
+    }
+
+    private var destructiveAlertTitle: String {
+        if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
+            return "Move \(cleaningVM.selectedSize.formattedFileSize) to the Trash?"
+        }
+        return "Move \(cleaningVM.selectedCount) files to the Trash?"
+    }
+
+    private var destructiveAlertMessage: String {
+        var msg = "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash."
+        if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
+            msg = "⚠️ This is a large deletion (\(cleaningVM.selectedSize.formattedFileSize)). " + msg
+        }
+        return msg
     }
 
     private var header: some View {
@@ -33,6 +67,11 @@ struct CleaningPreviewView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button("Close") {
+                cleaningVM.cancelPreview()
+            }
+            .keyboardShortcut(.cancelAction)
+            .buttonStyle(.glass)
         }
         .padding(20)
     }
@@ -84,12 +123,17 @@ struct CleaningPreviewView: View {
                 .toggleStyle(.switch)
 
                 Button {
-                    Task { await cleaningVM.confirmCleaning() }
+                    if appState.isDryRun {
+                        Task { await cleaningVM.confirmCleaning() }
+                    } else {
+                        // Require explicit confirmation for destructive deletions
+                        showFinalConfirmation = true
+                    }
                 } label: {
                     Label(
                         appState.isDryRun
                             ? "Simulate \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))"
-                            : "Delete \(cleaningVM.selectedCount) files (\(cleaningVM.selectedSize.formattedFileSize))",
+                            : "Move \(cleaningVM.selectedCount) files to Trash (\(cleaningVM.selectedSize.formattedFileSize))",
                         systemImage: appState.isDryRun ? "play" : "trash"
                     )
                     .frame(maxWidth: .infinity)
@@ -227,7 +271,7 @@ struct CleaningPreviewView: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(.orange.opacity(0.08))
+                        .fill(.orange.opacity(0.15))
                 )
                 .padding(.horizontal, 20)
             }

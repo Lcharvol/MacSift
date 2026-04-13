@@ -68,10 +68,30 @@ actor CleaningEngine {
                 continue
             }
 
+            // Time Machine snapshots have a synthetic URL; dispatch to tmutil.
+            if file.category == .timeMachineSnapshots {
+                let dateString = String(file.url.lastPathComponent.dropFirst("com.apple.TimeMachine.".count).dropLast(".local".count))
+                do {
+                    try await TimeMachineService.deleteSnapshot(dateString: dateString)
+                    deletedCount += 1
+                    freedSize += file.size
+                } catch {
+                    let msg = error.localizedDescription
+                    let hint = msg.contains("not permitted") || msg.contains("requires") || msg.contains("must be run")
+                        ? "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots \(dateString)` in Terminal."
+                        : msg
+                    failedFiles.append((file, hint))
+                }
+                continue
+            }
+
             guard fm.fileExists(atPath: path) else { continue }
 
+            // Move to the user's Trash so the action is fully reversible from
+            // Finder. trashItem is the synchronous throwing API for this.
             do {
-                try fm.removeItem(at: file.url)
+                var resultingURL: NSURL?
+                try fm.trashItem(at: file.url, resultingItemURL: &resultingURL)
                 deletedCount += 1
                 freedSize += file.size
             } catch {

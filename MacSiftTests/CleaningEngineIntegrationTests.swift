@@ -64,6 +64,57 @@ struct CleaningEngineIntegrationTests {
         #expect(report.failedFiles.isEmpty)
     }
 
+    @Test func filesAreMovedToTrashNotPermanentlyDeleted() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appending(path: "MacSiftTrashTest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fileURL = try createTempFile(in: tempDir, name: "trashable.dat", size: 256)
+        let file = makeScannedFile(url: fileURL, size: 256)
+
+        let engine = CleaningEngine()
+        let report = await engine.clean(files: [file], dryRun: false)
+
+        #expect(report.deletedCount == 1)
+        // The file is no longer at the original path
+        #expect(!FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)))
+        // No errors reported
+        #expect(report.failedFiles.isEmpty)
+    }
+
+    @Test func neverDeletesSystemPaths() async throws {
+        let systemFile = ScannedFile(
+            url: URL(filePath: "/System/Library/CoreServices/Finder.app/Contents/Info.plist"),
+            size: 1000,
+            category: .cache,
+            description: "Test",
+            modificationDate: .now,
+            isDirectory: false
+        )
+
+        let engine = CleaningEngine()
+        let report = await engine.clean(files: [systemFile], dryRun: false)
+
+        #expect(report.failedFiles.count == 1)
+        #expect(report.failedFiles[0].1.contains("System file"))
+    }
+
+    @Test func tmSnapshotsDispatchToTmutilNotTrash() async throws {
+        let snapshotFile = ScannedFile(
+            url: URL(filePath: "/Volumes/snapshot/com.apple.TimeMachine.2099-01-01-000000.local"),
+            size: 0,
+            category: .timeMachineSnapshots,
+            description: "Local snapshot",
+            modificationDate: .now,
+            isDirectory: false
+        )
+
+        let engine = CleaningEngine()
+        // Dry run should report 1 deletion without touching tmutil
+        let report = await engine.clean(files: [snapshotFile], dryRun: true)
+        #expect(report.deletedCount == 1)
+        #expect(report.failedFiles.isEmpty)
+    }
+
     @Test func handlesPermissionErrors() async throws {
         let tempDir = FileManager.default.temporaryDirectory.appending(path: "MacSiftCleanTest-\(UUID().uuidString)")
         defer {

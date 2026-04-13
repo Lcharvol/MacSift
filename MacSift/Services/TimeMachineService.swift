@@ -37,7 +37,7 @@ enum TimeMachineService {
     }
 
     private static func runTmutil(arguments: [String]) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
             let process = Process()
             process.executableURL = URL(filePath: "/usr/bin/tmutil")
             process.arguments = arguments
@@ -46,18 +46,20 @@ enum TimeMachineService {
             process.standardOutput = pipe
             process.standardError = pipe
 
-            do {
-                try process.run()
-                process.waitUntilExit()
-
+            // Use terminationHandler so we don't block a thread waiting for
+            // the subprocess to finish.
+            process.terminationHandler = { proc in
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
-
-                if process.terminationStatus == 0 {
+                if proc.terminationStatus == 0 {
                     continuation.resume(returning: output)
                 } else {
                     continuation.resume(throwing: TMError.commandFailed(output))
                 }
+            }
+
+            do {
+                try process.run()
             } catch {
                 continuation.resume(throwing: error)
             }

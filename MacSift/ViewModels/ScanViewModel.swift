@@ -9,24 +9,58 @@ struct ScanDisplayProgress: Equatable {
     var currentCategory: FileCategory? = nil
 }
 
+/// Bundled completed-scan state. Keeping the result, sorted views, and
+/// snapshots together avoids a cascade of @Published notifications at the
+/// end of a scan (which would each trigger an independent re-render).
+struct CompletedScan: Equatable {
+    let result: ScanResult
+    let sortedFilesByCategory: [FileCategory: [ScannedFile]]
+    let allSortedFiles: [ScannedFile]
+    let tmSnapshots: [TMSnapshot]
+
+    static func == (lhs: CompletedScan, rhs: CompletedScan) -> Bool {
+        lhs.result.scanDuration == rhs.result.scanDuration
+            && lhs.allSortedFiles.count == rhs.allSortedFiles.count
+            && lhs.tmSnapshots.count == rhs.tmSnapshots.count
+    }
+}
+
 @MainActor
 final class ScanViewModel: ObservableObject {
     enum State: Equatable {
         case idle
         case scanning
-        case completed
+        case completed(CompletedScan)
+
+        var isScanning: Bool {
+            if case .scanning = self { return true }
+            return false
+        }
+
+        var isCompleted: Bool {
+            if case .completed = self { return true }
+            return false
+        }
+
+        var completedScan: CompletedScan? {
+            if case .completed(let scan) = self { return scan }
+            return nil
+        }
     }
 
     @Published var state: State = .idle
-    @Published var result: ScanResult = .empty
-    @Published var sortedFilesByCategory: [FileCategory: [ScannedFile]] = [:]
-    @Published var allSortedFiles: [ScannedFile] = []
     @Published var displayProgress: ScanDisplayProgress = ScanDisplayProgress()
-    @Published var tmSnapshots: [TMSnapshot] = []
     @Published var hasFullDiskAccess: Bool = false
+
+    // Convenience accessors that read from the state's associated value
+    var result: ScanResult { state.completedScan?.result ?? .empty }
+    var sortedFilesByCategory: [FileCategory: [ScannedFile]] { state.completedScan?.sortedFilesByCategory ?? [:] }
+    var allSortedFiles: [ScannedFile] { state.completedScan?.allSortedFiles ?? [] }
+    var tmSnapshots: [TMSnapshot] { state.completedScan?.tmSnapshots ?? [] }
 
     private let exclusionManager: ExclusionManager
     private let appState: AppState
+    private var currentScanTask: Task<Void, Never>?
 
     init(exclusionManager: ExclusionManager, appState: AppState) {
         self.exclusionManager = exclusionManager
@@ -34,14 +68,29 @@ final class ScanViewModel: ObservableObject {
         self.hasFullDiskAccess = FullDiskAccess.check()
     }
 
-    func startScan() async {
+    func cancelScan() {
+        currentScanTask?.cancel()
+    }
+
+    func startScan() {
+        // Cancel any in-flight scan first
+        currentScanTask?.cancel()
         state = .scanning
         displayProgress = ScanDisplayProgress()
 
+        currentScanTask = Task { [weak self] in
+            await self?.runScan()
+        }
+    }
+
+    private func runScan() async {
         let classifier = CategoryClassifier(largeFileThresholdBytes: appState.largeFileThresholdBytes)
         let scanner = DiskScanner(classifier: classifier, exclusionManager: exclusionManager)
 
-        let stream = await scanner.progressStream()
+        // Construct the progress stream + continuation explicitly so we can
+        // pass the continuation to scanner.scan and control its lifecycle.
+        let (stream, continuation) = AsyncStream.makeStream(of: ScanProgress.self)
+
         let progressTask = Task { [weak self] in
             // Accumulate delta events from all parallel scan tasks. Throttle UI
             // updates to ~4/sec so the displayed numbers and path don't flicker.
@@ -85,7 +134,14 @@ final class ScanViewModel: ObservableObject {
             }
         }
 
-        let scanResult = await scanner.scan()
+        let scanResult = await scanner.scan(progress: continuation)
+
+        if Task.isCancelled {
+            progressTask.cancel()
+            self.state = .idle
+            self.displayProgress = ScanDisplayProgress()
+            return
+        }
 
         // Sort off the main thread — with 10k+ files this would freeze the UI
         // for hundreds of milliseconds at the end of the scan.
@@ -102,11 +158,38 @@ final class ScanViewModel: ObservableObject {
 
         progressTask.cancel()
 
-        self.result = scanResult
-        self.sortedFilesByCategory = prepared.byCategory
-        self.allSortedFiles = prepared.all
-        self.tmSnapshots = snapshots
-        self.state = .completed
+        // Inject TM snapshots as synthetic ScannedFile rows so they flow
+        // through the same selection/cleaning UI as regular files. Snapshots
+        // don't carry a real size from tmutil; use 0 as placeholder.
+        let snapshotFiles: [ScannedFile] = snapshots.map { snap in
+            ScannedFile(
+                url: URL(filePath: "/Volumes/snapshot/\(snap.identifier)"),
+                size: 0,
+                category: .timeMachineSnapshots,
+                description: "Local snapshot — \(snap.displayDate)",
+                modificationDate: .now,
+                isDirectory: false
+            )
+        }
+
+        var byCategory = prepared.byCategory
+        var all = prepared.all
+        if !snapshotFiles.isEmpty {
+            byCategory[.timeMachineSnapshots] = snapshotFiles
+            all.append(contentsOf: snapshotFiles)
+        }
+
+        let completed = CompletedScan(
+            result: ScanResult(
+                filesByCategory: byCategory,
+                scanDuration: scanResult.scanDuration
+            ),
+            sortedFilesByCategory: byCategory,
+            allSortedFiles: all,
+            tmSnapshots: snapshots
+        )
+        // Single @Published assignment instead of 5 cascading ones
+        self.state = .completed(completed)
     }
 
     func refreshFullDiskAccess() {

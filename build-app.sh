@@ -48,5 +48,12 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
+echo "Ad-hoc signing..."
+codesign --force --deep --sign - "$BUNDLE" 2>&1 | grep -v "replacing existing signature" || true
+
 echo "✅ Built $BUNDLE"
 echo "Run with: open $BUNDLE"
+echo ""
+echo "⚠️  First-time setup: grant Full Disk Access"
+echo "   System Settings → Privacy & Security → Full Disk Access"
+echo "   Add: $(pwd)/$BUNDLE"

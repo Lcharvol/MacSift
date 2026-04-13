@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ScanProgressView: View {
-    let progress: ScanProgress?
+    let progress: ScanDisplayProgress
 
     @State private var rotate = false
 
@@ -41,26 +41,27 @@ struct ScanProgressView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let progress {
-                VStack(spacing: 14) {
-                    Text(progress.currentSize.formattedFileSize)
-                        .font(.system(size: 44, weight: .semibold))
-                        .monospacedDigit()
-                        .contentTransition(.numericText(countsDown: false))
-                        .animation(.smooth(duration: 0.45), value: progress.currentSize)
+            VStack(spacing: 14) {
+                Text(progress.totalSize.formattedFileSize)
+                    .font(.system(size: 44, weight: .semibold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText(countsDown: false))
+                    .animation(.smooth(duration: 0.45), value: progress.totalSize)
 
-                    HStack(spacing: 16) {
-                        Label("\(progress.filesFound) files", systemImage: "doc")
+                HStack(spacing: 16) {
+                    Label("\(progress.totalFiles) files", systemImage: "doc")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+
+                    if let category = progress.currentCategory {
+                        Label(category.label, systemImage: category.iconName)
                             .font(.callout)
                             .foregroundStyle(.secondary)
-
-                        if let category = progress.category {
-                            Label(category.label, systemImage: category.iconName)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
                     }
+                }
 
+                if !progress.currentPath.isEmpty {
                     Text(progress.currentPath)
                         .font(.caption)
                         .foregroundStyle(.tertiary)

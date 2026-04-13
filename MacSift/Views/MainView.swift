@@ -112,7 +112,7 @@ struct MainView: View {
         case .idle:
             welcomeView
         case .scanning:
-            ScanProgressView(progress: scanVM.progress)
+            ScanProgressView(progress: scanVM.displayProgress)
         case .completed:
             resultsView
         }

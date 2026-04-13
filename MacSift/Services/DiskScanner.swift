@@ -1,8 +1,11 @@
 import Foundation
 
+/// A delta event from one of the parallel scan tasks. The consumer (ScanViewModel)
+/// accumulates these into the displayed totals so the UI shows real cumulative
+/// progress instead of bouncing between each task's local counters.
 struct ScanProgress: Sendable {
-    let filesFound: Int
-    let currentSize: Int64
+    let deltaFiles: Int
+    let deltaSize: Int64
     let currentPath: String
     let category: FileCategory?
 }
@@ -128,8 +131,8 @@ actor DiskScanner {
         ) else { return [] }
 
         var files: [ScannedFile] = []
-        var totalSize: Int64 = 0
-        var sinceLastYield = 0
+        var deltaFiles = 0
+        var deltaSize: Int64 = 0
 
         while let next = enumerator.nextObject() {
             guard let fileURL = next as? URL else { continue }
@@ -177,26 +180,27 @@ actor DiskScanner {
                 modificationDate: modDate,
                 isDirectory: false
             ))
-            totalSize += size
-            sinceLastYield += 1
+            deltaFiles += 1
+            deltaSize += size
 
-            // Throttle progress events: yield every 100 files instead of per-file
-            if sinceLastYield >= 100 {
+            // Throttle progress: emit a delta every 100 files
+            if deltaFiles >= 100 {
                 progress?.yield(ScanProgress(
-                    filesFound: files.count,
-                    currentSize: totalSize,
+                    deltaFiles: deltaFiles,
+                    deltaSize: deltaSize,
                     currentPath: fileURL.lastPathComponent,
                     category: category
                 ))
-                sinceLastYield = 0
+                deltaFiles = 0
+                deltaSize = 0
             }
         }
 
-        // Final yield so the UI sees the last batch
-        if !files.isEmpty {
+        // Final flush of any remaining delta
+        if deltaFiles > 0 {
             progress?.yield(ScanProgress(
-                filesFound: files.count,
-                currentSize: totalSize,
+                deltaFiles: deltaFiles,
+                deltaSize: deltaSize,
                 currentPath: directory.lastPathComponent,
                 category: hintCategory
             ))
@@ -253,21 +257,24 @@ actor DiskScanner {
         let homePath = directory.path(percentEncoded: false)
         let homePrefix = homePath.hasSuffix("/") ? homePath : homePath + "/"
         var files: [ScannedFile] = []
-        var totalSize: Int64 = 0
+        var deltaFiles = 0
+        var deltaSize: Int64 = 0
         var visited = 0
 
         while let next = enumerator.nextObject() {
             guard let fileURL = next as? URL else { continue }
 
             visited += 1
-            // Throttle progress every 500 files (large file scan walks more files than category scans)
+            // Throttle by visited count (we walk many small files between large ones)
             if visited % 500 == 0 {
                 progress?.yield(ScanProgress(
-                    filesFound: files.count,
-                    currentSize: totalSize,
+                    deltaFiles: deltaFiles,
+                    deltaSize: deltaSize,
                     currentPath: fileURL.lastPathComponent,
                     category: .largeFiles
                 ))
+                deltaFiles = 0
+                deltaSize = 0
             }
 
             let filePath = fileURL.path(percentEncoded: false)
@@ -308,7 +315,18 @@ actor DiskScanner {
                 modificationDate: modDate,
                 isDirectory: false
             ))
-            totalSize += size
+            deltaFiles += 1
+            deltaSize += size
+        }
+
+        // Final flush
+        if deltaFiles > 0 {
+            progress?.yield(ScanProgress(
+                deltaFiles: deltaFiles,
+                deltaSize: deltaSize,
+                currentPath: directory.lastPathComponent,
+                category: .largeFiles
+            ))
         }
 
         return files

@@ -112,6 +112,17 @@ struct MainView: View {
             CleaningPreviewView(cleaningVM: cleaningVM, appState: appState)
         }
         .onChange(of: scanVM.state) { _, newState in
+            if newState.isScanning {
+                // Clear the cached filtered views so the sidebar doesn't
+                // keep showing the previous scan's totals while a fresh
+                // scan is in progress. Without this the VolumePicker and
+                // CategoryList displayed stale sizes for the full duration
+                // of the new scan.
+                cachedDisplayedResult = .empty
+                cachedSizeByVolume = [:]
+                cachedFilteredGroupsByCategory = [:]
+                cachedFilteredAllSortedGroups = []
+            }
             if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
                 refreshSelectionSummary()

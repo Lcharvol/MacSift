@@ -25,8 +25,6 @@ struct SettingsView: View {
 
                 Toggle("Dry Run (simulate deletions)", isOn: $appState.isDryRun)
 
-                Toggle("Show menu bar icon", isOn: $appState.showMenuBarExtra)
-
                 HStack {
                     Text("Large file threshold")
                     Spacer()
@@ -223,7 +221,6 @@ struct SettingsView: View {
         appState.oldDownloadsAgeDays = 90
         appState.lifetimeScanCount = 0
         appState.lifetimeCleanedBytes = 0
-        appState.showMenuBarExtra = true
         // Clear exclusions — persisted via ExclusionManager's own storage.
         for url in exclusionManager.excludedPaths {
             exclusionManager.removeExclusion(url)

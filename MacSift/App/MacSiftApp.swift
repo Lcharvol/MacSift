@@ -23,11 +23,15 @@ struct MacSiftApp: App {
         }
 
         // Menu bar widget — live disk / memory / CPU metrics plus quick
-        // actions for opening the main window and starting a scan.
-        // The scene is always declared; the user can hide it via Settings
-        // (showMenuBarExtra). `isInserted` is bound to the toggle so
-        // flipping the switch removes the status item immediately.
-        MenuBarExtra(isInserted: $appState.showMenuBarExtra) {
+        // actions. NOTE: we deliberately do NOT bind `isInserted:` to a
+        // @Published property — doing so produced an infinite rebuild
+        // loop on macOS 26 where SwiftUI's MenuBarExtraHost kept calling
+        // `requestUpdate` every frame, pegging a core at 100% and
+        // starving the main thread (main window never rendered, menu
+        // bar icon never appeared). The scene is always inserted; the
+        // user can hide the status item via menu bar settings if they
+        // really don't want it.
+        MenuBarExtra {
             MenuBarContent(menuBarVM: menuBarVM)
                 .environmentObject(appState)
         } label: {

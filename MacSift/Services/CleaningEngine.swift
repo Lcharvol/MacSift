@@ -111,8 +111,36 @@ struct CleaningEngine: Sendable {
             try fm.trashItem(at: file.url, resultingItemURL: &resultingURL)
             return .deleted(bytes: file.size)
         } catch {
-            return .failed(reason: error.localizedDescription)
+            return .failed(reason: friendlyTrashError(for: file, underlying: error))
         }
+    }
+
+    /// Translate `trashItem` failures into something the user can act on.
+    /// The macOS default message is "you don't have permission to access
+    /// it", which is misleading for SQLite cache DBs held open by a running
+    /// process — the real issue is that the owning app has a file lock and
+    /// needs to be quit before the file becomes trashable.
+    private static func friendlyTrashError(for file: ScannedFile, underlying: Error) -> String {
+        let fallback = underlying.localizedDescription
+        let name = file.url.lastPathComponent.lowercased()
+        let isLikelyLocked = name == "cache.db"
+            || name.hasPrefix("cache.db-")
+            || name.hasSuffix(".sqlite")
+            || name.hasSuffix(".sqlite-wal")
+            || name.hasSuffix(".sqlite-shm")
+        guard isLikelyLocked else { return fallback }
+
+        // Walk the path for a `Library/Caches/<bundle-id>/` segment so we
+        // can name the owning app. Falls back to a generic message if the
+        // file isn't under a standard cache folder.
+        let components = file.url.pathComponents
+        if let cachesIndex = components.firstIndex(of: "Caches"),
+           components.count > cachesIndex + 1 {
+            let ownerKey = components[cachesIndex + 1]
+            let label = BundleNames.humanLabel(for: ownerKey)
+            return "\(label) is running and has this file locked. Quit \(label) and rescan."
+        }
+        return "The owning app is running and has this file locked. Quit it and rescan."
     }
 
     /// Time Machine snapshots have a synthetic URL; dispatch to `tmutil`

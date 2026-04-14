@@ -78,6 +78,68 @@ struct DiskScannerIntegrationTests {
         #expect(totalDeltaSize >= 1024 + 2048)
     }
 
+    /// Regression test for the v0.1.3 double-count bug. A file in
+    /// `~/Downloads` that is BOTH older than the age threshold AND larger
+    /// than `largeFileThresholdBytes` must appear exactly once, in
+    /// `.oldDownloads`, not twice (once there and once in `.largeFiles`).
+    /// The fix is that `scanForLargeFiles` adds `Downloads/` to its
+    /// skipPrefixes — if that ever regresses, this test catches it.
+    @Test func downloadsFilesAreNotDoubleCountedAcrossCategories() async throws {
+        // This test CANNOT live under NSTemporaryDirectory() — the classifier's
+        // tempFiles fallback check would match any path under /var/folders/
+        // before we reach the Downloads rule. Nor can it live under /tmp
+        // for the same reason. Drop it in a hidden folder inside the real
+        // user home so the only path-rule that fires is the one we care
+        // about: Downloads age-based classification.
+        let tempDir = FileManager.default.homeDirectoryForCurrentUser
+            .resolvingSymlinksInPath()
+            .appending(path: ".macsift-dl-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fm = FileManager.default
+        let downloadsDir = tempDir.appending(path: "Downloads")
+        try fm.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
+
+        // 2 MB file that's also >90 days old — matches BOTH .largeFiles
+        // (>1 MB threshold we'll configure below) and .oldDownloads.
+        let fileURL = downloadsDir.appending(path: "old-and-large.bin")
+        try Data(repeating: 0xEE, count: 2 * 1024 * 1024).write(to: fileURL)
+        let oldDate = Date().addingTimeInterval(-120 * 86_400)
+        try fm.setAttributes([.modificationDate: oldDate], ofItemAtPath: fileURL.path(percentEncoded: false))
+
+        // Inject the sandbox home prefix so the classifier's path rules
+        // match our fake ~/Downloads instead of the real user home.
+        let tempHomePrefix: String = {
+            let p = tempDir.path(percentEncoded: false)
+            return p.hasSuffix("/") ? p : p + "/"
+        }()
+        let classifier = CategoryClassifier(
+            largeFileThresholdBytes: 1 * 1024 * 1024,
+            oldDownloadsAgeThresholdDays: 90,
+            homePrefix: tempHomePrefix
+        )
+        let exclusionManager = await MainActor.run {
+            ExclusionManager(userDefaultsSuiteName: "test.\(UUID().uuidString)")
+        }
+        let scanner = DiskScanner(
+            classifier: classifier,
+            exclusionManager: exclusionManager,
+            homeDirectory: tempDir
+        )
+
+        let result = await scanner.scan()
+
+        // Count occurrences of the test file across ALL categories.
+        // Use `contains` so /var vs /private/var symlink differences don't
+        // mask a real match.
+        let marker = "old-and-large.bin"
+        let occurrences = result.filesByCategory.values
+            .flatMap { $0 }
+            .filter { $0.url.path(percentEncoded: false).hasSuffix(marker) }
+        #expect(occurrences.count == 1, "Downloads file was counted in \(occurrences.count) categories — should be exactly 1. Found: \(occurrences.map(\.category))")
+        #expect(occurrences.first?.category == .oldDownloads)
+    }
+
     @Test func respectsExclusions() async throws {
         let tempDir = try createTempStructure()
         defer { try? FileManager.default.removeItem(at: tempDir) }

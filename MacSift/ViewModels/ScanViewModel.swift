@@ -128,6 +128,11 @@ final class ScanViewModel: ObservableObject {
         let (stream, continuation) = AsyncStream.makeStream(of: ScanProgress.self)
         let progressTask = startProgressAccumulator(stream: stream)
 
+        // DiskScanner.scan finishes the continuation on its happy path, but
+        // we finish it defensively here too so a future refactor that bails
+        // early never leaks a dangling progress task.
+        defer { continuation.finish() }
+
         let scanResult = await scanner.scan(progress: continuation)
 
         if Task.isCancelled {
@@ -138,7 +143,15 @@ final class ScanViewModel: ObservableObject {
         }
 
         let prepared = await prepareScanResult(scanResult)
-        let snapshots = (try? await TimeMachineService.listSnapshots()) ?? []
+        let snapshots: [TMSnapshot]
+        do {
+            snapshots = try await TimeMachineService.listSnapshots()
+        } catch {
+            // tmutil can fail transiently (TCC prompts, system load) — log
+            // so the user has an audit trail instead of a silent empty list.
+            MacSiftLog.warning("Failed to list Time Machine snapshots: \(error.localizedDescription)")
+            snapshots = []
+        }
         progressTask.cancel()
 
         let completed = buildCompletedScan(

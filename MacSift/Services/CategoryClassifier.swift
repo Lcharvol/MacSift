@@ -8,6 +8,11 @@ struct CategoryClassifier: Sendable {
     /// Lowercased bundle names of installed apps, e.g. {"safari", "xcode"}.
     /// Used to detect orphaned Application Support folders.
     let installedAppBundleNames: Set<String>
+    /// Home directory prefix used by all path-match rules (e.g.
+    /// `/Users/foo/`). Defaults to `sharedHomePrefix` so production code
+    /// matches the real user. Tests can inject a sandbox path so their
+    /// fixtures classify without needing the real home layout.
+    let homePrefix: String
 
     /// Default init with an empty installed-app set. Call
     /// `CategoryClassifier.withInstalledApps(...)` to get a properly
@@ -16,11 +21,13 @@ struct CategoryClassifier: Sendable {
     init(
         largeFileThresholdBytes: Int64 = 500 * 1024 * 1024,
         oldDownloadsAgeThresholdDays: Double = 90,
-        installedAppBundleNames: Set<String> = []
+        installedAppBundleNames: Set<String> = [],
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
     ) {
         self.largeFileThresholdBytes = largeFileThresholdBytes
         self.oldDownloadsAgeThresholdDays = oldDownloadsAgeThresholdDays
         self.installedAppBundleNames = installedAppBundleNames
+        self.homePrefix = homePrefix
     }
 
     /// Builds a classifier with the installed-app set populated from
@@ -134,7 +141,7 @@ struct CategoryClassifier: Sendable {
 
     func classify(url: URL, size: Int64, modificationDate: Date = .distantPast) -> FileCategory? {
         let path = url.path(percentEncoded: false)
-        let homePrefix = Self.sharedHomePrefix
+        let homePrefix = self.homePrefix
 
         // iOS Backups (check before general appData)
         if path.contains("MobileSync/Backup") {

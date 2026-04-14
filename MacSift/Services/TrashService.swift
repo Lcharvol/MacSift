@@ -90,13 +90,29 @@ enum TrashService {
         return before
     }
 
-    /// Testable variant: wipe everything from a given directory.
+    /// Testable variant: wipe everything from a given directory. Failures on
+    /// individual items are still best-effort (we don't want one locked
+    /// file to abort the whole sweep), but each failure is written to
+    /// `MacSiftLog` so the user has visibility instead of a silent black
+    /// hole. Violating the "transparent" principle silently is worse than
+    /// partial success.
     static func emptyDirectory(_ directory: URL) {
         let fm = FileManager.default
-        if let contents = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
-            for item in contents {
-                try? fm.removeItem(at: item)
+        guard let contents = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+            MacSiftLog.warning("emptyDirectory: could not list \(directory.path(percentEncoded: false))")
+            return
+        }
+        var failures = 0
+        for item in contents {
+            do {
+                try fm.removeItem(at: item)
+            } catch {
+                failures += 1
+                MacSiftLog.warning("emptyDirectory: failed to remove \(item.lastPathComponent): \(error.localizedDescription)")
             }
+        }
+        if failures > 0 {
+            MacSiftLog.warning("emptyDirectory: \(failures) of \(contents.count) item(s) could not be removed")
         }
     }
 }

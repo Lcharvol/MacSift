@@ -196,6 +196,11 @@ final class CleaningViewModel: ObservableObject {
         let engine = CleaningEngine()
 
         let (stream, continuation) = AsyncStream<CleaningProgress>.makeStream()
+        // Guarantee the stream is finished no matter what happens below —
+        // without it, any early exit would leave `progressTask` hanging
+        // forever on an unterminated AsyncStream iterator.
+        defer { continuation.finish() }
+
         let progressTask = Task { [weak self] in
             for await progress in stream {
                 await MainActor.run {
@@ -203,15 +208,13 @@ final class CleaningViewModel: ObservableObject {
                 }
             }
         }
+        defer { progressTask.cancel() }
 
         let cleaningReport = await engine.clean(
             files: selectedFiles,
             dryRun: appState.isDryRun,
             progress: continuation
         )
-        continuation.finish()
-
-        progressTask.cancel()
 
         // Bump the lifetime counter only for real (non-dry-run) cleanings.
         if !appState.isDryRun && cleaningReport.freedSize > 0 {

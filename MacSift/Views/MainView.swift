@@ -324,6 +324,7 @@ struct MainView: View {
                 Text(headerSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .help(inaccessibleHelpText)
             }
             Spacer()
             if selectedCategory != nil {
@@ -389,6 +390,17 @@ struct MainView: View {
             parts.append("\(inaccessible) inaccessible")
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// Hover text listing up to 10 unreadable paths — gives the user a hint
+    /// about which folders need Full Disk Access. Empty string means no
+    /// tooltip (hover is a no-op).
+    private var inaccessibleHelpText: String {
+        let paths = scanVM.result.inaccessiblePaths
+        guard !paths.isEmpty else { return "" }
+        let preview = paths.prefix(10).joined(separator: "\n")
+        let extra = paths.count > 10 ? "\n…and \(paths.count - 10) more" : ""
+        return "Inaccessible paths (sample):\n\(preview)\(extra)"
     }
 
     private var bottomBar: some View {

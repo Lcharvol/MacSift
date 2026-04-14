@@ -14,15 +14,22 @@ struct ScanResult: Sendable {
     /// permissions or I/O errors. Reported to the user so a partial scan
     /// is never silently presented as complete.
     let inaccessibleCount: Int
+    /// Sample of paths the scanner couldn't read. Capped at 50 to keep the
+    /// result small — the full count is in `inaccessibleCount`. Used by the
+    /// inspector so the user can see *which* folders to grant access to,
+    /// rather than just "12 inaccessible".
+    let inaccessiblePaths: [String]
 
     init(
         filesByCategory: [FileCategory: [ScannedFile]],
         scanDuration: TimeInterval,
-        inaccessibleCount: Int = 0
+        inaccessibleCount: Int = 0,
+        inaccessiblePaths: [String] = []
     ) {
         self.filesByCategory = filesByCategory
         self.scanDuration = scanDuration
         self.inaccessibleCount = inaccessibleCount
+        self.inaccessiblePaths = inaccessiblePaths
 
         // Compute aggregates once, here. These were previously computed
         // properties that iterated all files on every access — which meant

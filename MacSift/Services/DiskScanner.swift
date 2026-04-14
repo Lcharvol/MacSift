@@ -16,6 +16,10 @@ struct ScanProgress: Sendable {
 struct ScanRootResult: Sendable {
     var files: [ScannedFile]
     var inaccessibleCount: Int
+    /// Sample of unreadable paths from this scan task, capped at
+    /// `DiskScanner.inaccessiblePathCap`. Aggregated into `ScanResult` for
+    /// user-facing display — the full count stays in `inaccessibleCount`.
+    var inaccessiblePaths: [String] = []
 }
 
 /// Small helper that buffers per-file delta counts and only yields a
@@ -64,6 +68,11 @@ private struct ProgressThrottler {
 }
 
 struct DiskScanner: Sendable {
+    /// Upper bound on the number of unreadable paths each scan task keeps.
+    /// A full listing could grow to millions on a locked-down volume; the
+    /// UI only needs a representative sample.
+    static let inaccessiblePathCap = 50
+
     let classifier: CategoryClassifier
     let exclusionManager: ExclusionManager
     let homeDirectory: URL
@@ -129,6 +138,7 @@ struct DiskScanner: Sendable {
 
         var allFiles: [FileCategory: [ScannedFile]] = [:]
         var totalInaccessible = 0
+        var sampledInaccessiblePaths: [String] = []
 
         await withTaskGroup(of: ScanRootResult.self) { group in
             for (url, hintCategory) in scanTargets {
@@ -158,6 +168,12 @@ struct DiskScanner: Sendable {
                 for file in root.files {
                     allFiles[file.category, default: []].append(file)
                 }
+                // Cap the aggregated sample so pathological cases (a whole
+                // volume worth of unreadable items) don't bloat the result.
+                for path in root.inaccessiblePaths {
+                    if sampledInaccessiblePaths.count >= Self.inaccessiblePathCap { break }
+                    sampledInaccessiblePaths.append(path)
+                }
             }
         }
 
@@ -167,7 +183,8 @@ struct DiskScanner: Sendable {
         return ScanResult(
             filesByCategory: allFiles,
             scanDuration: duration,
-            inaccessibleCount: totalInaccessible
+            inaccessibleCount: totalInaccessible,
+            inaccessiblePaths: sampledInaccessiblePaths
         )
     }
 
@@ -196,7 +213,11 @@ struct DiskScanner: Sendable {
         }
         guard fm.isReadableFile(atPath: directory.path(percentEncoded: false)) else {
             // Root itself is unreadable — count it as one inaccessible item
-            return ScanRootResult(files: [], inaccessibleCount: 1)
+            return ScanRootResult(
+                files: [],
+                inaccessibleCount: 1,
+                inaccessiblePaths: [directory.path(percentEncoded: false)]
+            )
         }
 
         let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey, .isSymbolicLinkKey]
@@ -206,11 +227,16 @@ struct DiskScanner: Sendable {
             includingPropertiesForKeys: keys,
             options: []
         ) else {
-            return ScanRootResult(files: [], inaccessibleCount: 1)
+            return ScanRootResult(
+                files: [],
+                inaccessibleCount: 1,
+                inaccessiblePaths: [directory.path(percentEncoded: false)]
+            )
         }
 
         var files: [ScannedFile] = []
         var inaccessible = 0
+        var inaccessiblePaths: [String] = []
         var throttler = ProgressThrottler(threshold: 100, category: hintCategory, continuation: progress)
 
         var cancelCheckCounter = 0
@@ -219,7 +245,11 @@ struct DiskScanner: Sendable {
             // Task was cancelled. Check periodically to avoid syscall overhead.
             cancelCheckCounter += 1
             if cancelCheckCounter % 200 == 0 && Task.isCancelled {
-                return ScanRootResult(files: files, inaccessibleCount: inaccessible)
+                return ScanRootResult(
+                    files: files,
+                    inaccessibleCount: inaccessible,
+                    inaccessiblePaths: inaccessiblePaths
+                )
             }
             guard let fileURL = next as? URL else { continue }
 
@@ -235,6 +265,9 @@ struct DiskScanner: Sendable {
 
             guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else {
                 inaccessible += 1
+                if inaccessiblePaths.count < Self.inaccessiblePathCap {
+                    inaccessiblePaths.append(fileURL.path(percentEncoded: false))
+                }
                 continue
             }
 
@@ -274,7 +307,11 @@ struct DiskScanner: Sendable {
 
         throttler.flush(currentPath: directory.lastPathComponent)
 
-        return ScanRootResult(files: files, inaccessibleCount: inaccessible)
+        return ScanRootResult(
+            files: files,
+            inaccessibleCount: inaccessible,
+            inaccessiblePaths: inaccessiblePaths
+        )
     }
 
     private static func scanForLargeFiles(
@@ -295,7 +332,11 @@ struct DiskScanner: Sendable {
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
-            return ScanRootResult(files: [], inaccessibleCount: 1)
+            return ScanRootResult(
+                files: [],
+                inaccessibleCount: 1,
+                inaccessiblePaths: [directory.path(percentEncoded: false)]
+            )
         }
 
         // Skip the entire Library (already scanned by other tasks), version control,
@@ -334,6 +375,7 @@ struct DiskScanner: Sendable {
         let homePrefix = homePath.hasSuffix("/") ? homePath : homePath + "/"
         var files: [ScannedFile] = []
         var inaccessible = 0
+        var inaccessiblePaths: [String] = []
         // Large-file scan walks many small files between hits, so we ask the
         // throttler to flush on a visited-count cadence (threshold 1 means
         // any buffered delta goes out at the next tick).
@@ -342,7 +384,11 @@ struct DiskScanner: Sendable {
 
         while let next = enumerator.nextObject() {
             if visited % 200 == 0 && Task.isCancelled {
-                return ScanRootResult(files: files, inaccessibleCount: inaccessible)
+                return ScanRootResult(
+                    files: files,
+                    inaccessibleCount: inaccessible,
+                    inaccessiblePaths: inaccessiblePaths
+                )
             }
             guard let fileURL = next as? URL else { continue }
 
@@ -373,6 +419,9 @@ struct DiskScanner: Sendable {
 
             guard let values = try? fileURL.resourceValues(forKeys: Set(keys)) else {
                 inaccessible += 1
+                if inaccessiblePaths.count < Self.inaccessiblePathCap {
+                    inaccessiblePaths.append(fileURL.path(percentEncoded: false))
+                }
                 continue
             }
 
@@ -397,6 +446,10 @@ struct DiskScanner: Sendable {
 
         throttler.flush(currentPath: directory.lastPathComponent)
 
-        return ScanRootResult(files: files, inaccessibleCount: inaccessible)
+        return ScanRootResult(
+            files: files,
+            inaccessibleCount: inaccessible,
+            inaccessiblePaths: inaccessiblePaths
+        )
     }
 }

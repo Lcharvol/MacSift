@@ -42,17 +42,29 @@ struct ScanProgressView: View {
             }
 
             VStack(spacing: 14) {
+                // Two explicit animation pieces working together:
+                //  - `contentTransition(.numericText)` tells SwiftUI to
+                //    morph digits rather than cross-fade the whole string
+                //  - `.animation(value:)` scopes the animation to the
+                //    totalSize change and runs slightly shorter than the
+                //    250ms update interval from ScanViewModel so each
+                //    morph completes before the next delta arrives (0.45s
+                //    was too long — each animation was interrupted mid-
+                //    way by the next update and the user perceived the
+                //    digits as jumping instead of animating).
                 Text(progress.totalSize.formattedFileSize)
                     .font(.system(size: 44, weight: .semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: false))
-                    .animation(.smooth(duration: 0.45), value: progress.totalSize)
+                    .animation(.easeInOut(duration: 0.24), value: progress.totalSize)
 
                 HStack(spacing: 16) {
-                    Label("\(progress.totalFiles) files", systemImage: "doc")
+                    Text("\(progress.totalFiles) files")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
+                        .contentTransition(.numericText(countsDown: false))
+                        .animation(.easeInOut(duration: 0.24), value: progress.totalFiles)
 
                     if let category = progress.currentCategory {
                         Label(category.label, systemImage: category.iconName)

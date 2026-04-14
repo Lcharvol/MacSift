@@ -273,7 +273,12 @@ final class ScanViewModel: ObservableObject {
             var totalFiles = 0
             var totalSize: Int64 = 0
             var sizeByCategory: [FileCategory: Int64] = [:]
-            var lastUpdate = Date.distantPast
+            // Seed `lastUpdate` with the current time so the first delta
+            // batch is throttled for ~250ms before it gets published. That
+            // gives SwiftUI a full frame to render the zero state first,
+            // so the user sees the number count up from 0 instead of
+            // jumping straight to the first accumulated value.
+            var lastUpdate = Date()
             let minInterval: TimeInterval = 0.25
             var lastPath = ""
             var lastCategory: FileCategory? = nil

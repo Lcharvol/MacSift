@@ -201,7 +201,13 @@ struct DiskScanner: Sendable {
         }
 
         let duration = Date().timeIntervalSince(startTime)
-        progress?.finish()
+        // NOTE: we deliberately do NOT call `progress?.finish()` here.
+        // The continuation is owned by the caller — in the multi-volume
+        // flow, several scanners share the same continuation and the
+        // first one to finish would otherwise close the stream and
+        // silently drop every subsequent volume's progress events. The
+        // caller runs `defer { continuation.finish() }` around the
+        // whole scan fan-out and closes it exactly once.
 
         return ScanResult(
             filesByCategory: allFiles,

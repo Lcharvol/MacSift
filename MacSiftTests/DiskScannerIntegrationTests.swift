@@ -66,6 +66,10 @@ struct DiskScannerIntegrationTests {
         }.value
 
         _ = await scanner.scan(progress: continuation)
+        // The scanner no longer finishes the continuation itself (callers
+        // own the stream in the multi-volume flow). Close it explicitly
+        // here so the collector's `for await` loop exits.
+        continuation.finish()
 
         let events = await collected
 

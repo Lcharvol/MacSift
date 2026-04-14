@@ -90,6 +90,48 @@ struct CategoryClassifier: Sendable {
         return true
     }
 
+    /// Declarative prefix-based rules, tried in order. Each entry is an
+    /// `(absolute path prefix, category)` pair. The first hit wins, so the
+    /// ordering here is load-bearing — more specific rules come before the
+    /// generic ones (e.g., Xcode's DerivedData must precede a generic
+    /// `Library/Caches` match). Rules that aren't pure prefix checks
+    /// (orphaned appData, age-based Old Downloads, size-based Large Files)
+    /// live in the tail of `classify` below.
+    private static let prefixRules: [(suffix: String, absolute: Bool, category: FileCategory)] = [
+        // Xcode / developer artifacts under ~/Library/Developer
+        ("Library/Developer/Xcode/DerivedData", false, .xcodeJunk),
+        ("Library/Developer/Xcode/Archives", false, .xcodeJunk),
+        ("Library/Developer/Xcode/iOS DeviceSupport", false, .xcodeJunk),
+        ("Library/Developer/Xcode/watchOS DeviceSupport", false, .xcodeJunk),
+        ("Library/Developer/Xcode/tvOS DeviceSupport", false, .xcodeJunk),
+        ("Library/Developer/Xcode/UserData/IB Support", false, .xcodeJunk),
+        ("Library/Developer/CoreSimulator/Caches", false, .xcodeJunk),
+        // Mail attachments — must precede the generic Caches rule since the
+        // app-sandbox copy lives under Library/Containers.
+        ("Library/Mail Downloads", false, .mailDownloads),
+        ("Library/Containers/com.apple.mail/Data/Library/Mail Downloads", false, .mailDownloads),
+        // Developer package manager caches
+        (".npm", false, .devCaches),
+        (".yarn", false, .devCaches),
+        (".pnpm-store", false, .devCaches),
+        (".cache/pip", false, .devCaches),
+        (".cache/huggingface", false, .devCaches),
+        (".cache/yarn", false, .devCaches),
+        (".cargo/registry/cache", false, .devCaches),
+        (".rustup/toolchains", false, .devCaches),
+        ("go/pkg/mod", false, .devCaches),
+        ("Library/Caches/Homebrew", false, .devCaches),
+        ("Library/Caches/pip", false, .devCaches),
+        ("Library/Caches/com.apple.dt.Xcode", false, .devCaches),
+        // Generic categories — must come after the more specific dev / Xcode
+        // rules above.
+        ("Library/Caches", false, .cache),
+        ("Library/Logs", false, .logs),
+        // Absolute-path system roots
+        ("/private/var/log", true, .logs),
+        ("/tmp", true, .tempFiles),
+    ]
+
     func classify(url: URL, size: Int64, modificationDate: Date = .distantPast) -> FileCategory? {
         let path = url.path(percentEncoded: false)
         let homePrefix = Self.sharedHomePrefix
@@ -99,34 +141,17 @@ struct CategoryClassifier: Sendable {
             return .iosBackups
         }
 
-        // Xcode Junk — must come before generic cache check since some paths
-        // nest under Library/Developer/Xcode.
-        if Self.isXcodeJunk(path: path, homePrefix: homePrefix) {
-            return .xcodeJunk
+        // Walk the declarative rules once.
+        for rule in Self.prefixRules {
+            let target = rule.absolute ? rule.suffix : "\(homePrefix)\(rule.suffix)"
+            if path.hasPrefix(target) {
+                return rule.category
+            }
         }
 
-        // Mail attachments
-        if Self.isMailDownload(path: path, homePrefix: homePrefix) {
-            return .mailDownloads
-        }
-
-        // Developer package manager caches
-        if Self.isDevCache(path: path, homePrefix: homePrefix) {
-            return .devCaches
-        }
-
-        // Caches
-        if path.hasPrefix("\(homePrefix)Library/Caches") {
-            return .cache
-        }
-
-        // Logs
-        if path.hasPrefix("\(homePrefix)Library/Logs") || path.hasPrefix("/private/var/log") {
-            return .logs
-        }
-
-        // Temp files
-        if path.hasPrefix("/tmp") || path.hasPrefix(NSTemporaryDirectory()) {
+        // NSTemporaryDirectory() is a runtime value, not a compile-time
+        // constant — it has to live outside the rules array.
+        if path.hasPrefix(NSTemporaryDirectory()) {
             return .tempFiles
         }
 
@@ -165,56 +190,4 @@ struct CategoryClassifier: Sendable {
         return nil
     }
 
-    // MARK: - Xcode / developer path detection
-
-    private static let xcodeJunkSubpaths: [String] = [
-        "Library/Developer/Xcode/DerivedData",
-        "Library/Developer/Xcode/Archives",
-        "Library/Developer/Xcode/iOS DeviceSupport",
-        "Library/Developer/Xcode/watchOS DeviceSupport",
-        "Library/Developer/Xcode/tvOS DeviceSupport",
-        "Library/Developer/Xcode/UserData/IB Support",
-        "Library/Developer/CoreSimulator/Caches",
-    ]
-
-    static func isXcodeJunk(path: String, homePrefix: String) -> Bool {
-        for suffix in xcodeJunkSubpaths {
-            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
-        }
-        return false
-    }
-
-    private static let devCacheSubpaths: [String] = [
-        ".npm",
-        ".yarn",
-        ".pnpm-store",
-        ".cache/pip",
-        ".cache/huggingface",
-        ".cache/yarn",
-        ".cargo/registry/cache",
-        ".rustup/toolchains",
-        "go/pkg/mod",
-        "Library/Caches/Homebrew",
-        "Library/Caches/pip",
-        "Library/Caches/com.apple.dt.Xcode",
-    ]
-
-    static func isDevCache(path: String, homePrefix: String) -> Bool {
-        for suffix in devCacheSubpaths {
-            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
-        }
-        return false
-    }
-
-    private static let mailDownloadSubpaths: [String] = [
-        "Library/Mail Downloads",
-        "Library/Containers/com.apple.mail/Data/Library/Mail Downloads",
-    ]
-
-    static func isMailDownload(path: String, homePrefix: String) -> Bool {
-        for suffix in mailDownloadSubpaths {
-            if path.hasPrefix("\(homePrefix)\(suffix)") { return true }
-        }
-        return false
-    }
 }

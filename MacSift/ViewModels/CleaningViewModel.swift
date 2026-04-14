@@ -218,6 +218,17 @@ final class CleaningViewModel: ObservableObject {
             appState.lifetimeCleanedBytes += cleaningReport.freedSize
         }
 
+        if appState.isDryRun {
+            MacSiftLog.info("Dry-run clean: \(cleaningReport.deletedCount) files, " +
+                "\(cleaningReport.freedSize.formattedFileSize) would be freed")
+        } else {
+            MacSiftLog.info("Cleaned \(cleaningReport.deletedCount) files, " +
+                "\(cleaningReport.freedSize.formattedFileSize) freed")
+        }
+        for (file, reason) in cleaningReport.failedFiles {
+            MacSiftLog.error("Failed to clean \(file.url.path(percentEncoded: false)): \(reason)")
+        }
+
         self.report = cleaningReport
         self.setSelectedIDs([])
         self.state = .completed

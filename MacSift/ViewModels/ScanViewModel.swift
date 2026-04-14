@@ -150,6 +150,11 @@ final class ScanViewModel: ObservableObject {
         appState.lifetimeScanCount += 1
         state = .completed(completed)
 
+        MacSiftLog.info("Scan completed: \(completed.result.totalFileCount) files, " +
+            "\(completed.result.totalSize.formattedFileSize) in " +
+            "\(String(format: "%.2fs", scanResult.scanDuration)) — " +
+            "\(scanResult.inaccessibleCount) inaccessible")
+
         // Post a local notification if the scan took a while and the user
         // isn't looking at the window right now.
         ScanNotifications.notifyIfBackgroundLongScan(

@@ -38,6 +38,16 @@ struct MainView: View {
     @State private var pendingFreedSize: Int64 = 0
     /// The visible banner message. When non-nil, shown above the results.
     @State private var freedBanner: String?
+    /// Cached volume-filtered views. Recomputed ONLY when the scan
+    /// finishes or the user switches volumes — NOT on every category
+    /// click. Without this cache, clicking a category re-walked every
+    /// file in `filteringVolume`, every group in `filteredGroupsByCategory`,
+    /// and every file again in `sizeByVolume` — O(n) work on the render
+    /// thread × 4 per click, which at 100k+ files produced visible freezes.
+    @State private var cachedDisplayedResult: ScanResult = .empty
+    @State private var cachedSizeByVolume: [String: Int64] = [:]
+    @State private var cachedFilteredGroupsByCategory: [FileCategory: [FileGroup]] = [:]
+    @State private var cachedFilteredAllSortedGroups: [FileGroup] = []
 
     private var selectedCategory: FileCategory? {
         FileCategory(rawValue: selectedCategoryRaw)
@@ -61,26 +71,11 @@ struct MainView: View {
         )
     }
 
-    /// Result filtered to the currently selected volume (or the full merged
-    /// result when "All volumes" is active). Computed on every render but
-    /// cheap — `filteringVolume` walks filesByCategory once and returns a
-    /// shallow copy. For very large selections, consider caching.
-    private var displayedResult: ScanResult {
-        scanVM.result.filteringVolume(selectedVolumeID)
-    }
-
-    /// Volume ID → total size on that volume. Precomputed from the full
-    /// result so the picker always shows truthful numbers regardless of
-    /// which volume is currently selected.
-    private var sizeByVolume: [String: Int64] {
-        var out: [String: Int64] = [:]
-        for files in scanVM.result.filesByCategory.values {
-            for file in files {
-                out[file.volumeID, default: 0] += file.size
-            }
-        }
-        return out
-    }
+    /// Read from the caches populated by `refreshVolumeCaches`. NEVER walk
+    /// files or groups from inside a computed property — that work must
+    /// happen off the render path.
+    private var displayedResult: ScanResult { cachedDisplayedResult }
+    private var sizeByVolume: [String: Int64] { cachedSizeByVolume }
 
     private var sortOption: FileListSortOption {
         FileListSortOption(rawValue: sortOptionRaw) ?? .sizeDesc
@@ -127,6 +122,9 @@ struct MainView: View {
                 {
                     selectedVolumeIDRaw = ""
                 }
+                // Rebuild volume-scoped caches off the main thread — never
+                // walk 100k+ files from inside a computed property.
+                refreshVolumeCaches()
                 // Show the number of .safe groups as a Dock badge.
                 let safeCount = scanVM.allSortedGroups.filter { $0.category.riskLevel == .safe }.count
                 NSApp.dockTile.badgeLabel = safeCount > 0 ? "\(safeCount)" : nil
@@ -166,6 +164,10 @@ struct MainView: View {
             searchQuery = ""          // clear filter so the new category shows everything
             inspectedGroup = nil      // clear stale inspector content
             expandedGroup = nil       // collapse any drill-down
+        }
+        .onChange(of: selectedVolumeIDRaw) { _, _ in
+            // Volume switch is rare and heavy — fan out to a detached Task.
+            refreshVolumeCaches()
         }
         .onReceive(NotificationCenter.default.publisher(for: .macSiftStartScan)) { _ in
             scanVM.startScan()
@@ -427,19 +429,62 @@ struct MainView: View {
         }
     }
 
-    /// Groups filtered to the currently-selected volume. When "All volumes"
-    /// is active we pass through the VM's cached views untouched so the
-    /// common case stays O(1).
     private var filteredGroupsByCategory: [FileCategory: [FileGroup]] {
-        guard let volumeID = selectedVolumeID else { return scanVM.groupsByCategory }
-        return scanVM.groupsByCategory.mapValues { groups in
-            groups.filter { group in group.files.contains { $0.volumeID == volumeID } }
-        }
+        cachedFilteredGroupsByCategory
+    }
+    private var filteredAllSortedGroups: [FileGroup] {
+        cachedFilteredAllSortedGroups
     }
 
-    private var filteredAllSortedGroups: [FileGroup] {
-        guard let volumeID = selectedVolumeID else { return scanVM.allSortedGroups }
-        return scanVM.allSortedGroups.filter { group in group.files.contains { $0.volumeID == volumeID } }
+    /// Recompute every volume-scoped cached view. Called ONLY when the
+    /// scan finishes or the selected volume changes. Heavy work (iterating
+    /// every scanned file) is dispatched to a detached Task so we never
+    /// block the main thread, and the result is assigned in a single
+    /// @State write to avoid a cascade of SwiftUI invalidations.
+    private func refreshVolumeCaches() {
+        let fullResult = scanVM.result
+        let groupsByCategory = scanVM.groupsByCategory
+        let allSortedGroups = scanVM.allSortedGroups
+        let volumeID = selectedVolumeID
+
+        Task.detached(priority: .userInitiated) {
+            // `filteringVolume` walks files once and is O(n) in the
+            // filtered subset. The size-by-volume map walks every file
+            // in the full result ONCE, independent of which volume is
+            // currently selected — so the picker always has truthful
+            // totals even while a filter is applied.
+            let filteredResult = fullResult.filteringVolume(volumeID)
+
+            var sizeByVolume: [String: Int64] = [:]
+            for files in fullResult.filesByCategory.values {
+                for file in files {
+                    sizeByVolume[file.volumeID, default: 0] += file.size
+                }
+            }
+
+            // Group filtering: when no volume is selected, pass through
+            // the VM's already-sorted views untouched (O(1)).
+            let filteredGroupsByCategory: [FileCategory: [FileGroup]]
+            let filteredAllSortedGroups: [FileGroup]
+            if let volumeID {
+                filteredGroupsByCategory = groupsByCategory.mapValues { groups in
+                    groups.filter { group in group.files.contains { $0.volumeID == volumeID } }
+                }
+                filteredAllSortedGroups = allSortedGroups.filter { group in
+                    group.files.contains { $0.volumeID == volumeID }
+                }
+            } else {
+                filteredGroupsByCategory = groupsByCategory
+                filteredAllSortedGroups = allSortedGroups
+            }
+
+            await MainActor.run {
+                self.cachedDisplayedResult = filteredResult
+                self.cachedSizeByVolume = sizeByVolume
+                self.cachedFilteredGroupsByCategory = filteredGroupsByCategory
+                self.cachedFilteredAllSortedGroups = filteredAllSortedGroups
+            }
+        }
     }
 
     private var headerSubtitle: String {

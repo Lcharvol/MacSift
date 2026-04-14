@@ -67,6 +67,17 @@ private struct ProgressThrottler {
     }
 }
 
+/// What kind of volume we're scanning. Drives which scan targets run.
+enum ScanMode: Sendable {
+    /// Boot volume — full pipeline: Library/Caches, Logs, Xcode, dev caches,
+    /// Downloads, Mail Downloads, plus the whole-home large-file sweep.
+    case boot
+    /// External / secondary volume — no ~/Library, no dev caches. Runs only
+    /// the whole-volume large-file sweep so the user sees what's eating
+    /// space without drowning in irrelevant categories.
+    case externalVolume
+}
+
 struct DiskScanner: Sendable {
     /// Upper bound on the number of unreadable paths each scan task keeps.
     /// A full listing could grow to millions on a locked-down volume; the
@@ -77,17 +88,25 @@ struct DiskScanner: Sendable {
     let exclusionManager: ExclusionManager
     let homeDirectory: URL
     let maxDepth: Int
+    let mode: ScanMode
+    /// Volume id stamped onto every ScannedFile produced by this scanner.
+    /// The ViewModel uses it to group results per volume in the UI.
+    let volumeID: String
 
     init(
         classifier: CategoryClassifier,
         exclusionManager: ExclusionManager,
         homeDirectory: URL? = nil,
-        maxDepth: Int = 20
+        maxDepth: Int = 20,
+        mode: ScanMode = .boot,
+        volumeID: String = Volume.bootVolumeID
     ) {
         self.classifier = classifier
         self.exclusionManager = exclusionManager
         self.homeDirectory = homeDirectory ?? FileManager.default.homeDirectoryForCurrentUser
         self.maxDepth = maxDepth
+        self.mode = mode
+        self.volumeID = volumeID
     }
 
     /// Run a scan and emit progress to the supplied continuation. Cancellation
@@ -101,40 +120,42 @@ struct DiskScanner: Sendable {
             exclusionManager.excludedPaths.map { $0.path(percentEncoded: false) }
         }
 
-        let scanTargets: [(URL, FileCategory?)] = [
-            (homeDirectory.appending(path: "Library/Caches"), .cache),
-            (homeDirectory.appending(path: "Library/Logs"), .logs),
-            // Hint nil so the classifier handles it: iOS backups inside this tree
-            // need to be tagged as .iosBackups, the rest falls back to .appData.
-            (homeDirectory.appending(path: "Library/Application Support"), nil),
-            (URL(filePath: "/private/var/log"), .logs),
-            (URL(filePath: "/tmp"), .tempFiles),
-            // Xcode junk — hint nil so the classifier picks the right subcategory
-            // for files that might match multiple rules (e.g., DerivedData vs. a
-            // cache path inside it).
-            (homeDirectory.appending(path: "Library/Developer/Xcode/DerivedData"), .xcodeJunk),
-            (homeDirectory.appending(path: "Library/Developer/Xcode/Archives"), .xcodeJunk),
-            (homeDirectory.appending(path: "Library/Developer/Xcode/iOS DeviceSupport"), .xcodeJunk),
-            (homeDirectory.appending(path: "Library/Developer/CoreSimulator/Caches"), .xcodeJunk),
-            // Developer caches
-            (homeDirectory.appending(path: ".npm"), .devCaches),
-            (homeDirectory.appending(path: ".yarn"), .devCaches),
-            (homeDirectory.appending(path: ".pnpm-store"), .devCaches),
-            (homeDirectory.appending(path: ".cache"), .devCaches),
-            (homeDirectory.appending(path: ".cargo/registry/cache"), .devCaches),
-            (homeDirectory.appending(path: ".rustup/toolchains"), .devCaches),
-            (homeDirectory.appending(path: "go/pkg/mod"), .devCaches),
-            (homeDirectory.appending(path: "Library/Caches/Homebrew"), .devCaches),
-            // Old Downloads — hint nil so the classifier applies the age filter
-            (homeDirectory.appending(path: "Downloads"), nil),
-            // Mail attachments
-            (homeDirectory.appending(path: "Library/Mail Downloads"), .mailDownloads),
-            (homeDirectory.appending(path: "Library/Containers/com.apple.mail/Data/Library/Mail Downloads"), .mailDownloads),
-        ]
+        let scanTargets: [(URL, FileCategory?)]
+        switch mode {
+        case .boot:
+            scanTargets = [
+                (homeDirectory.appending(path: "Library/Caches"), .cache),
+                (homeDirectory.appending(path: "Library/Logs"), .logs),
+                (homeDirectory.appending(path: "Library/Application Support"), nil),
+                (URL(filePath: "/private/var/log"), .logs),
+                (URL(filePath: "/tmp"), .tempFiles),
+                (homeDirectory.appending(path: "Library/Developer/Xcode/DerivedData"), .xcodeJunk),
+                (homeDirectory.appending(path: "Library/Developer/Xcode/Archives"), .xcodeJunk),
+                (homeDirectory.appending(path: "Library/Developer/Xcode/iOS DeviceSupport"), .xcodeJunk),
+                (homeDirectory.appending(path: "Library/Developer/CoreSimulator/Caches"), .xcodeJunk),
+                (homeDirectory.appending(path: ".npm"), .devCaches),
+                (homeDirectory.appending(path: ".yarn"), .devCaches),
+                (homeDirectory.appending(path: ".pnpm-store"), .devCaches),
+                (homeDirectory.appending(path: ".cache"), .devCaches),
+                (homeDirectory.appending(path: ".cargo/registry/cache"), .devCaches),
+                (homeDirectory.appending(path: ".rustup/toolchains"), .devCaches),
+                (homeDirectory.appending(path: "go/pkg/mod"), .devCaches),
+                (homeDirectory.appending(path: "Library/Caches/Homebrew"), .devCaches),
+                (homeDirectory.appending(path: "Downloads"), nil),
+                (homeDirectory.appending(path: "Library/Mail Downloads"), .mailDownloads),
+                (homeDirectory.appending(path: "Library/Containers/com.apple.mail/Data/Library/Mail Downloads"), .mailDownloads),
+            ]
+        case .externalVolume:
+            // External/secondary volumes only get the large-file sweep — no
+            // ~/Library, no /tmp, no dev caches. The sweep walks homeDirectory
+            // (which is the volume root) and classifies everything as .largeFiles.
+            scanTargets = []
+        }
 
         let classifier = self.classifier
         let maxDepth = self.maxDepth
         let homeDirectory = self.homeDirectory
+        let volumeID = self.volumeID
 
         var allFiles: [FileCategory: [ScannedFile]] = [:]
         var totalInaccessible = 0
@@ -149,7 +170,8 @@ struct DiskScanner: Sendable {
                         classifier: classifier,
                         excludedPaths: excludedPaths,
                         maxDepth: maxDepth,
-                        progress: progress
+                        progress: progress,
+                        volumeID: volumeID
                     )
                 }
             }
@@ -159,7 +181,8 @@ struct DiskScanner: Sendable {
                     in: homeDirectory,
                     classifier: classifier,
                     excludedPaths: excludedPaths,
-                    progress: progress
+                    progress: progress,
+                    volumeID: volumeID
                 )
             }
 
@@ -201,7 +224,8 @@ struct DiskScanner: Sendable {
         classifier: CategoryClassifier,
         excludedPaths: [String],
         maxDepth: Int,
-        progress: AsyncStream<ScanProgress>.Continuation?
+        progress: AsyncStream<ScanProgress>.Continuation?,
+        volumeID: String
     ) -> ScanRootResult {
         let fm = FileManager.default
 
@@ -300,7 +324,8 @@ struct DiskScanner: Sendable {
                 category: category,
                 description: description,
                 modificationDate: modDate,
-                isDirectory: false
+                isDirectory: false,
+                volumeID: volumeID
             ))
             throttler.add(bytes: size, currentPath: fileURL.lastPathComponent)
         }
@@ -318,7 +343,8 @@ struct DiskScanner: Sendable {
         in directory: URL,
         classifier: CategoryClassifier,
         excludedPaths: [String],
-        progress: AsyncStream<ScanProgress>.Continuation?
+        progress: AsyncStream<ScanProgress>.Continuation?,
+        volumeID: String
     ) -> ScanRootResult {
         let fm = FileManager.default
         guard fm.fileExists(atPath: directory.path(percentEncoded: false)) else {
@@ -439,7 +465,8 @@ struct DiskScanner: Sendable {
                 category: .largeFiles,
                 description: description,
                 modificationDate: modDate,
-                isDirectory: false
+                isDirectory: false,
+                volumeID: volumeID
             ))
             throttler.add(bytes: size, currentPath: fileURL.lastPathComponent)
         }

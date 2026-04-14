@@ -56,4 +56,21 @@ struct ScanResult: Sendable {
     }
 
     static let empty = ScanResult(filesByCategory: [:], scanDuration: 0)
+
+    /// Return a filtered copy that only contains files whose `volumeID`
+    /// matches. Nil means "all volumes" and returns `self` unchanged.
+    /// Recomputes aggregates — do NOT call on every render. Cache it at
+    /// the ViewModel layer.
+    func filteringVolume(_ volumeID: String?) -> ScanResult {
+        guard let volumeID else { return self }
+        let filtered = filesByCategory.mapValues { files in
+            files.filter { $0.volumeID == volumeID }
+        }.filter { !$0.value.isEmpty }
+        return ScanResult(
+            filesByCategory: filtered,
+            scanDuration: scanDuration,
+            inaccessibleCount: inaccessibleCount,
+            inaccessiblePaths: inaccessiblePaths
+        )
+    }
 }

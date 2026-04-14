@@ -22,6 +22,8 @@ struct CompletedScan: Equatable {
     let groupsByCategory: [FileCategory: [FileGroup]]
     let allSortedGroups: [FileGroup]
     let tmSnapshots: [TMSnapshot]
+    /// Volumes that were scanned for this result, in display order (boot first).
+    let volumes: [Volume]
     /// When this scan completed. Used by the UI to show "Last scanned X ago".
     let completedAt: Date
 
@@ -29,6 +31,7 @@ struct CompletedScan: Equatable {
         lhs.result.scanDuration == rhs.result.scanDuration
             && lhs.allSortedFiles.count == rhs.allSortedFiles.count
             && lhs.tmSnapshots.count == rhs.tmSnapshots.count
+            && lhs.volumes == rhs.volumes
             && lhs.completedAt == rhs.completedAt
     }
 }
@@ -65,6 +68,9 @@ final class ScanViewModel: ObservableObject {
     @Published var state: State = .idle
     @Published var displayProgress: ScanDisplayProgress = ScanDisplayProgress()
     @Published var hasFullDiskAccess: Bool = false
+    /// Mounted volumes discovered at the last scan. Populated before the
+    /// scan dispatches so the sidebar can show them immediately.
+    @Published var discoveredVolumes: [Volume] = []
 
     // Convenience accessors that read from the state's associated value
     var result: ScanResult { state.completedScan?.result ?? .empty }
@@ -73,6 +79,7 @@ final class ScanViewModel: ObservableObject {
     var groupsByCategory: [FileCategory: [FileGroup]] { state.completedScan?.groupsByCategory ?? [:] }
     var allSortedGroups: [FileGroup] { state.completedScan?.allSortedGroups ?? [] }
     var tmSnapshots: [TMSnapshot] { state.completedScan?.tmSnapshots ?? [] }
+    var scannedVolumes: [Volume] { state.completedScan?.volumes ?? [] }
 
     private let exclusionManager: ExclusionManager
     private let appState: AppState
@@ -124,16 +131,98 @@ final class ScanViewModel: ObservableObject {
     }
 
     private func runScan() async {
-        let scanner = await makeScanner()
+        // Discover mounted volumes once at the start. When the user drops a
+        // folder (customScanRoot non-nil), we fall back to single-root mode
+        // and don't scan any volumes — the drop-folder flow doesn't care
+        // about multi-disk.
+        let volumes: [Volume]
+        if customScanRoot == nil {
+            volumes = VolumeDiscovery.list()
+        } else {
+            volumes = []
+        }
+        discoveredVolumes = volumes
+
         let (stream, continuation) = AsyncStream.makeStream(of: ScanProgress.self)
         let progressTask = startProgressAccumulator(stream: stream)
 
-        // DiskScanner.scan finishes the continuation on its happy path, but
-        // we finish it defensively here too so a future refactor that bails
-        // early never leaks a dangling progress task.
         defer { continuation.finish() }
 
-        let scanResult = await scanner.scan(progress: continuation)
+        let classifier = await CategoryClassifier.withInstalledApps(
+            largeFileThresholdBytes: appState.largeFileThresholdBytes,
+            oldDownloadsAgeThresholdDays: Double(appState.oldDownloadsAgeDays)
+        )
+        let exclusionManager = self.exclusionManager
+
+        // Build one scanner per target. Drop-folder or empty volume list
+        // (unit tests / unusual environments) fall back to a single boot
+        // scanner pointed at customScanRoot / default home.
+        struct Target: Sendable {
+            let scanner: DiskScanner
+            let isBoot: Bool
+        }
+
+        let targets: [Target]
+        if volumes.isEmpty {
+            targets = [Target(scanner: DiskScanner(
+                classifier: classifier,
+                exclusionManager: exclusionManager,
+                homeDirectory: customScanRoot,
+                mode: .boot
+            ), isBoot: true)]
+        } else {
+            targets = volumes.map { volume in
+                if volume.isBoot {
+                    return Target(scanner: DiskScanner(
+                        classifier: classifier,
+                        exclusionManager: exclusionManager,
+                        homeDirectory: nil, // real $HOME
+                        mode: .boot,
+                        volumeID: volume.id
+                    ), isBoot: true)
+                } else {
+                    return Target(scanner: DiskScanner(
+                        classifier: classifier,
+                        exclusionManager: exclusionManager,
+                        homeDirectory: volume.url,
+                        mode: .externalVolume,
+                        volumeID: volume.id
+                    ), isBoot: false)
+                }
+            }
+        }
+
+        // Fan out one scan per volume in parallel. The progress continuation
+        // is shared: all tasks yield into the same stream and the accumulator
+        // aggregates deltas into one displayProgress.
+        let scanResult: ScanResult = await withTaskGroup(of: ScanResult.self) { group in
+            for target in targets {
+                group.addTask { [continuation] in
+                    await target.scanner.scan(progress: continuation)
+                }
+            }
+            var mergedByCategory: [FileCategory: [ScannedFile]] = [:]
+            var totalDuration: TimeInterval = 0
+            var totalInaccessible = 0
+            var aggregatedPaths: [String] = []
+            for await partial in group {
+                for (category, files) in partial.filesByCategory {
+                    mergedByCategory[category, default: []].append(contentsOf: files)
+                }
+                totalDuration = max(totalDuration, partial.scanDuration)
+                totalInaccessible += partial.inaccessibleCount
+                for path in partial.inaccessiblePaths {
+                    if aggregatedPaths.count >= DiskScanner.inaccessiblePathCap { break }
+                    aggregatedPaths.append(path)
+                }
+            }
+            return ScanResult(
+                filesByCategory: mergedByCategory,
+                scanDuration: totalDuration,
+                inaccessibleCount: totalInaccessible,
+                inaccessiblePaths: aggregatedPaths
+            )
+        }
 
         if Task.isCancelled {
             progressTask.cancel()
@@ -147,8 +236,6 @@ final class ScanViewModel: ObservableObject {
         do {
             snapshots = try await TimeMachineService.listSnapshots()
         } catch {
-            // tmutil can fail transiently (TCC prompts, system load) — log
-            // so the user has an audit trail instead of a silent empty list.
             MacSiftLog.warning("Failed to list Time Machine snapshots: \(error.localizedDescription)")
             snapshots = []
         }
@@ -157,13 +244,14 @@ final class ScanViewModel: ObservableObject {
         let completed = buildCompletedScan(
             prepared: prepared,
             scanResult: scanResult,
-            snapshots: snapshots
+            snapshots: snapshots,
+            volumes: volumes
         )
-        // Bump lifetime counter — one per completed (not cancelled) scan.
         appState.lifetimeScanCount += 1
         state = .completed(completed)
 
-        MacSiftLog.info("Scan completed: \(completed.result.totalFileCount) files, " +
+        let volumesDesc = volumes.isEmpty ? "single root" : volumes.map(\.name).joined(separator: ", ")
+        MacSiftLog.info("Scan completed across [\(volumesDesc)]: \(completed.result.totalFileCount) files, " +
             "\(completed.result.totalSize.formattedFileSize) in " +
             "\(String(format: "%.2fs", scanResult.scanDuration)) — " +
             "\(scanResult.inaccessibleCount) inaccessible")
@@ -177,20 +265,6 @@ final class ScanViewModel: ObservableObject {
         )
     }
 
-    /// Build the scanner with the current settings and optional custom root.
-    /// The classifier walks /Applications once to populate its installed-app
-    /// set for orphan detection — this happens on a background thread.
-    private func makeScanner() async -> DiskScanner {
-        let classifier = await CategoryClassifier.withInstalledApps(
-            largeFileThresholdBytes: appState.largeFileThresholdBytes,
-            oldDownloadsAgeThresholdDays: Double(appState.oldDownloadsAgeDays)
-        )
-        return DiskScanner(
-            classifier: classifier,
-            exclusionManager: exclusionManager,
-            homeDirectory: customScanRoot
-        )
-    }
 
     /// Consume delta progress events from the scanner and publish throttled
     /// cumulative snapshots to `displayProgress`. Capped at ~4 updates per second.
@@ -263,7 +337,8 @@ final class ScanViewModel: ObservableObject {
     private func buildCompletedScan(
         prepared: Prepared,
         scanResult: ScanResult,
-        snapshots: [TMSnapshot]
+        snapshots: [TMSnapshot],
+        volumes: [Volume]
     ) -> CompletedScan {
         // Inject TM snapshots as synthetic ScannedFile rows so they flow
         // through the same selection/cleaning UI as regular files.
@@ -296,13 +371,16 @@ final class ScanViewModel: ObservableObject {
         return CompletedScan(
             result: ScanResult(
                 filesByCategory: byCategory,
-                scanDuration: scanResult.scanDuration
+                scanDuration: scanResult.scanDuration,
+                inaccessibleCount: scanResult.inaccessibleCount,
+                inaccessiblePaths: scanResult.inaccessiblePaths
             ),
             sortedFilesByCategory: byCategory,
             allSortedFiles: all,
             groupsByCategory: groupsByCategory,
             allSortedGroups: allGroups,
             tmSnapshots: snapshots,
+            volumes: volumes,
             completedAt: Date()
         )
     }

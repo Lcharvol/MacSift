@@ -11,6 +11,10 @@ struct ScannedFile: Identifiable, Hashable, Sendable {
     let description: String
     let modificationDate: Date
     let isDirectory: Bool
+    /// Volume this file lives on. Stamped at scan time so the UI can filter
+    /// by source (Macintosh HD, external drives) without re-walking URLs.
+    /// Uses the volume's path-based id, e.g. "/" or "/Volumes/Samsung T7".
+    let volumeID: String
 
     init(
         url: URL,
@@ -18,7 +22,8 @@ struct ScannedFile: Identifiable, Hashable, Sendable {
         category: FileCategory,
         description: String,
         modificationDate: Date,
-        isDirectory: Bool
+        isDirectory: Bool,
+        volumeID: String = Volume.bootVolumeID
     ) {
         self.id = Self.stableID(for: url)
         self.url = url
@@ -27,6 +32,7 @@ struct ScannedFile: Identifiable, Hashable, Sendable {
         self.description = description
         self.modificationDate = modificationDate
         self.isDirectory = isDirectory
+        self.volumeID = volumeID
     }
 
     private static func stableID(for url: URL) -> String {

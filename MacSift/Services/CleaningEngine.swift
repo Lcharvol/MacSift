@@ -44,10 +44,30 @@ struct CleaningEngine: Sendable {
         "/sbin",
     ]
 
+    /// Folder/file names that live at the root of ANY mounted volume and
+    /// serve system bookkeeping (Spotlight, FSEvents, per-volume Trash,
+    /// Time Machine backups). Trashing them on an external drive breaks
+    /// indexing and backups — always hard-block regardless of category.
+    private static let protectedVolumeRootNames: Set<String> = [
+        ".Spotlight-V100",
+        ".fseventsd",
+        ".Trashes",
+        ".TemporaryItems",
+        ".DocumentRevisions-V100",
+        "Backups.backupdb",
+        ".HFS+ Private Directory Data\u{000d}",
+    ]
+
     private static func isProtectedPath(_ path: String) -> Bool {
         guard path.hasPrefix("/") else { return false }
         for prefix in neverDeletePrefixes {
             if path == prefix || path.hasPrefix(prefix + "/") { return true }
+        }
+        // Any path containing a protected volume-root name as a segment is
+        // blocked. Covers both `/Volumes/T7/.Spotlight-V100/...` and the
+        // root folder itself.
+        for segment in path.split(separator: "/") {
+            if protectedVolumeRootNames.contains(String(segment)) { return true }
         }
         return false
     }

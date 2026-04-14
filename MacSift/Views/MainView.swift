@@ -9,6 +9,7 @@ struct MainView: View {
     // Per-window UI state. SceneStorage persists these across app launches so
     // re-opening the window restores the user's last view preferences.
     @SceneStorage("MainView.selectedCategoryRaw") private var selectedCategoryRaw: String = ""
+    @SceneStorage("MainView.selectedVolumeID") private var selectedVolumeIDRaw: String = ""
     @SceneStorage("MainView.showAllFiles") private var showAllFiles = false
     @SceneStorage("MainView.sortOptionRaw") private var sortOptionRaw: String = FileListSortOption.sizeDesc.rawValue
     // Inspector state is intentionally NOT persisted — without an inspectedGroup
@@ -48,6 +49,38 @@ struct MainView: View {
         )
     }
 
+    private var selectedVolumeID: String? {
+        selectedVolumeIDRaw.isEmpty ? nil : selectedVolumeIDRaw
+    }
+
+    private var selectedVolumeIDBinding: Binding<String?> {
+        Binding(
+            get: { selectedVolumeIDRaw.isEmpty ? nil : selectedVolumeIDRaw },
+            set: { selectedVolumeIDRaw = $0 ?? "" }
+        )
+    }
+
+    /// Result filtered to the currently selected volume (or the full merged
+    /// result when "All volumes" is active). Computed on every render but
+    /// cheap — `filteringVolume` walks filesByCategory once and returns a
+    /// shallow copy. For very large selections, consider caching.
+    private var displayedResult: ScanResult {
+        scanVM.result.filteringVolume(selectedVolumeID)
+    }
+
+    /// Volume ID → total size on that volume. Precomputed from the full
+    /// result so the picker always shows truthful numbers regardless of
+    /// which volume is currently selected.
+    private var sizeByVolume: [String: Int64] {
+        var out: [String: Int64] = [:]
+        for files in scanVM.result.filesByCategory.values {
+            for file in files {
+                out[file.volumeID, default: 0] += file.size
+            }
+        }
+        return out
+    }
+
     private var sortOption: FileListSortOption {
         FileListSortOption(rawValue: sortOptionRaw) ?? .sizeDesc
     }
@@ -83,6 +116,13 @@ struct MainView: View {
             if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
                 refreshSelectionSummary()
+                // Drop the volume filter if the selected volume isn't in
+                // the fresh result (e.g., it was unplugged between scans).
+                if let current = selectedVolumeID,
+                   !scanVM.scannedVolumes.contains(where: { $0.id == current })
+                {
+                    selectedVolumeIDRaw = ""
+                }
                 // Show the number of .safe groups as a Dock badge.
                 let safeCount = scanVM.allSortedGroups.filter { $0.category.riskLevel == .safe }.count
                 NSApp.dockTile.badgeLabel = safeCount > 0 ? "\(safeCount)" : nil
@@ -143,9 +183,20 @@ struct MainView: View {
         VStack(spacing: 0) {
             sidebarHeader
 
+            // Volume picker only appears once a scan has discovered more
+            // than one volume — single-volume users get the clean original UI.
+            if scanVM.scannedVolumes.count > 1 {
+                VolumePickerView(
+                    volumes: scanVM.scannedVolumes,
+                    sizeByVolume: sizeByVolume,
+                    selectedVolumeID: selectedVolumeIDBinding
+                )
+                Divider().opacity(0.5)
+            }
+
             CategoryListView(
-                sizeByCategory: scanVM.result.sizeByCategory,
-                countByCategory: scanVM.result.countByCategory,
+                sizeByCategory: displayedResult.sizeByCategory,
+                countByCategory: displayedResult.countByCategory,
                 selectedCategory: selectedCategoryBinding
             )
             .scrollContentBackground(.hidden)
@@ -239,7 +290,7 @@ struct MainView: View {
             resultsHeader
 
             StorageBarView(
-                result: scanVM.result,
+                result: displayedResult,
                 selectedCategory: selectedCategoryBinding
             )
             .padding(.horizontal, 20)
@@ -354,8 +405,8 @@ struct MainView: View {
             )
         } else {
             FileListSection(
-                groupsByCategory: scanVM.groupsByCategory,
-                allSortedGroups: scanVM.allSortedGroups,
+                groupsByCategory: filteredGroupsByCategory,
+                allSortedGroups: filteredAllSortedGroups,
                 selectedCategory: selectedCategory,
                 searchQuery: searchQuery,
                 isAdvanced: appState.mode == .advanced,
@@ -372,11 +423,32 @@ struct MainView: View {
         }
     }
 
+    /// Groups filtered to the currently-selected volume. When "All volumes"
+    /// is active we pass through the VM's cached views untouched so the
+    /// common case stays O(1).
+    private var filteredGroupsByCategory: [FileCategory: [FileGroup]] {
+        guard let volumeID = selectedVolumeID else { return scanVM.groupsByCategory }
+        return scanVM.groupsByCategory.mapValues { groups in
+            groups.filter { group in group.files.contains { $0.volumeID == volumeID } }
+        }
+    }
+
+    private var filteredAllSortedGroups: [FileGroup] {
+        guard let volumeID = selectedVolumeID else { return scanVM.allSortedGroups }
+        return scanVM.allSortedGroups.filter { group in group.files.contains { $0.volumeID == volumeID } }
+    }
+
     private var headerSubtitle: String {
-        let count = scanVM.result.totalFileCount
-        let size = scanVM.result.totalSize.formattedFileSize
+        let activeResult = displayedResult
+        let count = activeResult.totalFileCount
+        let size = activeResult.totalSize.formattedFileSize
         let duration = scanVM.result.scanDuration
         var parts = ["\(count) files", size]
+        if let volumeID = selectedVolumeID,
+           let volume = scanVM.scannedVolumes.first(where: { $0.id == volumeID })
+        {
+            parts.insert("on \(volume.name)", at: 0)
+        }
         if duration > 0 {
             parts.append("scanned in \(String(format: "%.1fs", duration))")
         }

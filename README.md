@@ -9,7 +9,7 @@
 See exactly what's taking up space, group it by the app that owns it,
 and move everything to the Trash — never permanent deletion.
 
-**[Website](https://lcharvol.github.io/MacSift/) · [Download v0.1.0](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) · [Release notes](https://github.com/Lcharvol/MacSift/releases/tag/v0.1.0)**
+**[Website](https://lcharvol.github.io/MacSift/) · [Download latest](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) · [Release notes](https://github.com/Lcharvol/MacSift/releases/latest)**
 
 </div>
 
@@ -29,7 +29,10 @@ MacSift is the opposite:
 - **Dry run is on by default** for first-time users.
 - Destructive actions require an explicit confirmation; deletions above 10&nbsp;GB
   show an extra warning.
-- Zero network calls. Zero telemetry. 55 tests, all green.
+- Zero network calls. Zero telemetry. 100 tests, all green.
+- Every scan completion and cleanup run is written to
+  `~/Library/Logs/MacSift/macsift.log` so you can audit what the app did
+  without a debugger.
 
 ## Install
 
@@ -126,7 +129,7 @@ scanner.
 
 ```bash
 swift build                              # type-check
-swift test                               # 55 tests across 10 suites
+swift test                               # 100 tests across 16 suites
 swift test --filter FileGrouper          # run one suite
 ./build-app.sh                           # build the .app bundle
 ./build-app.sh release                   # release-optimized build
@@ -159,14 +162,18 @@ rm -rf /Applications/MacSift.app
 
 # Clean up persisted preferences + exclusion list
 defaults delete com.macsift.app
+
+# Optional: remove the local audit log
+rm -rf ~/Library/Logs/MacSift
 ```
 
 You can also use the **Reset all settings** button in the in-app Settings
-window — it wipes the same keys without touching the disk.
+window — it wipes the UserDefaults keys without touching the disk.
 
-The app never writes outside its own UserDefaults domain (no keychain
+The app writes to two places on disk: its own UserDefaults domain and
+`~/Library/Logs/MacSift/macsift.log` (capped at ~500 KB). No keychain
 entries, no LaunchAgents, no `~/Library/Application Support/MacSift`
-folder). Nothing else to clean.
+folder. Nothing else to clean.
 
 ## License
 

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 struct CleaningReport: Sendable {
     let deletedCount: Int
@@ -72,9 +73,23 @@ struct CleaningEngine: Sendable {
         return false
     }
 
+    /// How many files get trashed together in a single NSWorkspace.recycle
+    /// call. Tuned empirically: Finder's XPC round-trip has meaningful
+    /// fixed overhead, so batching amortizes it. Too large and the user
+    /// waits too long between progress updates; too small and we're back
+    /// to the per-file round-trip cost. 500 feels right on Tahoe.
+    private static let trashBatchSize = 500
+
     /// Clean the supplied files. Progress events are emitted to the supplied
     /// continuation (pass nil if you don't care). The continuation is NOT
     /// finished by this function — the caller owns its lifecycle.
+    ///
+    /// Performance: regular files are trashed in batches of 500 via
+    /// `NSWorkspace.recycle` so the per-file Finder XPC overhead is
+    /// amortized across the whole batch. Earlier versions called
+    /// `FileManager.trashItem` in a tight loop, which took a minute-plus
+    /// for thousands of cache files. The batch API completes the same
+    /// work in a couple of seconds.
     func clean(
         files: [ScannedFile],
         dryRun: Bool,
@@ -84,31 +99,60 @@ struct CleaningEngine: Sendable {
         var freedSize: Int64 = 0
         var failedFiles: [(ScannedFile, String)] = []
         var firstTrashDestination: URL?
+        var processed = 0
+        let total = files.count
 
-        for (index, file) in files.enumerated() {
+        // Dry run short-circuit: no disk work, just fold the totals and
+        // emit a progress event per file so the preview UI stays live.
+        // Per-file yields are cheap here — no disk, no XPC, just struct
+        // allocation — so there's no reason to throttle.
+        if dryRun {
+            for (index, file) in files.enumerated() {
+                deletedCount += 1
+                freedSize += file.size
+                progress?.yield(CleaningProgress(
+                    processed: index + 1,
+                    total: total,
+                    currentFile: file.name,
+                    freedSoFar: freedSize
+                ))
+            }
+            return CleaningReport(
+                deletedCount: deletedCount,
+                freedSize: freedSize,
+                failedFiles: failedFiles,
+                totalProcessed: total,
+                firstTrashDestination: nil
+            )
+        }
+
+        // Partition by category: Time Machine snapshots go through tmutil
+        // (one at a time), everything else gets batched.
+        var snapshots: [ScannedFile] = []
+        var regular: [ScannedFile] = []
+        snapshots.reserveCapacity(16)
+        regular.reserveCapacity(files.count)
+        for file in files {
+            if file.category == .timeMachineSnapshots {
+                snapshots.append(file)
+            } else {
+                regular.append(file)
+            }
+        }
+
+        // --- Snapshots: one tmutil call per entry (rare, usually <10).
+        for file in snapshots {
+            processed += 1
             progress?.yield(CleaningProgress(
-                processed: index + 1,
-                total: files.count,
+                processed: processed,
+                total: total,
                 currentFile: file.name,
                 freedSoFar: freedSize
             ))
-
-            let outcome: CleaningOutcome
-            if dryRun {
-                outcome = .deleted(bytes: file.size, trashDestination: nil)
-            } else if file.category == .timeMachineSnapshots {
-                outcome = await Self.cleanTimeMachineSnapshot(file)
-            } else {
-                outcome = Self.cleanFile(file)
-            }
-
-            switch outcome {
-            case .deleted(let bytes, let destination):
+            switch await Self.cleanTimeMachineSnapshot(file) {
+            case .deleted(let bytes, _):
                 deletedCount += 1
                 freedSize += bytes
-                if firstTrashDestination == nil, let destination {
-                    firstTrashDestination = destination
-                }
             case .failed(let reason):
                 failedFiles.append((file, reason))
             case .missing:
@@ -116,13 +160,102 @@ struct CleaningEngine: Sendable {
             }
         }
 
+        // --- Regular files: split into batches and recycle each batch.
+        // Protected paths are filtered out BEFORE the batch so
+        // NSWorkspace.recycle never touches system-critical locations.
+        let fm = FileManager.default
+        var chunkStart = 0
+        while chunkStart < regular.count {
+            let chunkEnd = min(chunkStart + Self.trashBatchSize, regular.count)
+            let chunk = Array(regular[chunkStart..<chunkEnd])
+            chunkStart = chunkEnd
+
+            var chunkURLs: [URL] = []
+            chunkURLs.reserveCapacity(chunk.count)
+            var fileByPath: [String: ScannedFile] = [:]
+            fileByPath.reserveCapacity(chunk.count)
+
+            for file in chunk {
+                let path = file.url.path(percentEncoded: false)
+                if Self.isProtectedPath(path) {
+                    failedFiles.append((file, "System file — deletion blocked for safety"))
+                    processed += 1
+                    continue
+                }
+                guard fm.fileExists(atPath: path) else {
+                    // Already gone (trashed in a prior pass, user moved
+                    // it, etc.) — count as processed but not deleted.
+                    processed += 1
+                    continue
+                }
+                chunkURLs.append(file.url)
+                fileByPath[path] = file
+            }
+
+            if chunkURLs.isEmpty { continue }
+
+            let trashed = await Self.recycleBatch(chunkURLs)
+
+            // Fold the successes into totals.
+            for (source, destination) in trashed {
+                let sourcePath = source.path(percentEncoded: false)
+                guard let file = fileByPath.removeValue(forKey: sourcePath) else { continue }
+                deletedCount += 1
+                freedSize += file.size
+                processed += 1
+                if firstTrashDestination == nil {
+                    firstTrashDestination = destination
+                }
+            }
+
+            // Anything left in fileByPath wasn't in the `trashed`
+            // dictionary — the batch API couldn't move it. Retry
+            // individually so we can surface a friendly per-file error
+            // message (locked cache DB, permission denied, etc.).
+            for (_, file) in fileByPath {
+                processed += 1
+                switch Self.cleanFile(file) {
+                case .deleted(let bytes, let destination):
+                    deletedCount += 1
+                    freedSize += bytes
+                    if firstTrashDestination == nil, let destination {
+                        firstTrashDestination = destination
+                    }
+                case .failed(let reason):
+                    failedFiles.append((file, reason))
+                case .missing:
+                    continue
+                }
+            }
+
+            progress?.yield(CleaningProgress(
+                processed: processed,
+                total: total,
+                currentFile: chunk.last?.name ?? "",
+                freedSoFar: freedSize
+            ))
+        }
+
         return CleaningReport(
             deletedCount: deletedCount,
             freedSize: freedSize,
             failedFiles: failedFiles,
-            totalProcessed: files.count,
+            totalProcessed: total,
             firstTrashDestination: firstTrashDestination
         )
+    }
+
+    /// Wrap `NSWorkspace.recycle` in an async call. The returned
+    /// dictionary maps the original URL to the new location in the Trash
+    /// for every file that was successfully moved. Files not present in
+    /// the dictionary either failed or were skipped — the caller is
+    /// responsible for figuring out which.
+    private static func recycleBatch(_ urls: [URL]) async -> [URL: URL] {
+        await withCheckedContinuation { continuation in
+            NSWorkspace.shared.recycle(urls) { trashed, _ in
+                continuation.resume(returning: trashed)
+            }
+        }
     }
 
     /// Move a single file to the user's Trash. Returns the outcome — caller

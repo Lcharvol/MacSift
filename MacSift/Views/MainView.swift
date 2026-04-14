@@ -4,6 +4,7 @@ import AppKit
 struct MainView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var exclusionManager: ExclusionManager
+    @EnvironmentObject var updateVM: UpdateViewModel
     @StateObject private var scanVM: ScanViewModel
     @StateObject private var cleaningVM: CleaningViewModel
     // Per-window UI state. SceneStorage persists these across app launches so
@@ -91,12 +92,15 @@ struct MainView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            sidebar
-                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
-        } detail: {
-            detailContent
-                .background(.background)
+        VStack(spacing: 0) {
+            UpdateBannerView(updateVM: updateVM)
+            NavigationSplitView {
+                sidebar
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
+            } detail: {
+                detailContent
+                    .background(.background)
+            }
         }
         // Drop a folder anywhere on the window to scan JUST that folder.
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in

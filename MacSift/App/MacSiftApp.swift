@@ -4,13 +4,21 @@ import SwiftUI
 struct MacSiftApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var exclusionManager = ExclusionManager()
+    @StateObject private var updateVM = UpdateViewModel()
 
     var body: some Scene {
         WindowGroup {
             MainView(exclusionManager: exclusionManager, appState: appState)
                 .environmentObject(appState)
                 .environmentObject(exclusionManager)
+                .environmentObject(updateVM)
                 .frame(minWidth: 900, minHeight: 650)
+                .task {
+                    // Silent update check on launch, throttled to 24h by
+                    // the view model itself. Failures are swallowed —
+                    // the banner just stays hidden.
+                    await updateVM.checkForUpdateIfNeeded()
+                }
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1100, height: 750)
@@ -18,9 +26,10 @@ struct MacSiftApp: App {
             // Custom About panel
             CommandGroup(replacing: .appInfo) {
                 Button("About MacSift") {
+                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
                     NSApplication.shared.orderFrontStandardAboutPanel(options: [
                         .applicationName: "MacSift",
-                        .applicationVersion: "0.1.0",
+                        .applicationVersion: version,
                         .credits: NSAttributedString(
                             string: "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently.",
                             attributes: [
@@ -29,6 +38,9 @@ struct MacSiftApp: App {
                             ]
                         ),
                     ])
+                }
+                Button("Check for Updates…") {
+                    Task { await updateVM.checkForUpdateIfNeeded(force: true) }
                 }
             }
 

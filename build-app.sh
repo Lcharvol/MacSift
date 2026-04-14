@@ -53,6 +53,19 @@ if [ -f "AppIcon.icns" ]; then
     cp AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
+# Derive the version from git. Release builds should tag BEFORE invoking
+# build-app.sh so the tag is in place. If no tag is reachable (dev build),
+# we fall back to "0.0.0-dev" which the in-app update checker treats as
+# "always behind latest release".
+VERSION="${VERSION:-}"
+if [ -z "$VERSION" ]; then
+    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+fi
+if [ -z "$VERSION" ]; then
+    VERSION="0.0.0-dev"
+fi
+echo "Using version: $VERSION"
+
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -71,7 +84,7 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>$VERSION</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>

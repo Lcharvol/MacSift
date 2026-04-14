@@ -43,6 +43,13 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(lifetimeCleanedBytes, forKey: "lifetimeCleanedBytes") }
     }
 
+    /// When true, MacSift installs a menu bar icon that opens a popover
+    /// with live disk / memory / CPU metrics. Defaults to true — the
+    /// feature is opt-out rather than opt-in so users discover it.
+    @Published var showMenuBarExtra: Bool {
+        didSet { UserDefaults.standard.set(showMenuBarExtra, forKey: "showMenuBarExtra") }
+    }
+
     init() {
         let savedMode = UserDefaults.standard.string(forKey: "appMode") ?? Mode.simple.rawValue
         self.mode = Mode(rawValue: savedMode) ?? .simple
@@ -51,6 +58,7 @@ final class AppState: ObservableObject {
         self.oldDownloadsAgeDays = UserDefaults.standard.object(forKey: "oldDownloadsAgeDays") as? Int ?? 90
         self.lifetimeScanCount = UserDefaults.standard.integer(forKey: "lifetimeScanCount")
         self.lifetimeCleanedBytes = Int64(UserDefaults.standard.integer(forKey: "lifetimeCleanedBytes"))
+        self.showMenuBarExtra = UserDefaults.standard.object(forKey: "showMenuBarExtra") as? Bool ?? true
     }
 
     var largeFileThresholdBytes: Int64 {

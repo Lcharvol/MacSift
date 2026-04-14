@@ -5,6 +5,7 @@ struct MacSiftApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var exclusionManager = ExclusionManager()
     @StateObject private var updateVM = UpdateViewModel()
+    @StateObject private var menuBarVM = MenuBarViewModel()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,19 @@ struct MacSiftApp: App {
                     await updateVM.checkForUpdateIfNeeded()
                 }
         }
+
+        // Menu bar widget — live disk / memory / CPU metrics plus quick
+        // actions for opening the main window and starting a scan.
+        // The scene is always declared; the user can hide it via Settings
+        // (showMenuBarExtra). `isInserted` is bound to the toggle so
+        // flipping the switch removes the status item immediately.
+        MenuBarExtra(isInserted: $appState.showMenuBarExtra) {
+            MenuBarContent(menuBarVM: menuBarVM)
+                .environmentObject(appState)
+        } label: {
+            Image(systemName: "externaldrive.badge.checkmark")
+        }
+        .menuBarExtraStyle(.window)
         .windowStyle(.titleBar)
         .defaultSize(width: 1100, height: 750)
         .commands {

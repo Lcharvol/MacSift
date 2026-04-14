@@ -224,6 +224,14 @@ final class CleaningViewModel: ObservableObject {
         } else {
             MacSiftLog.info("Cleaned \(cleaningReport.deletedCount) files, " +
                 "\(cleaningReport.freedSize.formattedFileSize) freed")
+            if let destination = cleaningReport.firstTrashDestination {
+                // Proves trashItem put files in the user's Trash rather than
+                // hard-deleting them. Logs the first successful destination
+                // for audit — other files land next to it.
+                MacSiftLog.info("First trashed file → \(destination.path(percentEncoded: false))")
+            } else if cleaningReport.deletedCount > 0 {
+                MacSiftLog.warning("Cleaned \(cleaningReport.deletedCount) files but no Trash destination was captured — investigate.")
+            }
         }
         for (file, reason) in cleaningReport.failedFiles {
             MacSiftLog.error("Failed to clean \(file.url.path(percentEncoded: false)): \(reason)")

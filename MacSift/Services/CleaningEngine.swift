@@ -5,6 +5,12 @@ struct CleaningReport: Sendable {
     let freedSize: Int64
     let failedFiles: [(ScannedFile, String)]
     let totalProcessed: Int
+    /// Where the first successfully trashed file landed. Surfaced in the
+    /// MacSift log and on the success screen so the user can verify that
+    /// `trashItem` actually moved the file into the user's Trash folder
+    /// rather than silently hard-deleting it. Nil on dry run or when no
+    /// file was successfully trashed.
+    let firstTrashDestination: URL?
 
     var successRate: Double {
         guard totalProcessed > 0 else { return 1.0 }
@@ -22,7 +28,7 @@ struct CleaningProgress: Sendable {
 /// Per-file outcome from an attempted cleaning. The caller (`clean`) folds
 /// these into the final `CleaningReport`.
 private enum CleaningOutcome {
-    case deleted(bytes: Int64)
+    case deleted(bytes: Int64, trashDestination: URL?)
     case failed(reason: String)
     case missing
 }
@@ -57,6 +63,7 @@ struct CleaningEngine: Sendable {
         var deletedCount = 0
         var freedSize: Int64 = 0
         var failedFiles: [(ScannedFile, String)] = []
+        var firstTrashDestination: URL?
 
         for (index, file) in files.enumerated() {
             progress?.yield(CleaningProgress(
@@ -68,7 +75,7 @@ struct CleaningEngine: Sendable {
 
             let outcome: CleaningOutcome
             if dryRun {
-                outcome = .deleted(bytes: file.size)
+                outcome = .deleted(bytes: file.size, trashDestination: nil)
             } else if file.category == .timeMachineSnapshots {
                 outcome = await Self.cleanTimeMachineSnapshot(file)
             } else {
@@ -76,9 +83,12 @@ struct CleaningEngine: Sendable {
             }
 
             switch outcome {
-            case .deleted(let bytes):
+            case .deleted(let bytes, let destination):
                 deletedCount += 1
                 freedSize += bytes
+                if firstTrashDestination == nil, let destination {
+                    firstTrashDestination = destination
+                }
             case .failed(let reason):
                 failedFiles.append((file, reason))
             case .missing:
@@ -90,7 +100,8 @@ struct CleaningEngine: Sendable {
             deletedCount: deletedCount,
             freedSize: freedSize,
             failedFiles: failedFiles,
-            totalProcessed: files.count
+            totalProcessed: files.count,
+            firstTrashDestination: firstTrashDestination
         )
     }
 
@@ -109,7 +120,7 @@ struct CleaningEngine: Sendable {
         do {
             var resultingURL: NSURL?
             try fm.trashItem(at: file.url, resultingItemURL: &resultingURL)
-            return .deleted(bytes: file.size)
+            return .deleted(bytes: file.size, trashDestination: resultingURL as URL?)
         } catch {
             return .failed(reason: friendlyTrashError(for: file, underlying: error))
         }
@@ -154,7 +165,7 @@ struct CleaningEngine: Sendable {
         )
         do {
             try await TimeMachineService.deleteSnapshot(dateString: dateString)
-            return .deleted(bytes: file.size)
+            return .deleted(bytes: file.size, trashDestination: nil)
         } catch {
             let msg = error.localizedDescription
             let hint = msg.contains("not permitted") || msg.contains("requires") || msg.contains("must be run")

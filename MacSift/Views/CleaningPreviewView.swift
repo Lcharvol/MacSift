@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct CleaningPreviewView: View {
     @ObservedObject var cleaningVM: CleaningViewModel
@@ -257,6 +258,15 @@ struct CleaningPreviewView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Trash-proof affordance. Confirms (with a tappable path) that
+            // files went to ~/.Trash rather than being hard-deleted. The
+            // whole row is non-interactive in dry run since there's nothing
+            // in the Trash to reveal.
+            if !appState.isDryRun, report.deletedCount > 0 {
+                trashProofRow(destination: report.firstTrashDestination)
+                    .padding(.horizontal, 20)
+            }
+
             if !report.failedFiles.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(report.failedFiles.count) files could not be deleted")
@@ -329,6 +339,53 @@ struct CleaningPreviewView: View {
             let size = trashSummary?.totalSize.formattedFileSize ?? "0 B"
             let count = trashSummary?.itemCount ?? 0
             Text("This permanently removes ^[\(count) item](inflect: true) (\(size)) from your Trash. This cannot be undone.")
+        }
+    }
+
+    /// Small reassurance row that confirms files were moved to the user's
+    /// Trash (not hard-deleted). Shows a `Reveal in Finder` button that opens
+    /// `~/.Trash` so the user can see the files with their own eyes. If
+    /// `destination` is non-nil we reveal the exact file; otherwise we fall
+    /// back to opening the Trash folder.
+    private func trashProofRow(destination: URL?) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "trash")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Moved to Trash")
+                    .font(.callout.weight(.medium))
+                Text("All files went to ~/.Trash. Nothing was permanently deleted.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Reveal in Finder") {
+                revealTrash(destination: destination)
+            }
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.quinary)
+        )
+    }
+
+    private func revealTrash(destination: URL?) {
+        let fm = FileManager.default
+        if let destination, fm.fileExists(atPath: destination.path(percentEncoded: false)) {
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+            return
+        }
+        // Fall back to opening the Trash folder itself.
+        if let trashURL = try? fm.url(
+            for: .trashDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        ) {
+            NSWorkspace.shared.open(trashURL)
         }
     }
 

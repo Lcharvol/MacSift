@@ -79,6 +79,21 @@ struct CleaningEngineIntegrationTests {
         #expect(!FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)))
         // No errors reported
         #expect(report.failedFiles.isEmpty)
+
+        // The resulting URL was captured AND the file actually exists at
+        // that new location in the user's Trash. Proves we moved rather
+        // than hard-deleted.
+        let destination = try #require(report.firstTrashDestination)
+        #expect(FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)))
+        let trashURL = try FileManager.default.url(
+            for: .trashDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        )
+        #expect(destination.path(percentEncoded: false).hasPrefix(trashURL.path(percentEncoded: false)))
+        // Clean up: empty the trashed copy so we don't leave test artifacts
+        try? FileManager.default.removeItem(at: destination)
     }
 
     @Test func neverDeletesSystemPaths() async throws {

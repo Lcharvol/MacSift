@@ -1,15 +1,24 @@
 name: Test
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# MacSift targets macOS 26 (Tahoe) and uses Liquid Glass APIs
+# (`.glassEffect`, `.buttonStyle(.glass)`) that only exist in the macOS 26
+# SDK. GitHub's hosted runners lag behind by a release or two, so the
+# push-on-main trigger was removed — every push was failing and drowning
+# the inbox in notifications. We try `macos-26` but mark the job as
+# `continue-on-error: true` so it never blocks a PR merge until the
+# runner catches up. The local test suite (`swift test` on a Tahoe box)
+# is the source of truth.
 
 jobs:
   test:
     name: swift test
-    runs-on: macos-latest
+    runs-on: macos-26
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,8 +31,3 @@ jobs:
 
       - name: Test
         run: swift test -v
-
-# Note: the project targets macOS 26 (Tahoe). GitHub's hosted macOS runners
-# may lag behind the latest release — this workflow will fail until the
-# runner catches up. Replace `macos-latest` with an explicit `macos-26` label
-# once GitHub ships it, or wire up a self-hosted runner on your own Mac.

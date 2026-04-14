@@ -231,10 +231,20 @@
                     <h3>Option A · Download the release</h3>
                     <p class="install__detail">
                         <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip">MacSift.zip</a> (1.5&nbsp;MB, Apple Silicon).
-                        Unzip, drag <code>MacSift.app</code> to Applications, then
-                        <strong>right-click → Open</strong> the first time to get past Gatekeeper.
-                        The app is ad-hoc signed (no paid Developer ID), so macOS asks once
-                        and remembers forever.
+                        Unzip and drag <code>MacSift.app</code> into <code>/Applications</code>
+                        <em>before</em> opening it — Gatekeeper treats apps inside
+                        <code>~/Downloads</code> more strictly.
+                    </p>
+                    <p class="install__detail">
+                        Then <strong>right-click → Open</strong> the first time. On macOS 15
+                        Sequoia and later, if you still see <em>"Apple could not verify…"</em>,
+                        open <strong>System Settings → Privacy &amp; Security</strong>, scroll to
+                        the bottom, and click <strong>Open Anyway</strong> next to the MacSift
+                        entry — then relaunch. Every subsequent launch is silent.
+                    </p>
+                    <p class="install__detail">
+                        The app is ad-hoc signed (no paid Developer ID), which is why macOS asks.
+                        If you'd rather verify than trust a binary, use Option B.
                     </p>
                 </div>
 
@@ -280,11 +290,17 @@
                         <summary>Why does Gatekeeper warn me on first launch?</summary>
                         <p>
                             The app ships ad-hoc signed, not notarized — I don't have a paid
-                            Apple Developer account to notarize with. That means Gatekeeper
-                            asks once the first time you open it (right-click → Open →
-                            confirm). Every launch after that is silent. If you'd rather
-                            trust the source than trust me, option B in the install section
-                            produces the exact same binary from scratch in a few seconds.
+                            Apple Developer account to notarize with. The first launch flow is:
+                        </p>
+                        <ol>
+                            <li>Drag <code>MacSift.app</code> from the zip into <code>/Applications</code> <em>before</em> opening it.</li>
+                            <li>Right-click (or Control-click) the app → <strong>Open</strong> → confirm.</li>
+                            <li>On macOS 15 Sequoia and later, if you still see <em>"Apple could not verify…"</em>, open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the bottom, and click <strong>Open Anyway</strong> next to MacSift. Relaunch the app.</li>
+                        </ol>
+                        <p>
+                            After that, every launch is silent. If you'd rather verify than
+                            trust a binary, Option B in the install section produces the
+                            exact same binary from scratch in a few seconds.
                         </p>
                     </details>
 

@@ -39,10 +39,22 @@ MacSift is the opposite:
 ### Option A — Download the release
 
 1. Download [**MacSift.zip**](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) (1.5&nbsp;MB, Apple Silicon).
-2. Unzip and drag `MacSift.app` to `/Applications`.
-3. **First launch:** right-click the app → **Open** → confirm.
-   Gatekeeper asks because the app is ad-hoc signed, not notarized (no paid
-   Apple Developer account). Every launch after the first is silent.
+2. Unzip and **drag `MacSift.app` into `/Applications`** before opening it.
+   Gatekeeper treats apps inside `~/Downloads` more strictly, so moving it
+   first avoids an extra warning.
+3. **First launch:** right-click (or Control-click) `MacSift.app` in
+   `/Applications` → **Open** → confirm the second dialog.
+
+   On macOS Sequoia (15) and later, the right-click trick no longer
+   bypasses Gatekeeper on its own. If you see *"Apple could not verify
+   'MacSift.app' is free of malware"*, open **System Settings → Privacy
+   &amp; Security**, scroll to the bottom, and click **Open Anyway**
+   next to the MacSift entry. Relaunch the app — you'll be prompted
+   once more, then every subsequent launch is silent.
+
+   Gatekeeper asks because the app is ad-hoc signed, not notarized
+   (no paid Apple Developer account). Building from source (Option B)
+   is the workaround if you'd rather not go through this.
 4. Grant **Full Disk Access** in System Settings → Privacy &amp; Security →
    Full Disk Access.
 

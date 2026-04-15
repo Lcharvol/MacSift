@@ -189,5 +189,6 @@ folder. Nothing else to clean.
 
 ## License
 
-No explicit license — all rights reserved by the author. If you want to
-use, fork, or redistribute this code, open an issue and let's talk.
+MIT. See [`LICENSE`](LICENSE). Fork it, learn from it, ship your own
+version — just keep the copyright notice. The cleaning engine in
+particular is worth reading even if you don't plan to use the app.

@@ -178,11 +178,11 @@ struct MenuBarContent: View {
 
     private var thermalLabel: String {
         switch menuBarVM.metrics.thermalState {
-        case .nominal: return "Thermal: nominal"
-        case .fair: return "Thermal: fair"
-        case .serious: return "Thermal: serious"
-        case .critical: return "Thermal: critical"
-        @unknown default: return "Thermal: unknown"
+        case .nominal: return String(localized: "Thermal: nominal")
+        case .fair: return String(localized: "Thermal: fair")
+        case .serious: return String(localized: "Thermal: serious")
+        case .critical: return String(localized: "Thermal: critical")
+        @unknown default: return String(localized: "Thermal: unknown")
         }
     }
 

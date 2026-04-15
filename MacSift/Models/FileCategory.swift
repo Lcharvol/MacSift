@@ -15,9 +15,9 @@ enum RiskLevel: String, CaseIterable, Sendable {
 
     var label: String {
         switch self {
-        case .safe: "Safe to delete"
-        case .moderate: "Review recommended"
-        case .risky: "Use caution"
+        case .safe: String(localized: "risk.safe", defaultValue: "Safe to delete")
+        case .moderate: String(localized: "risk.moderate", defaultValue: "Review recommended")
+        case .risky: String(localized: "risk.risky", defaultValue: "Use caution")
         }
     }
 }
@@ -39,17 +39,17 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .cache: "Caches"
-        case .logs: "Logs"
-        case .tempFiles: "Temporary Files"
-        case .appData: "Unused App Data"
-        case .largeFiles: "Large Files"
-        case .timeMachineSnapshots: "Time Machine Snapshots"
-        case .iosBackups: "iOS Backups"
-        case .xcodeJunk: "Xcode Junk"
-        case .devCaches: "Dev Caches"
-        case .oldDownloads: "Old Downloads"
-        case .mailDownloads: "Mail Attachments"
+        case .cache: String(localized: "category.cache", defaultValue: "Caches")
+        case .logs: String(localized: "category.logs", defaultValue: "Logs")
+        case .tempFiles: String(localized: "category.tempFiles", defaultValue: "Temporary Files")
+        case .appData: String(localized: "category.appData", defaultValue: "Unused App Data")
+        case .largeFiles: String(localized: "category.largeFiles", defaultValue: "Large Files")
+        case .timeMachineSnapshots: String(localized: "category.timeMachineSnapshots", defaultValue: "Time Machine Snapshots")
+        case .iosBackups: String(localized: "category.iosBackups", defaultValue: "iOS Backups")
+        case .xcodeJunk: String(localized: "category.xcodeJunk", defaultValue: "Xcode Junk")
+        case .devCaches: String(localized: "category.devCaches", defaultValue: "Dev Caches")
+        case .oldDownloads: String(localized: "category.oldDownloads", defaultValue: "Old Downloads")
+        case .mailDownloads: String(localized: "category.mailDownloads", defaultValue: "Mail Attachments")
         }
     }
 

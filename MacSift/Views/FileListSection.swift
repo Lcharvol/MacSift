@@ -9,9 +9,9 @@ enum FileListSortOption: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .sizeDesc: "Size (largest first)"
-        case .nameAsc: "Name"
-        case .dateDesc: "Most recent"
+        case .sizeDesc: String(localized: "sort.sizeDesc", defaultValue: "Size (largest first)")
+        case .nameAsc: String(localized: "sort.nameAsc", defaultValue: "Name (A-Z)")
+        case .dateDesc: String(localized: "sort.mostRecent", defaultValue: "Most recent first")
         }
     }
 }

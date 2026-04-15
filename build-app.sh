@@ -53,6 +53,20 @@ if [ -f "AppIcon.icns" ]; then
     cp AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
+# SwiftPM stashes localized resources in a per-target bundle called
+# MacSift_MacSift.bundle. Copy the whole bundle (so Bundle.module works
+# for any code that references it explicitly) AND flatten the .lproj
+# directories into the .app's Contents/Resources so SwiftUI's default
+# Bundle.main lookup auto-localizes `Text("literal")` calls.
+SPM_RESOURCE_BUNDLE="$BIN_PATH/MacSift_MacSift.bundle"
+if [ -d "$SPM_RESOURCE_BUNDLE" ]; then
+    cp -R "$SPM_RESOURCE_BUNDLE" "$BUNDLE/Contents/Resources/"
+    for lproj in "$SPM_RESOURCE_BUNDLE"/*.lproj; do
+        [ -d "$lproj" ] || continue
+        cp -R "$lproj" "$BUNDLE/Contents/Resources/"
+    done
+fi
+
 # Derive the version from git. Release builds should tag BEFORE invoking
 # build-app.sh so the tag is in place. If no tag is reachable (dev build),
 # we fall back to "0.0.0-dev" which the in-app update checker treats as
@@ -93,6 +107,13 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>fr</string>
+    </array>
 </dict>
 </plist>
 EOF

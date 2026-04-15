@@ -1,0 +1,154 @@
+/* MacSift — French translation.
+   Voice: same as the English original — direct, honest, slightly dry,
+   no corporate-speak. Prefer "analyser" to "scanner" except for UI
+   actions where "lancer une analyse" reads better than "lancer un
+   scan". "Dry run" stays "simulation" because that's the accepted
+   French term in this context. */
+
+// ─── Sidebar & top-level navigation ────────────────────────────────
+"MacSift" = "MacSift";
+"Start Scan" = "Lancer l'analyse";
+"Cancel Scan" = "Annuler l'analyse";
+"Cancelling…" = "Annulation…";
+"Rescan" = "Relancer";
+"Scan now" = "Lancer maintenant";
+"Inspector" = "Inspecteur";
+"Sort" = "Trier";
+"Sort by" = "Trier par";
+"Sort file list" = "Trier la liste des fichiers";
+"Rescan disk (⌘R)" = "Relancer l'analyse (⌘R)";
+"Toggle inspector" = "Afficher / masquer l'inspecteur";
+
+// ─── Welcome screen ────────────────────────────────────────────────
+"Welcome to MacSift" = "Bienvenue dans MacSift";
+"Discover what's taking up space, with full transparency." = "Voyez ce qui occupe votre disque, en toute transparence.";
+"Grant Access" = "Autoriser l'accès";
+"Full Disk Access required" = "Accès complet au disque requis";
+
+// ─── Scan progress ─────────────────────────────────────────────────
+"Scanning your disk" = "Analyse de votre disque";
+"Categorizing files for transparency" = "Classement des fichiers pour plus de transparence";
+
+// ─── Results header & storage bar ──────────────────────────────────
+"All Categories" = "Toutes les catégories";
+"Clear filter" = "Réinitialiser le filtre";
+"Storage Found" = "Espace identifié";
+"reclaimable" = "récupérable";
+"Filter by name" = "Filtrer par nom";
+
+// ─── Bottom action bar ─────────────────────────────────────────────
+"Tick rows to select what to clean" = "Cochez ce que vous souhaitez nettoyer";
+"Clean Selected" = "Nettoyer la sélection";
+"Select all safe" = "Tout sélectionner (sûr)";
+
+// ─── Volume picker ─────────────────────────────────────────────────
+"Volumes" = "Volumes";
+"All volumes" = "Tous les volumes";
+"Startup disk" = "Disque de démarrage";
+"External" = "Externe";
+"mounted" = "montés";
+
+// ─── Category labels ───────────────────────────────────────────────
+"category.cache" = "Caches";
+"category.logs" = "Journaux";
+"category.tempFiles" = "Fichiers temporaires";
+"category.appData" = "Données d'apps inutilisées";
+"category.largeFiles" = "Gros fichiers";
+"category.timeMachineSnapshots" = "Instantanés Time Machine";
+"category.iosBackups" = "Sauvegardes iOS";
+"category.xcodeJunk" = "Résidus Xcode";
+"category.devCaches" = "Caches de dev";
+"category.oldDownloads" = "Téléchargements anciens";
+"category.mailDownloads" = "Pièces jointes Mail";
+
+// ─── Risk levels ───────────────────────────────────────────────────
+"risk.safe" = "Suppression sans risque";
+"risk.moderate" = "Vérification recommandée";
+"risk.risky" = "À manipuler avec précaution";
+
+// ─── Sort options ──────────────────────────────────────────────────
+"sort.sizeDesc" = "Taille (plus gros d'abord)";
+"sort.sizeAsc" = "Taille (plus petits d'abord)";
+"sort.nameAsc" = "Nom (A → Z)";
+"sort.mostRecent" = "Plus récents d'abord";
+"sort.oldestFirst" = "Plus anciens d'abord";
+
+// ─── Settings window ───────────────────────────────────────────────
+"General" = "Général";
+"Mode" = "Mode";
+"Simple" = "Simple";
+"Advanced" = "Avancé";
+"Dry Run (simulate deletions)" = "Simulation (aucune suppression réelle)";
+"Large file threshold" = "Seuil des gros fichiers";
+"Old Downloads threshold" = "Seuil des téléchargements anciens";
+"MB" = "Mo";
+"days" = "jours";
+"Rescan to apply the new threshold." = "Relancez une analyse pour appliquer le nouveau seuil.";
+"Excluded Folders" = "Dossiers exclus";
+"No folders are excluded from scans." = "Aucun dossier exclu des analyses.";
+"Add Folder" = "Ajouter un dossier";
+"Suggested…" = "Suggestions…";
+"Add all" = "Tout ajouter";
+"Stats" = "Statistiques";
+"Scans run" = "Analyses effectuées";
+"Total cleaned" = "Total nettoyé";
+"Permissions" = "Permissions";
+"Full Disk Access" = "Accès complet au disque";
+"Granted" = "Accordé";
+"Open System Settings" = "Ouvrir Réglages système";
+"Reset all settings" = "Réinitialiser les réglages";
+"Clears mode, dry-run, threshold, and all excluded folders." = "Efface le mode, la simulation, les seuils et les dossiers exclus.";
+"Reset…" = "Réinitialiser…";
+"Reset all MacSift settings?" = "Réinitialiser tous les réglages de MacSift ?";
+"Reset" = "Réinitialiser";
+"Cancel" = "Annuler";
+"This clears your mode, dry-run preference, large file threshold, and the list of excluded folders. Your files on disk are not touched." = "Cette action efface votre mode, la préférence de simulation, le seuil des gros fichiers et la liste des dossiers exclus. Les fichiers sur votre disque restent intacts.";
+"Uninstall MacSift" = "Désinstaller MacSift";
+"Erases settings, audit log, downloaded updates, and moves MacSift.app to the Trash." = "Efface les réglages, le journal d'audit, les mises à jour téléchargées et déplace MacSift.app vers la Corbeille.";
+"Uninstall…" = "Désinstaller…";
+"Uninstall MacSift?" = "Désinstaller MacSift ?";
+"Uninstall" = "Désinstaller";
+"MacSift uninstalled" = "MacSift désinstallé";
+"Quit" = "Quitter";
+"Done" = "Terminé";
+
+// ─── Cleaning preview ──────────────────────────────────────────────
+"Review what will be cleaned" = "Vérifiez ce qui va être nettoyé";
+"Dry Run" = "Simulation";
+"Real Clean" = "Nettoyage réel";
+"files will be moved to the Trash" = "fichiers seront déplacés vers la Corbeille";
+"files would be freed (dry run — nothing deleted)" = "fichiers seraient libérés (simulation — rien n'est supprimé)";
+"Cleaning" = "Nettoyage";
+"Cancel cleaning" = "Annuler le nettoyage";
+"Freed: " = "Libéré : ";
+"files could not be deleted" = "fichiers n'ont pas pu être supprimés";
+"Moved to Trash" = "Déplacé vers la Corbeille";
+"All files went to ~/.Trash. Nothing was permanently deleted." = "Tous les fichiers sont dans ~/.Trash. Rien n'a été supprimé définitivement.";
+"Reveal in Finder" = "Afficher dans le Finder";
+"Finish the job?" = "Finir le travail ?";
+"Empty Trash" = "Vider la Corbeille";
+"Empty the Trash?" = "Vider la Corbeille ?";
+
+// ─── Update banner ─────────────────────────────────────────────────
+"is available" = "est disponible";
+"You have" = "Vous avez";
+"download" = "à télécharger";
+"Release notes" = "Notes de version";
+"Download update" = "Télécharger la mise à jour";
+"Drag into /Applications" = "Faites glisser dans /Applications";
+"Open release page" = "Ouvrir la page de la release";
+"Dismiss until the next release" = "Masquer jusqu'à la prochaine version";
+
+// ─── Menu bar popover ──────────────────────────────────────────────
+"Open MacSift" = "Ouvrir MacSift";
+"cleaned" = "nettoyés";
+"used" = "utilisé";
+"total" = "total";
+"free of" = "libres sur";
+"Memory" = "Mémoire";
+"CPU" = "Processeur";
+"Thermal: nominal" = "Thermique : normal";
+"Thermal: fair" = "Thermique : correct";
+"Thermal: serious" = "Thermique : sérieux";
+"Thermal: critical" = "Thermique : critique";
+"Thermal: unknown" = "Thermique : inconnu";

@@ -244,9 +244,9 @@ struct MainView: View {
     }
 
     private var scanButtonLabel: String {
-        if scanVM.state.isCancelling { return "Cancelling…" }
-        if scanVM.state.isScanning { return "Cancel Scan" }
-        return "Start Scan"
+        if scanVM.state.isCancelling { return String(localized: "Cancelling…") }
+        if scanVM.state.isScanning { return String(localized: "Cancel Scan") }
+        return String(localized: "Start Scan")
     }
 
     private var scanButtonIcon: String {

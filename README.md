@@ -165,8 +165,22 @@ GitHub Actions runs `swift test` on every push to `main` (see
 
 ## Uninstall
 
-MacSift is a regular `.app` bundle with no installer and no privileged
-helper. To remove it completely:
+Easiest way: open **Settings → Uninstall MacSift…** inside the app.
+That single button:
+
+- erases every MacSift preference (mode, dry-run, threshold, exclusions,
+  lifetime counters)
+- deletes the audit log at `~/Library/Logs/MacSift`
+- removes any `MacSift-<version>.zip` cached update zips and their
+  extracted folders from `~/Downloads`
+- moves `MacSift.app` itself to the Trash
+- quits the app
+
+The one thing MacSift can't undo for you is the **Full Disk Access
+grant** — that's managed by macOS's TCC and only you can revoke it, in
+System Settings → Privacy & Security → Full Disk Access.
+
+If you'd rather do it by hand from Terminal:
 
 ```bash
 # Quit the app, then:
@@ -177,15 +191,16 @@ defaults delete com.macsift.app
 
 # Optional: remove the local audit log
 rm -rf ~/Library/Logs/MacSift
+
+# Optional: remove any downloaded update zips
+rm -f ~/Downloads/MacSift-*.zip
+rm -rf ~/Downloads/MacSift-*
 ```
 
-You can also use the **Reset all settings** button in the in-app Settings
-window — it wipes the UserDefaults keys without touching the disk.
-
-The app writes to two places on disk: its own UserDefaults domain and
-`~/Library/Logs/MacSift/macsift.log` (capped at ~500 KB). No keychain
-entries, no LaunchAgents, no `~/Library/Application Support/MacSift`
-folder. Nothing else to clean.
+MacSift writes to exactly three places on disk — its UserDefaults
+domain, `~/Library/Logs/MacSift/macsift.log` (capped at ~500 KB), and
+update zips in `~/Downloads`. No keychain entries, no LaunchAgents, no
+`~/Library/Application Support/MacSift` folder. Nothing else to clean.
 
 ## License
 

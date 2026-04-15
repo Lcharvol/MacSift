@@ -10,6 +10,9 @@ struct SettingsView: View {
     @State private var initialThresholdMB: Int = 0
     @State private var didLoadInitial = false
     @State private var showResetConfirmation = false
+    @State private var showUninstallConfirmation = false
+    @State private var uninstallReport: UninstallService.Report?
+    @State private var showUninstallResult = false
 
     private var thresholdChanged: Bool {
         didLoadInitial && initialThresholdMB != appState.largeFileThresholdMB
@@ -171,6 +174,23 @@ struct SettingsView: View {
                     .controlSize(.small)
                 }
             }
+
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Uninstall MacSift")
+                            .font(.callout.weight(.medium))
+                        Text("Erases settings, audit log, downloaded updates, and moves MacSift.app to the Trash.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Uninstall…", role: .destructive) {
+                        showUninstallConfirmation = true
+                    }
+                    .controlSize(.small)
+                }
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 500)
@@ -181,6 +201,36 @@ struct SettingsView: View {
             }
         } message: {
             Text("This clears your mode, dry-run preference, large file threshold, and the list of excluded folders. Your files on disk are not touched.")
+        }
+        .alert("Uninstall MacSift?", isPresented: $showUninstallConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Uninstall", role: .destructive) {
+                Task { await performUninstall() }
+            }
+        } message: {
+            Text("""
+This will:
+
+• Erase all MacSift settings and excluded folders
+• Delete the audit log at ~/Library/Logs/MacSift
+• Remove any downloaded update zips from ~/Downloads
+• Move MacSift.app itself to the Trash
+
+MacSift will quit immediately after. Your scanned files and anything else on disk stay exactly where they are — only MacSift's own data is removed.
+
+You'll still need to revoke Full Disk Access manually in System Settings if you want it fully gone.
+""")
+        }
+        .alert("MacSift uninstalled", isPresented: $showUninstallResult) {
+            Button("Quit") {
+                NSApp.terminate(nil)
+            }
+        } message: {
+            if let report = uninstallReport {
+                Text(uninstallSummaryText(for: report))
+            } else {
+                Text("Done.")
+            }
         }
         .onAppear {
             if !didLoadInitial {
@@ -209,6 +259,47 @@ struct SettingsView: View {
         for s in defaultSuggestions {
             exclusionManager.addExclusion(s.url)
         }
+    }
+
+    /// Run the full uninstall pipeline and present a summary alert. The
+    /// summary alert's single "Quit" button actually terminates the app
+    /// — by the time we get here the running bundle is already in the
+    /// Trash, so there's nothing to keep alive.
+    private func performUninstall() async {
+        let report = await UninstallService.uninstall()
+        MacSiftLog.info("Uninstall complete: clearedDefaults=\(report.clearedUserDefaults) " +
+            "logsRemoved=\(report.removedLogsAt != nil) " +
+            "updateArtifacts=\(report.removedUpdateArtifacts) " +
+            "bundleTrashed=\(report.trashedBundleAt != nil)")
+        uninstallReport = report
+        showUninstallResult = true
+    }
+
+    private func uninstallSummaryText(for report: UninstallService.Report) -> String {
+        var lines: [String] = []
+        if report.clearedUserDefaults {
+            lines.append("✓ Settings and exclusions erased")
+        }
+        if report.removedLogsAt != nil {
+            lines.append("✓ Audit log removed")
+        }
+        if report.removedUpdateArtifacts > 0 {
+            let size = report.reclaimedUpdateBytes.formattedFileSize
+            lines.append("✓ Removed \(report.removedUpdateArtifacts) cached update artifact(s) (\(size))")
+        }
+        if report.trashedBundleAt != nil {
+            lines.append("✓ MacSift.app moved to Trash")
+        }
+        if !report.errors.isEmpty {
+            lines.append("")
+            lines.append("Partial failures:")
+            for err in report.errors {
+                lines.append("• \(err)")
+            }
+        }
+        lines.append("")
+        lines.append("Thanks for trying MacSift. Click Quit to exit.")
+        return lines.joined(separator: "\n")
     }
 
     private func resetAllSettings() {

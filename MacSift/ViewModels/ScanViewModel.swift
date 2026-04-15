@@ -24,14 +24,24 @@ struct CompletedScan: Equatable {
     let tmSnapshots: [TMSnapshot]
     /// Volumes that were scanned for this result, in display order (boot first).
     let volumes: [Volume]
+    /// Content-identical file sets found across the scan, biggest
+    /// waste first. Populated after the main scan by `DuplicateFinder`.
+    let duplicateSets: [DuplicateSet]
     /// When this scan completed. Used by the UI to show "Last scanned X ago".
     let completedAt: Date
+
+    /// Total bytes reclaimable by keeping one copy of each duplicate
+    /// set — sum of `wastedBytes` across every set.
+    var totalDuplicateWaste: Int64 {
+        duplicateSets.reduce(0) { $0 + $1.wastedBytes }
+    }
 
     static func == (lhs: CompletedScan, rhs: CompletedScan) -> Bool {
         lhs.result.scanDuration == rhs.result.scanDuration
             && lhs.allSortedFiles.count == rhs.allSortedFiles.count
             && lhs.tmSnapshots.count == rhs.tmSnapshots.count
             && lhs.volumes == rhs.volumes
+            && lhs.duplicateSets.count == rhs.duplicateSets.count
             && lhs.completedAt == rhs.completedAt
     }
 }
@@ -80,6 +90,7 @@ final class ScanViewModel: ObservableObject {
     var allSortedGroups: [FileGroup] { state.completedScan?.allSortedGroups ?? [] }
     var tmSnapshots: [TMSnapshot] { state.completedScan?.tmSnapshots ?? [] }
     var scannedVolumes: [Volume] { state.completedScan?.volumes ?? [] }
+    var duplicateSets: [DuplicateSet] { state.completedScan?.duplicateSets ?? [] }
 
     private let exclusionManager: ExclusionManager
     private let appState: AppState
@@ -239,13 +250,23 @@ final class ScanViewModel: ObservableObject {
             MacSiftLog.warning("Failed to list Time Machine snapshots: \(error.localizedDescription)")
             snapshots = []
         }
+        // Duplicate detection runs on the already-walked file list —
+        // no extra disk enumeration. It only hashes candidates that
+        // survive the size-group filter, so the cost is proportional
+        // to "how much real duplication is on this machine", not
+        // "how many files were scanned". Off-main actor so the hot
+        // hashing loop doesn't block the UI.
+        let duplicateSets = await Task.detached(priority: .userInitiated) {
+            await DuplicateFinder.findDuplicates(in: prepared.all)
+        }.value
         progressTask.cancel()
 
         let completed = buildCompletedScan(
             prepared: prepared,
             scanResult: scanResult,
             snapshots: snapshots,
-            volumes: volumes
+            volumes: volumes,
+            duplicateSets: duplicateSets
         )
         appState.lifetimeScanCount += 1
         state = .completed(completed)
@@ -343,7 +364,8 @@ final class ScanViewModel: ObservableObject {
         prepared: Prepared,
         scanResult: ScanResult,
         snapshots: [TMSnapshot],
-        volumes: [Volume]
+        volumes: [Volume],
+        duplicateSets: [DuplicateSet]
     ) -> CompletedScan {
         // Inject TM snapshots as synthetic ScannedFile rows so they flow
         // through the same selection/cleaning UI as regular files.
@@ -386,6 +408,7 @@ final class ScanViewModel: ObservableObject {
             allSortedGroups: allGroups,
             tmSnapshots: snapshots,
             volumes: volumes,
+            duplicateSets: duplicateSets,
             completedAt: Date()
         )
     }

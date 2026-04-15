@@ -141,6 +141,14 @@
 "Open release page" = "Open release page";
 "Dismiss until the next release" = "Dismiss until the next release";
 
+// ─── Duplicates view ───────────────────────────────────────────────
+"Duplicates" = "Duplicates";
+"sets · " = "sets · ";
+"reclaimable" = "reclaimable";
+"No duplicates found" = "No duplicates found";
+"Every scanned file larger than 1 MB is unique by content." = "Every scanned file larger than 1 MB is unique by content.";
+"Keep oldest, trash the rest" = "Keep oldest, trash the rest";
+
 // ─── Menu bar popover ──────────────────────────────────────────────
 "Open MacSift" = "Open MacSift";
 "cleaned" = "cleaned";

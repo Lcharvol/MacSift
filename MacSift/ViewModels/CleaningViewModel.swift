@@ -164,6 +164,22 @@ final class CleaningViewModel: ObservableObject {
         setSelectedIDs(newSelection)
     }
 
+    /// Select every file in the given duplicate set EXCEPT the one
+    /// with the oldest `modificationDate`. The oldest copy is usually
+    /// the "original" the user wants to keep — the newer copies are
+    /// the accidental re-downloads. This is the default selection the
+    /// duplicates view offers via its "Keep oldest, trash the rest"
+    /// button; the user can still toggle individual rows afterwards.
+    func keepOldestInDuplicateSet(_ set: DuplicateSet) {
+        guard set.files.count > 1 else { return }
+        guard let oldest = set.files.min(by: { $0.modificationDate < $1.modificationDate }) else { return }
+        var newSelection = selectedIDs
+        for file in set.files where file.id != oldest.id {
+            newSelection.insert(file.id)
+        }
+        setSelectedIDs(newSelection)
+    }
+
     func selectAllSafe(from result: ScanResult) {
         var newSelection = selectedIDs
         for (category, files) in result.filesByCategory where category.riskLevel == .safe {

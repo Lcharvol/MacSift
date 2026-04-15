@@ -84,6 +84,49 @@ struct CleaningViewModelTests {
         #expect(vm.selectedIDs.count == 3)
     }
 
+    @Test func keepOldestInDuplicateSetSelectsAllButTheOldest() async {
+        let now = Date()
+        let olderDate = now.addingTimeInterval(-86_400 * 30)  // 30 days ago
+        let newestDate = now.addingTimeInterval(-3_600)        // 1 hour ago
+
+        let oldest = ScannedFile(
+            url: URL(filePath: "/tmp/original.bin"),
+            size: 2_000_000,
+            category: .largeFiles,
+            description: "",
+            modificationDate: olderDate,
+            isDirectory: false
+        )
+        let middle = ScannedFile(
+            url: URL(filePath: "/tmp/copy-a.bin"),
+            size: 2_000_000,
+            category: .largeFiles,
+            description: "",
+            modificationDate: now.addingTimeInterval(-86_400),
+            isDirectory: false
+        )
+        let newest = ScannedFile(
+            url: URL(filePath: "/tmp/copy-b.bin"),
+            size: 2_000_000,
+            category: .largeFiles,
+            description: "",
+            modificationDate: newestDate,
+            isDirectory: false
+        )
+        let set = DuplicateSet(id: "hash", size: 2_000_000, files: [middle, newest, oldest])
+
+        let vm = makeVM(with: [oldest, middle, newest])
+        await Task.yield()
+        await Task.yield()
+        vm.keepOldestInDuplicateSet(set)
+
+        // The oldest is NOT in the selection; both newer copies ARE.
+        #expect(!vm.selectedIDs.contains(oldest.id))
+        #expect(vm.selectedIDs.contains(middle.id))
+        #expect(vm.selectedIDs.contains(newest.id))
+        #expect(vm.selectedIDs.count == 2)
+    }
+
     @Test func toggleGroupDoesNotAffectUnrelatedSelection() async {
         let groupFiles = [makeFile("a", size: 100), makeFile("b", size: 200)]
         let otherFile = makeFile("other", size: 500)

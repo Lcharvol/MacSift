@@ -48,6 +48,11 @@ struct MainView: View {
     @State private var cachedSizeByVolume: [String: Int64] = [:]
     @State private var cachedFilteredGroupsByCategory: [FileCategory: [FileGroup]] = [:]
     @State private var cachedFilteredAllSortedGroups: [FileGroup] = []
+    /// When true, the detail view shows `DuplicatesListView` instead
+    /// of the regular category/file list. Flipped by the sidebar row
+    /// so the user can bounce back and forth without losing their
+    /// search query or category selection.
+    @State private var showDuplicates = false
 
     private var selectedCategory: FileCategory? {
         FileCategory(rawValue: selectedCategoryRaw)
@@ -122,6 +127,7 @@ struct MainView: View {
                 cachedSizeByVolume = [:]
                 cachedFilteredGroupsByCategory = [:]
                 cachedFilteredAllSortedGroups = []
+                showDuplicates = false
             }
             if newState.isCompleted {
                 cleaningVM.updateFileIndex(from: scanVM.result)
@@ -165,11 +171,16 @@ struct MainView: View {
                 scanVM.startScan()
             }
         }
-        .onChange(of: selectedCategoryRaw) { _, _ in
+        .onChange(of: selectedCategoryRaw) { _, newValue in
             showAllFiles = false      // reset cap when switching categories
             searchQuery = ""          // clear filter so the new category shows everything
             inspectedGroup = nil      // clear stale inspector content
             expandedGroup = nil       // collapse any drill-down
+            if !newValue.isEmpty {
+                // User explicitly clicked a category — leave the
+                // duplicates view if we were in it.
+                showDuplicates = false
+            }
         }
         .onChange(of: selectedVolumeIDRaw) { _, _ in
             // Volume switch is rare and heavy — fan out to a detached Task.
@@ -206,6 +217,14 @@ struct MainView: View {
                 Divider().opacity(0.5)
             }
 
+            // Duplicates entry surfaces only when the finder caught
+            // at least one set — no point wasting sidebar space with
+            // an empty row on a deduped machine.
+            if !scanVM.duplicateSets.isEmpty {
+                duplicatesRow
+                Divider().opacity(0.5)
+            }
+
             CategoryListView(
                 sizeByCategory: displayedResult.sizeByCategory,
                 countByCategory: displayedResult.countByCategory,
@@ -213,6 +232,45 @@ struct MainView: View {
             )
             .scrollContentBackground(.hidden)
         }
+    }
+
+    private var duplicatesRow: some View {
+        Button {
+            showDuplicates = true
+            selectedCategoryRaw = ""  // clear category selection when entering dupes view
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.on.doc.fill")
+                    .font(.callout)
+                    .foregroundStyle(showDuplicates ? Color.white : Color.accentColor)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Duplicates")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(showDuplicates ? .white : .primary)
+                    Text("\(scanVM.duplicateSets.count) sets · \(totalDuplicateWaste.formattedFileSize) reclaimable")
+                        .font(.caption2)
+                        .foregroundStyle(showDuplicates ? .white.opacity(0.85) : .secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(showDuplicates ? Color.accentColor : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+    }
+
+    private var totalDuplicateWaste: Int64 {
+        scanVM.state.completedScan?.totalDuplicateWaste ?? 0
     }
 
     private var sidebarHeader: some View {
@@ -408,7 +466,16 @@ struct MainView: View {
 
     @ViewBuilder
     private var fileListView: some View {
-        if let expanded = expandedGroup {
+        if showDuplicates {
+            DuplicatesListView(
+                sets: scanVM.duplicateSets,
+                selectedIDs: cleaningVM.selectedIDs,
+                onToggleFile: { [weak cleaningVM] file in cleaningVM?.toggleFile(file) },
+                onKeepOldest: { [weak cleaningVM] set in
+                    cleaningVM?.keepOldestInDuplicateSet(set)
+                }
+            )
+        } else if let expanded = expandedGroup {
             ExpandedGroupView(
                 group: expanded,
                 selectedIDs: cleaningVM.selectedIDs,

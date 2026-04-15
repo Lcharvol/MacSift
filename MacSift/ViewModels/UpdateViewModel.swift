@@ -79,6 +79,7 @@ final class UpdateViewModel: ObservableObject {
             let appURL = try await UpdateDownloader.downloadAndStage(
                 from: update.downloadURL,
                 version: update.latestVersion,
+                expectedSize: update.downloadSizeBytes,
                 progress: { [weak self] fraction in
                     Task { @MainActor in
                         self?.downloadState = .downloading(progress: fraction)

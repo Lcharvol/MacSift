@@ -28,18 +28,26 @@ enum MacSiftLog {
         return logsRoot.appending(path: "macsift.log")
     }()
 
+    // Privacy note: the on-disk log at ~/Library/Logs/MacSift/macsift.log
+    // is owned by the user and not world-readable, so it can reasonably
+    // contain file paths. But os_log messages are visible to anyone who
+    // opens Console.app on the machine, and they're persisted in the
+    // unified log for days. We mark those `.private` so file paths don't
+    // leak into Console — the on-disk file stays the authoritative
+    // (and more permissive) audit trail.
+
     static func info(_ message: String) {
-        osLogger.info("\(message, privacy: .public)")
+        osLogger.info("\(message, privacy: .private)")
         append(level: "INFO", message: message)
     }
 
     static func warning(_ message: String) {
-        osLogger.warning("\(message, privacy: .public)")
+        osLogger.warning("\(message, privacy: .private)")
         append(level: "WARN", message: message)
     }
 
     static func error(_ message: String) {
-        osLogger.error("\(message, privacy: .public)")
+        osLogger.error("\(message, privacy: .private)")
         append(level: "ERROR", message: message)
     }
 

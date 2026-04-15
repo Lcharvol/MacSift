@@ -13,7 +13,16 @@ final class ExclusionManager: ObservableObject {
         }
 
         let saved = defaults.stringArray(forKey: "excludedPaths") ?? []
-        self.excludedPaths = saved.map { URL(filePath: $0) }
+        // Defense in depth: a malicious process with write access to the
+        // user's plist could inject garbage into excludedPaths. Exclusions
+        // are subtractive so the worst case is reducing what MacSift
+        // scans, but we still reject obviously-bad entries (empty
+        // strings, non-absolute paths, `..` traversals) at load time so
+        // the published list never contains nonsense.
+        self.excludedPaths = saved.compactMap { raw in
+            guard !raw.isEmpty, raw.hasPrefix("/"), !raw.contains("..") else { return nil }
+            return URL(filePath: raw).standardizedFileURL
+        }
     }
 
     func addExclusion(_ url: URL) {

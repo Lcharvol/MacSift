@@ -59,7 +59,18 @@ struct CleaningEngine: Sendable {
         ".HFS+ Private Directory Data\u{000d}",
     ]
 
-    private static func isProtectedPath(_ path: String) -> Bool {
+    /// Defense in depth: strip `..`, double-slashes, trailing slashes, and
+    /// any `/./` segments before doing prefix matching. The canonical
+    /// input already comes from `FileManager.enumerator` and should
+    /// arrive clean, but a bug elsewhere (or a future caller with
+    /// attacker-controlled input) shouldn't silently bypass the
+    /// never-delete list just because the path string has an extra slash.
+    private static func normalize(_ path: String) -> String {
+        URL(filePath: path).standardizedFileURL.path(percentEncoded: false)
+    }
+
+    private static func isProtectedPath(_ rawPath: String) -> Bool {
+        let path = normalize(rawPath)
         guard path.hasPrefix("/") else { return false }
         for prefix in neverDeletePrefixes {
             if path == prefix || path.hasPrefix(prefix + "/") { return true }

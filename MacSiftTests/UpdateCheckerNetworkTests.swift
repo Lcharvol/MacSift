@@ -82,7 +82,7 @@ struct UpdateCheckerNetworkTests {
     private func releaseJSON(
         tag: String,
         assets: [(name: String, url: String, size: Int64)] = [
-            (name: "MacSift.zip", url: "https://example.invalid/MacSift.zip", size: 1_600_000),
+            (name: "MacSift.zip", url: "https://github.com/Lcharvol/MacSift/releases/download/v0.3.0/MacSift.zip", size: 1_600_000),
         ],
         body: String = "Release notes body",
         publishedAt: String? = "2026-04-14T10:00:00Z"
@@ -122,7 +122,7 @@ struct UpdateCheckerNetworkTests {
         let info = try await UpdateChecker.checkForUpdate(currentVersion: "0.2.1")
         let got = try #require(info)
         #expect(got.latestVersion == "0.3.0")
-        #expect(got.downloadURL.absoluteString == "https://example.invalid/MacSift.zip")
+        #expect(got.downloadURL.absoluteString == "https://github.com/Lcharvol/MacSift/releases/download/v0.3.0/MacSift.zip")
         #expect(got.downloadSizeBytes == 1_600_000)
         #expect(got.releaseURL.host == "github.com")
         #expect(got.publishedAt != nil)
@@ -166,14 +166,14 @@ struct UpdateCheckerNetworkTests {
             status: 200,
             body: releaseJSON(
                 tag: "v0.3.0",
-                assets: [(name: "MacSift-0.3.0.zip", url: "https://example.invalid/MacSift-0.3.0.zip", size: 1_700_000)]
+                assets: [(name: "MacSift-0.3.0.zip", url: "https://github.com/Lcharvol/MacSift/releases/download/v0.3.0/MacSift-0.3.0.zip", size: 1_700_000)]
             ),
             error: nil
         ))
 
         let info = try await UpdateChecker.checkForUpdate(currentVersion: "0.2.1")
         let got = try #require(info)
-        #expect(got.downloadURL.absoluteString == "https://example.invalid/MacSift-0.3.0.zip")
+        #expect(got.downloadURL.absoluteString == "https://github.com/Lcharvol/MacSift/releases/download/v0.3.0/MacSift-0.3.0.zip")
     }
 
     @Test func throwsNoDownloadAssetWhenNoZipPresent() async throws {
@@ -184,7 +184,7 @@ struct UpdateCheckerNetworkTests {
             status: 200,
             body: releaseJSON(
                 tag: "v0.3.0",
-                assets: [(name: "source.tar.gz", url: "https://example.invalid/source.tar.gz", size: 10_000)]
+                assets: [(name: "source.tar.gz", url: "https://github.com/Lcharvol/MacSift/releases/download/v0.3.0/source.tar.gz", size: 10_000)]
             ),
             error: nil
         ))

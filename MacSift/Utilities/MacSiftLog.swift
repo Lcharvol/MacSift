@@ -51,13 +51,32 @@ enum MacSiftLog {
         append(level: "ERROR", message: message)
     }
 
+    /// Hard cap on how many bytes `tail` reads. We cap the on-disk log
+    /// at `maxFileBytes` (~500 KB) and trim on overflow, but a bug or
+    /// concurrent external writer could push the file larger. `tail`
+    /// must not OOM the app in that case — 2 MB is plenty for any
+    /// realistic "show me the last N log lines" UI.
+    private static let maxTailReadBytes = 2 * 1024 * 1024
+
     /// Returns the last N lines of the log, newest first. Used by future
     /// diagnostics UIs; unused today but kept close to the writer so the
     /// two stay in sync.
     static func tail(lines: Int = 100) -> [String] {
         queue.sync {
-            guard let data = try? Data(contentsOf: logFileURL),
-                  let text = String(data: data, encoding: .utf8) else { return [] }
+            // Read only the tail of the file if it somehow grew past
+            // `maxTailReadBytes` — defensive against a runaway log or
+            // a concurrent writer that bypassed the trim logic.
+            let data: Data? = {
+                guard let handle = try? FileHandle(forReadingFrom: logFileURL) else { return nil }
+                defer { try? handle.close() }
+                let size = (try? handle.seekToEnd()) ?? 0
+                let start = size > UInt64(maxTailReadBytes)
+                    ? size - UInt64(maxTailReadBytes)
+                    : 0
+                try? handle.seek(toOffset: start)
+                return try? handle.readToEnd()
+            }()
+            guard let data, let text = String(data: data, encoding: .utf8) else { return [] }
             let all = text.split(whereSeparator: \.isNewline).map(String.init)
             return Array(all.suffix(lines).reversed())
         }

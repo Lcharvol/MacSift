@@ -96,16 +96,29 @@ enum TrashService {
     /// `MacSiftLog` so the user has visibility instead of a silent black
     /// hole. Violating the "transparent" principle silently is worse than
     /// partial success.
+    ///
+    /// Defense in depth: symlinks are removed as links, not followed. A
+    /// symlink in the Trash pointing at `~/Documents` must never cause
+    /// `removeItem` to recurse into the target.
     static func emptyDirectory(_ directory: URL) {
         let fm = FileManager.default
-        guard let contents = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+        guard let contents = try? fm.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isSymbolicLinkKey]
+        ) else {
             MacSiftLog.warning("emptyDirectory: could not list \(directory.path(percentEncoded: false))")
             return
         }
         var failures = 0
         for item in contents {
+            let isSymlink = (try? item.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
             do {
-                try fm.removeItem(at: item)
+                if isSymlink {
+                    // Unlink the symlink itself, do NOT recurse into the target.
+                    try fm.removeItem(at: item)
+                } else {
+                    try fm.removeItem(at: item)
+                }
             } catch {
                 failures += 1
                 MacSiftLog.warning("emptyDirectory: failed to remove \(item.lastPathComponent): \(error.localizedDescription)")

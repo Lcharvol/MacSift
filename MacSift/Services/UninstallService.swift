@@ -78,15 +78,36 @@ enum UninstallService {
     /// Remove the log folder at the given URL, including every file inside
     /// it. Returns `true` if the folder existed and was removed, `false`
     /// if there was nothing to remove or the removal failed silently.
+    ///
+    /// Defense in depth: rejects symlinks so a malicious co-tenant process
+    /// can't plant `~/Library/Logs/MacSift -> ~/Documents` before the
+    /// user clicks Uninstall and trick us into wiping their Documents
+    /// folder. If the path resolves to a symlink, we unlink the symlink
+    /// itself (cheap, doesn't follow) and return false — the on-disk log
+    /// is already in an unknown state, best to bail.
     static func clearLogs(at url: URL) -> Bool {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path(percentEncoded: false)) else { return false }
+        if isSymbolicLink(at: url) {
+            try? fm.removeItem(at: url) // removes the symlink, not its target
+            return false
+        }
         do {
             try fm.removeItem(at: url)
             return true
         } catch {
             return false
         }
+    }
+
+    /// Returns true if the URL is a symbolic link. Uses
+    /// `URLResourceKey.isSymbolicLinkKey` which does NOT follow the link,
+    /// so it reports the link itself rather than what it points at.
+    private static func isSymbolicLink(at url: URL) -> Bool {
+        // Read via `resourceValues` on the raw URL — NOT `standardizedFileURL`,
+        // which resolves symlinks and would hide exactly what we're trying
+        // to detect.
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
     }
 
     struct UpdateRemovalSummary: Equatable {
@@ -104,13 +125,23 @@ enum UninstallService {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(
             at: downloadsDir,
-            includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .isDirectoryKey]
+            includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .isDirectoryKey, .isSymbolicLinkKey]
         ) else {
             return summary
         }
         for entry in entries {
             let name = entry.lastPathComponent
             guard looksLikeMacSiftUpdateArtifact(name: name) else { continue }
+            // Defense in depth: the MacSift- prefix alone isn't enough.
+            // A symlink named `MacSift-0.2.9` could point at any user
+            // folder. Skip symlinks — don't even walk them to compute
+            // size (avoids leaking target size into reclaimedBytes) and
+            // don't recursively remove the target.
+            if isSymbolicLink(at: entry) {
+                try? fm.removeItem(at: entry) // unlinks, doesn't follow
+                summary.removedCount += 1
+                continue
+            }
             summary.reclaimedBytes += sizeOf(url: entry)
             if (try? fm.removeItem(at: entry)) != nil {
                 summary.removedCount += 1
@@ -170,7 +201,27 @@ enum UninstallService {
     /// Move the given .app bundle to the user's Trash. Safe to call on
     /// the currently-running bundle — macOS lets a process trash its own
     /// .app; the running code keeps executing until `NSApp.terminate`.
+    ///
+    /// Defense in depth: refuses to trash anything that isn't a
+    /// recognizable MacSift bundle. Checks BOTH the URL's last path
+    /// component (`MacSift.app`) and the bundle's own
+    /// `CFBundleIdentifier` (`com.macsift.app`). In practice
+    /// `Bundle.main.bundleURL` always points at the running bundle, but
+    /// test runners, wrappers, and dev environments have been known to
+    /// return surprising URLs — we never want to trash xctest or a
+    /// random dev artifact just because the caller passed us the wrong
+    /// URL.
     static func trashAppBundle(at bundleURL: URL) -> TrashOutcome {
+        guard bundleURL.lastPathComponent == "MacSift.app" else {
+            return .failure("Refusing to trash unexpected bundle: \(bundleURL.lastPathComponent). Drag MacSift.app to the Trash yourself.")
+        }
+        let plistURL = bundleURL.appending(path: "Contents/Info.plist")
+        guard let data = try? Data(contentsOf: plistURL),
+              let plist = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any],
+              (plist["CFBundleIdentifier"] as? String) == "com.macsift.app"
+        else {
+            return .failure("Bundle identifier does not match com.macsift.app — refusing to trash. Drag MacSift.app to the Trash yourself.")
+        }
         let fm = FileManager.default
         do {
             var resultingURL: NSURL?

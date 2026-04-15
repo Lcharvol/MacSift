@@ -49,6 +49,12 @@ struct CleaningEngine: Sendable {
     /// serve system bookkeeping (Spotlight, FSEvents, per-volume Trash,
     /// Time Machine backups). Trashing them on an external drive breaks
     /// indexing and backups — always hard-block regardless of category.
+    ///
+    /// Note: the last entry really does end with a carriage return (`\r`).
+    /// That's the literal name HFS+ uses for its private directory —
+    /// Apple reserved the CR so it couldn't be typed in Finder. We match
+    /// the exact byte sequence so we catch it regardless of how the
+    /// scanner surfaced the path.
     private static let protectedVolumeRootNames: Set<String> = [
         ".Spotlight-V100",
         ".fseventsd",
@@ -117,8 +123,21 @@ struct CleaningEngine: Sendable {
         // emit a progress event per file so the preview UI stays live.
         // Per-file yields are cheap here — no disk, no XPC, just struct
         // allocation — so there's no reason to throttle.
+        //
+        // We still check cancellation every 1000 items so a user who
+        // hit Cancel on a 100k-file dry-run preview doesn't have to
+        // wait for the whole accumulation to finish.
         if dryRun {
             for (index, file) in files.enumerated() {
+                if index % 1000 == 0, Task.isCancelled {
+                    return CleaningReport(
+                        deletedCount: deletedCount,
+                        freedSize: freedSize,
+                        failedFiles: failedFiles,
+                        totalProcessed: total,
+                        firstTrashDestination: nil
+                    )
+                }
                 deletedCount += 1
                 freedSize += file.size
                 progress?.yield(CleaningProgress(

@@ -53,7 +53,9 @@ struct UpdateBannerView: View {
         switch updateVM.downloadState {
         case .idle:
             Button("Release notes") {
-                NSWorkspace.shared.open(info.releaseURL)
+                if !NSWorkspace.shared.open(info.releaseURL) {
+                    MacSiftLog.warning("Failed to open release URL: \(info.releaseURL.absoluteString)")
+                }
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -90,7 +92,9 @@ struct UpdateBannerView: View {
                 .foregroundStyle(.red)
                 .lineLimit(1)
             Button("Open release page") {
-                NSWorkspace.shared.open(info.releaseURL)
+                if !NSWorkspace.shared.open(info.releaseURL) {
+                    MacSiftLog.warning("Failed to open release URL: \(info.releaseURL.absoluteString)")
+                }
             }
             .controlSize(.small)
         }

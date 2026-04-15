@@ -102,6 +102,14 @@ enum UpdateChecker {
         guard isTrustedDownloadURL(downloadURL) else {
             throw UpdateCheckError.invalidDownloadURL
         }
+        // And the same for the html_url — a compromised repo that sets
+        // `html_url` to `file:///tmp/evil.sh` would otherwise see it
+        // handed straight to `NSWorkspace.shared.open` when the user
+        // clicks "Release notes" in the banner, bypassing the download
+        // allow-list.
+        guard isTrustedReleaseURL(releaseURL) else {
+            throw UpdateCheckError.invalidDownloadURL
+        }
 
         let publishedAt: Date? = release.published_at.flatMap { ISO8601DateFormatter().date(from: $0) }
         let notes = (release.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -138,6 +146,16 @@ enum UpdateChecker {
         return host == "github.com"
             || host == "objects.githubusercontent.com"
             || host.hasSuffix(".githubusercontent.com")
+    }
+
+    /// The release HTML page URL ("html_url" in the GitHub API) is handed
+    /// to `NSWorkspace.shared.open` when the user clicks "Release notes"
+    /// in the update banner. Locked down to HTTPS + github.com so a
+    /// compromised repo can't set `html_url` to `file:///tmp/evil.sh`
+    /// or a custom URL scheme that triggers a handler elsewhere.
+    static func isTrustedReleaseURL(_ url: URL) -> Bool {
+        guard url.scheme == "https", let host = url.host else { return false }
+        return host == "github.com" || host.hasSuffix(".github.com")
     }
 
     /// SHA-256 of a data buffer, returned as a lowercase hex string.

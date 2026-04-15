@@ -27,6 +27,30 @@ Include:
 3. The macOS version and `swift --version` output you tested on.
 4. Whether you've tried to verify the issue on the latest `main`.
 
+## Threat model at a glance
+
+MacSift defends against:
+
+- **Compromised GitHub response** feeding the in-app updater a bad URL,
+  version string, or bundle: update URLs are restricted to HTTPS on
+  `github.com` / `*.githubusercontent.com` for downloads and `github.com`
+  for release pages; the version string must match a strict allow-list;
+  the downloaded bundle's `CFBundleIdentifier` must match `com.macsift.app`.
+- **Path-manipulation tricks on the never-delete list** (double slashes,
+  `..`, single-dot segments, case differences): paths are normalized via
+  `URL.standardizedFileURL` before prefix matching.
+- **Symlink traversal during uninstall**: the uninstaller rejects
+  symlinks planted at `~/Library/Logs/MacSift` or `~/Downloads/MacSift-*`
+  so a co-tenant process can't race us into recursing through a link
+  into the user's Documents or similar.
+- **Trashing the wrong bundle during uninstall**: the bundle path must
+  end in `MacSift.app` AND the extracted `Info.plist` must declare
+  `CFBundleIdentifier == com.macsift.app` before we hand it to
+  `trashItem`.
+- **Leaking file paths via the unified log**: `os_log` messages are
+  marked `.private`. Paths only ever appear in the user-owned on-disk
+  log at `~/Library/Logs/MacSift/macsift.log`.
+
 ## What counts as a security issue
 
 - Any path traversal / directory escape that could cause MacSift to delete

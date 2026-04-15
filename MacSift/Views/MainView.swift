@@ -136,9 +136,6 @@ struct MainView: View {
                 // Rebuild volume-scoped caches off the main thread — never
                 // walk 100k+ files from inside a computed property.
                 refreshVolumeCaches()
-                // Show the number of .safe groups as a Dock badge.
-                let safeCount = scanVM.allSortedGroups.filter { $0.category.riskLevel == .safe }.count
-                NSApp.dockTile.badgeLabel = safeCount > 0 ? "\(safeCount)" : nil
 
                 // Post-cleanup banner: show "You freed X" for a few seconds
                 // after an auto-rescan triggered by a real cleanup.
@@ -147,8 +144,6 @@ struct MainView: View {
                     pendingFreedSize = 0
                     scheduleBannerDismissal()
                 }
-            } else if newState.isScanning {
-                NSApp.dockTile.badgeLabel = nil
             }
         }
         .onChange(of: cleaningVM.selectionVersion) { _, _ in

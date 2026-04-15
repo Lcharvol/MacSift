@@ -20,6 +20,15 @@ struct MacSiftApp: App {
                     // the banner just stays hidden.
                     await updateVM.checkForUpdateIfNeeded()
                 }
+                .onAppear {
+                    // v0.2.6 and earlier set a Dock badge with the count of
+                    // "safe groups". That was confusing (looked like unread
+                    // notifications) and has been removed. Clear any badge
+                    // left over from a previous version so the upgrade is
+                    // silent — without this, the stale number persists
+                    // until macOS reaps the tile on its own.
+                    NSApp.dockTile.badgeLabel = nil
+                }
         }
 
         // Menu bar widget — live disk / memory / CPU metrics plus quick

@@ -36,7 +36,22 @@ MacSift is the opposite:
 
 ## Install
 
-### Option A — Download the release
+### Option A — Homebrew (one command)
+
+```bash
+brew tap Lcharvol/macsift
+brew install --cask macsift
+```
+
+The tap lives at [Lcharvol/homebrew-macsift](https://github.com/Lcharvol/homebrew-macsift).
+Since MacSift isn't notarized yet, the cask's `postflight` strips the
+`com.apple.quarantine` attribute automatically — you can double-click
+the installed `MacSift.app` without the right-click → Open dance.
+
+Upgrade later with `brew upgrade --cask macsift`. Uninstall with
+`brew uninstall --cask --zap macsift` to also remove settings and logs.
+
+### Option B — Download the release
 
 1. Download [**MacSift.zip**](https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip) (1.5&nbsp;MB, Apple Silicon).
 2. Unzip and **drag `MacSift.app` into `/Applications`** before opening it.
@@ -58,7 +73,7 @@ MacSift is the opposite:
 4. Grant **Full Disk Access** in System Settings → Privacy &amp; Security →
    Full Disk Access.
 
-### Option B — Build from source
+### Option C — Build from source
 
 Same binary, verified from the source tree.
 

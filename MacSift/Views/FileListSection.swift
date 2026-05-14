@@ -117,7 +117,7 @@ struct FileListSection: View {
                             Button("Show all") {
                                 showAllFiles = true
                             }
-                            .buttonStyle(.glass)
+                            .compatGlassButtonStyle()
                             .controlSize(.small)
                         }
                         Spacer()
@@ -131,7 +131,7 @@ struct FileListSection: View {
                         Button("Show less") {
                             showAllFiles = false
                         }
-                        .buttonStyle(.glass)
+                        .compatGlassButtonStyle()
                         .controlSize(.small)
                         Spacer()
                     }

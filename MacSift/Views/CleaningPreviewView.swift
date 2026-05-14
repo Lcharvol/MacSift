@@ -87,7 +87,7 @@ struct CleaningPreviewView: View {
                 cleaningVM.cancelPreview()
             }
             .keyboardShortcut(.cancelAction)
-            .buttonStyle(.glass)
+            .compatGlassButtonStyle()
         }
         .padding(20)
     }
@@ -150,7 +150,7 @@ struct CleaningPreviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
-                .buttonStyle(.glassProminent)
+                .compatGlassButtonStyle(.prominent)
                 .controlSize(.large)
                 .tint(appState.isDryRun ? .accentColor : .red)
             }
@@ -312,7 +312,7 @@ struct CleaningPreviewView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            .compatGlassButtonStyle(.prominent)
             .controlSize(.large)
             .padding(20)
         }

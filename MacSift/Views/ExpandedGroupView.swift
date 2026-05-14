@@ -41,7 +41,7 @@ struct ExpandedGroupView: View {
                     Text("Back to groups")
                 }
             }
-            .buttonStyle(.glass)
+            .compatGlassButtonStyle()
             .controlSize(.small)
 
             Spacer()

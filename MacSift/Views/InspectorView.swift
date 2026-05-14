@@ -168,7 +168,7 @@ struct InspectorView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .compatGlassEffect(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func actions(for group: FileGroup) -> some View {
@@ -179,7 +179,7 @@ struct InspectorView: View {
                 Label("Reveal in Finder", systemImage: "folder")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .compatGlassButtonStyle()
             .controlSize(.large)
 
             Button {
@@ -188,7 +188,7 @@ struct InspectorView: View {
                 Label("Quick Look", systemImage: "eye")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .compatGlassButtonStyle()
             .controlSize(.large)
 
             Button {
@@ -199,7 +199,7 @@ struct InspectorView: View {
                 Label("Copy Path", systemImage: "doc.on.doc")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .compatGlassButtonStyle()
             .controlSize(.large)
 
             if group.isAggregated, onExpand != nil {
@@ -209,7 +209,7 @@ struct InspectorView: View {
                     Label("Show all \(group.fileCount) files", systemImage: "list.bullet.below.rectangle")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.glass)
+                .compatGlassButtonStyle()
                 .controlSize(.large)
             }
 
@@ -224,7 +224,7 @@ struct InspectorView: View {
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.glass)
+                .compatGlassButtonStyle()
                 .controlSize(.large)
                 .disabled(excluded)
             }

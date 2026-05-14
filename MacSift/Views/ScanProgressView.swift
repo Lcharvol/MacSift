@@ -30,7 +30,7 @@ struct ScanProgressView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(20)
-            .glassEffect(.regular, in: Circle())
+            .compatGlassEffect(in: Circle())
             .onAppear { rotate = true }
 
             VStack(spacing: 6) {

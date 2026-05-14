@@ -9,8 +9,9 @@ BUNDLE_ID="com.macsift.app"
 # -------------------------------------------------------------------------
 # Prerequisites check
 # -------------------------------------------------------------------------
-# Swift 6.0+ is required (project uses swift-tools-version: 6.0 and macOS 26
-# Liquid Glass APIs). macOS 26+ is required to run the resulting binary.
+# Swift 6.0+ is required (project uses swift-tools-version: 6.0). The deployment
+# target is macOS 15 (Sequoia); Liquid Glass APIs activate on macOS 26 (Tahoe)
+# via runtime availability checks.
 
 if ! command -v swift >/dev/null 2>&1; then
     echo "❌ swift not found in PATH."
@@ -27,8 +28,8 @@ if [ -z "$swift_version" ] || [ "$swift_major" -lt 6 ] 2>/dev/null; then
 fi
 
 macos_version=$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)
-if [ -n "$macos_version" ] && [ "$macos_version" -lt 26 ] 2>/dev/null; then
-    echo "⚠️  macOS $macos_version detected. MacSift targets macOS 26 (Tahoe)."
+if [ -n "$macos_version" ] && [ "$macos_version" -lt 15 ] 2>/dev/null; then
+    echo "⚠️  macOS $macos_version detected. MacSift requires macOS 15 (Sequoia) or later."
     echo "   The build may succeed but the resulting binary won't launch here."
     echo "   Continue anyway? [y/N]"
     read -r answer
@@ -102,7 +103,7 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
-    <string>26.0</string>
+    <string>15.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>

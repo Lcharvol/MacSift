@@ -15,7 +15,7 @@ struct WelcomeView: View {
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
                 .padding(28)
-                .glassEffect(.regular, in: Circle())
+                .compatGlassEffect(in: Circle())
 
             VStack(spacing: 6) {
                 Text("Welcome to MacSift")
@@ -38,7 +38,7 @@ struct WelcomeView: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            .compatGlassButtonStyle(.prominent)
             .controlSize(.extraLarge)
             .padding(.top, 4)
 
@@ -66,11 +66,11 @@ struct WelcomeView: View {
             Spacer()
 
             Button("Grant Access") { onOpenFullDiskAccess() }
-                .buttonStyle(.glass)
+                .compatGlassButtonStyle()
                 .controlSize(.small)
         }
         .padding(14)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .compatGlassEffect(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .frame(maxWidth: 480)
     }
 }

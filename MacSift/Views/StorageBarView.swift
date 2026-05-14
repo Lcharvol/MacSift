@@ -32,7 +32,7 @@ struct StorageBarView: View {
             legend(entries: snap.entries)
         }
         .padding(18)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .compatGlassEffect(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     // MARK: - Header

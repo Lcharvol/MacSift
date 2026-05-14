@@ -294,7 +294,7 @@ struct MainView: View {
                 Label(scanButtonLabel, systemImage: scanButtonIcon)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glassProminent)
+            .compatGlassButtonStyle(.prominent)
             .controlSize(.large)
             .disabled(scanVM.state.isCancelling)
         }
@@ -621,7 +621,7 @@ struct MainView: View {
                 } label: {
                     Label("Select all in \(category.label)", systemImage: "checkmark.circle")
                 }
-                .buttonStyle(.glass)
+                .compatGlassButtonStyle()
                 .controlSize(.large)
             } else if appState.mode == .simple {
                 Button {
@@ -629,7 +629,7 @@ struct MainView: View {
                 } label: {
                     Label("Select all safe", systemImage: "checkmark.shield")
                 }
-                .buttonStyle(.glass)
+                .compatGlassButtonStyle()
                 .controlSize(.large)
             }
 
@@ -639,7 +639,7 @@ struct MainView: View {
                 Label("Clean Selected", systemImage: "trash")
                     .padding(.horizontal, 4)
             }
-            .buttonStyle(.glassProminent)
+            .compatGlassButtonStyle(.prominent)
             .tint(.red)
             .controlSize(.large)
             .disabled(cleaningVM.selectedIDs.isEmpty)

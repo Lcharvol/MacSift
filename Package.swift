@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "MacSift",
     defaultLocalization: "en",
-    platforms: [.macOS("26.0")],
+    platforms: [.macOS(.v15)],
     products: [
         .executable(name: "MacSift", targets: ["MacSift"])
     ],

@@ -1,6 +1,6 @@
 # MacSift — Working Notes for Claude
 
-Transparent macOS disk cleaning utility. SwiftUI, MVVM, macOS 26 (Tahoe), built with SwiftPM (no Xcode project file).
+Transparent macOS disk cleaning utility. SwiftUI, MVVM, built with SwiftPM (no Xcode project file). Deployment target is macOS 15 (Sequoia); Liquid Glass APIs from macOS 26 (Tahoe) are gated behind runtime availability checks via the `compatGlassEffect` / `compatGlassButtonStyle` helpers in `Utilities/GlassCompat.swift`.
 
 ## Build / run / test
 
@@ -21,7 +21,7 @@ open MacSift.app
 
 `build-app.sh` produces a proper `.app` bundle (with `Info.plist` + `AppIcon.icns`) from the SPM build output, ad-hoc signs it for stable TCC identity, and prints next steps. The bundle path is `MacSift.app/` at the repo root and is gitignored.
 
-The user is on macOS 26.2 / Xcode 26.3. Deployment target is macOS 26.0.
+The user is on macOS 26.2 / Xcode 26.3. Deployment target is macOS 15.0 (Sequoia). On Sequoia the app falls back to `.regularMaterial` / `.bordered` instead of Liquid Glass.
 
 ## Project layout
 
@@ -73,7 +73,7 @@ under `~/Library/Caches/com.apple.Safari/` collapse into one "Safari" row).
 - **ViewModels are `@MainActor final class`** with `@Published` properties. Heavy work hops off main via `Task.detached`.
 - **No emojis in code.** Sparingly in commit messages and only when it adds info.
 - **No `design: .rounded` fonts.** We removed all of them — system semibold is the house style.
-- **No gradients.** Use `.tint`, `.accentColor`, system materials. Liquid Glass via `.glassEffect()` and `.buttonStyle(.glass)` / `.buttonStyle(.glassProminent)`.
+- **No gradients.** Use `.tint`, `.accentColor`, system materials. Liquid Glass is applied via the `.compatGlassEffect(in:)` and `.compatGlassButtonStyle(_:)` helpers — never call `.glassEffect` or `.buttonStyle(.glass)` directly, as those only exist on macOS 26 and the app supports macOS 15+.
 - **Use `.monospacedDigit()` on every number** that updates frequently (sizes, counters) to avoid jitter.
 
 ## Performance lessons (read before touching the file list)

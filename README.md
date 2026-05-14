@@ -4,7 +4,7 @@
 
 # MacSift
 
-**A transparent disk cleaner for macOS Tahoe.**
+**A transparent disk cleaner for macOS — Sequoia and Tahoe.**
 
 See exactly what's taking up space, group it by the app that owns it,
 and move everything to the Trash — never permanent deletion.
@@ -83,8 +83,11 @@ cd MacSift
 ./build-app.sh && open MacSift.app
 ```
 
-The build script produces a signed `.app` bundle in one step. macOS 26
-(Tahoe), Apple Silicon, and the Xcode 26 command-line tools are required.
+The build script produces a signed `.app` bundle in one step. macOS 15
+(Sequoia) or later and Apple Silicon are required to run; Xcode 26
+command-line tools are required to build (the project uses Swift 6.0 and
+opts into macOS 26 Liquid Glass APIs at runtime, but degrades gracefully
+on Sequoia).
 
 ## What it does
 

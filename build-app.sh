@@ -114,6 +114,7 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <array>
         <string>en</string>
         <string>fr</string>
+        <string>zh-Hans</string>
     </array>
 </dict>
 </plist>

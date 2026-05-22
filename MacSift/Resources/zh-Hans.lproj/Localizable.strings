@@ -1,0 +1,319 @@
+/* MacSift — Simplified Chinese strings.
+   Keep product names and technical folder names in English when users need
+   to match what Finder or Terminal shows. */
+
+// Sidebar & top-level navigation
+"MacSift" = "MacSift";
+"Start Scan" = "开始扫描";
+"Cancel Scan" = "取消扫描";
+"Cancelling…" = "正在取消…";
+"Rescan" = "重新扫描";
+"Scan now" = "立即扫描";
+"Inspector" = "检查器";
+"Sort" = "排序";
+"Sort by" = "排序方式";
+"Sort file list" = "排序文件列表";
+"Rescan disk (⌘R)" = "重新扫描磁盘 (⌘R)";
+"Toggle inspector" = "显示或隐藏检查器";
+"Categories" = "类别";
+
+// Welcome screen
+"Welcome to MacSift" = "欢迎使用 MacSift";
+"Discover what's taking up space, with full transparency." = "透明地查看哪些内容占用了空间。";
+"Grant Access" = "授予访问权限";
+"Full Disk Access required" = "需要完全磁盘访问权限";
+"Full Disk Access Required" = "需要完全磁盘访问权限";
+"Some system files won't be scanned without it." = "没有该权限时，部分系统文件不会被扫描。";
+"Tip: drop any folder on the window to scan just that folder." = "提示：把任意文件夹拖到窗口上即可只扫描该文件夹。";
+
+// Scan progress
+"Scanning your disk" = "正在扫描磁盘";
+"Categorizing files for transparency" = "正在分类文件，方便你核对";
+"files" = "个文件";
+
+// Results header & storage bar
+"All Categories" = "所有类别";
+"Clear filter" = "清除筛选";
+"Storage Found" = "发现的空间";
+"reclaimable" = "可回收";
+"recoverable" = "可回收";
+"%@ recoverable" = "%@ 可回收";
+"Filter by name" = "按名称筛选";
+"You just freed %@" = "你刚刚释放了 %@。";
+"header.files" = "%d 个文件";
+"header.onVolume" = "位于 %@";
+"header.scannedIn" = "扫描用时 %@";
+"header.inaccessible" = "%d 个不可访问";
+"Inaccessible paths (sample):\n%@%@" = "不可访问路径（示例）：\n%@%@";
+"\n…and %d more" = "\n…还有 %d 个";
+
+// File list
+"+ %d smaller groups not shown" = "+ 还有 %d 个较小分组未显示";
+"Show all" = "显示全部";
+"Show less" = "收起";
+"No files found" = "未发现文件";
+"No %@ found" = "未发现%@";
+"Your disk looks clean for this category." = "这个类别看起来很干净。";
+"No matches for \"%@\"" = "没有匹配“%@”";
+"Back to groups" = "返回分组";
+"group.filesAndSize" = "%d 个文件 · %@";
+"Show all %d files" = "显示全部 %d 个文件";
+
+// Bottom action bar
+"Tick rows to select what to clean" = "勾选要清理的项目";
+"Clean Selected" = "清理所选";
+"Select all safe" = "全选安全项";
+"Select all in %@" = "全选%@";
+"selection.fileCountAndSize" = "%d 个文件 · %@";
+
+// Volume picker
+"Volumes" = "宗卷";
+"All volumes" = "所有宗卷";
+"Startup disk" = "启动磁盘";
+"External" = "外置磁盘";
+"mounted" = "已挂载";
+"%d mounted" = "%d 个已挂载";
+"%@ free of %@" = "%@ 可用，共 %@";
+
+// Category labels
+"category.cache" = "缓存";
+"category.logs" = "日志";
+"category.tempFiles" = "临时文件";
+"category.appData" = "未使用的 App 数据";
+"category.largeFiles" = "大文件";
+"category.timeMachineSnapshots" = "Time Machine 快照";
+"category.iosBackups" = "iOS 备份";
+"category.xcodeJunk" = "Xcode 垃圾";
+"category.devCaches" = "开发缓存";
+"category.oldDownloads" = "旧下载";
+"category.mailDownloads" = "邮件附件";
+
+// Risk levels
+"risk.safe" = "可安全删除";
+"risk.moderate" = "建议检查";
+"risk.risky" = "谨慎处理";
+
+// Sort options
+"sort.sizeDesc" = "大小（从大到小）";
+"sort.sizeAsc" = "大小（从小到大）";
+"sort.nameAsc" = "名称（A-Z）";
+"sort.mostRecent" = "最近修改优先";
+"sort.oldestFirst" = "最早修改优先";
+
+// Inspector
+"Selection" = "选择";
+"Total" = "总计";
+"Files" = "文件";
+"Size" = "大小";
+"Breakdown by category" = "按类别拆分";
+"Reveal in Finder" = "在 Finder 中显示";
+"Quick Look" = "快速查看";
+"Copy Path" = "复制路径";
+"Exclude from future scans" = "从后续扫描中排除";
+"Excluded from future scans" = "已从后续扫描中排除";
+"Largest files in this group" = "该分组中最大的文件";
+"Select a row" = "选择一行";
+"Pick a file or folder to see details and actions." = "选择文件或文件夹以查看详情和操作。";
+"selection.groupsTicked" = "%d 个分组已勾选";
+
+// Settings window
+"General" = "通用";
+"Mode" = "模式";
+"Language" = "语言";
+"language.system" = "跟随系统";
+"language.english" = "English";
+"language.simplifiedChinese" = "简体中文";
+"language.french" = "Français";
+"Simple" = "简单";
+"Advanced" = "高级";
+"Dry Run (simulate deletions)" = "试运行（模拟删除）";
+"Large file threshold" = "大文件阈值";
+"Old Downloads threshold" = "旧下载阈值";
+"MB" = "MB";
+"days" = "天";
+"Rescan to apply the new threshold." = "重新扫描后新阈值才会生效。";
+"Excluded Folders" = "已排除文件夹";
+"No folders are excluded from scans." = "当前没有从扫描中排除任何文件夹。";
+"Add Folder" = "添加文件夹";
+"Suggested…" = "建议…";
+"Add all" = "全部添加";
+"Stats" = "统计";
+"Scans run" = "扫描次数";
+"Total cleaned" = "累计清理";
+"Permissions" = "权限";
+"Full Disk Access" = "完全磁盘访问权限";
+"Granted" = "已授予";
+"Open System Settings" = "打开系统设置";
+"Reset all settings" = "重置所有设置";
+"Clears mode, dry-run, threshold, and all excluded folders." = "清除模式、试运行偏好、阈值和所有排除文件夹。";
+"Reset…" = "重置…";
+"Reset all MacSift settings?" = "重置所有 MacSift 设置？";
+"Reset" = "重置";
+"Cancel" = "取消";
+"This clears your mode, dry-run preference, large file threshold, and the list of excluded folders. Your files on disk are not touched." = "这会清除模式、试运行偏好、大文件阈值和排除文件夹列表。磁盘上的文件不会被改动。";
+"Uninstall MacSift" = "卸载 MacSift";
+"Erases settings, audit log, downloaded updates, and moves MacSift.app to the Trash." = "清除设置、审计日志、已下载更新，并将 MacSift.app 移到废纸篓。";
+"Uninstall…" = "卸载…";
+"Uninstall MacSift?" = "卸载 MacSift？";
+"Uninstall" = "卸载";
+"MacSift uninstalled" = "MacSift 已卸载";
+"Quit" = "退出";
+"Done" = "完成";
+"Done." = "完成。";
+"Music" = "音乐";
+"Pictures" = "图片";
+"Movies" = "影片";
+"iOS Backups (MobileSync)" = "iOS 备份 (MobileSync)";
+"uninstall.message" = "这将：\n\n• 清除所有 MacSift 设置和排除文件夹\n• 删除 ~/Library/Logs/MacSift 中的审计日志\n• 删除 ~/Downloads 中已下载的更新 zip\n• 将 MacSift.app 本身移到废纸篓\n\nMacSift 随后会立即退出。已扫描文件和磁盘上的其他内容都会保持原样，只有 MacSift 自己的数据会被移除。\n\n如果想彻底移除，你还需要在系统设置里手动撤销完全磁盘访问权限。";
+"uninstall.settingsErased" = "✓ 设置和排除项已清除";
+"uninstall.auditLogRemoved" = "✓ 审计日志已删除";
+"uninstall.cachedUpdatesRemoved" = "✓ 已移除 %d 个缓存更新文件（%@）";
+"uninstall.bundleTrashed" = "✓ MacSift.app 已移到废纸篓";
+"uninstall.partialFailures" = "部分失败：";
+"uninstall.thanks" = "感谢试用 MacSift。点击“退出”结束。";
+
+// Cleaning preview
+"Review what will be cleaned" = "检查将要清理的内容";
+"Review Before Cleaning" = "清理前检查";
+"Confirm what will be removed" = "确认将要移除的内容";
+"Dry Run" = "试运行";
+"Real Clean" = "实际清理";
+"Dry Run Complete" = "试运行完成";
+"Cleaning Complete" = "清理完成";
+"Processing files" = "正在处理文件";
+"Summary of the operation" = "操作摘要";
+"Simulate without deleting" = "仅模拟，不删除";
+"Simulate %d files (%@)" = "模拟 %d 个文件（%@）";
+"Move to Trash — %d files (%@)" = "移到废纸篓 — %d 个文件（%@）";
+"Move to Trash" = "移到废纸篓";
+"Move %@ to the Trash?" = "将 %@ 移到废纸篓？";
+"Move %d files to the Trash?" = "将 %d 个文件移到废纸篓？";
+"These items will be moved to the Trash. You can restore them from Finder until you empty the Trash." = "这些项目会被移到废纸篓。在清空废纸篓前，你可以从 Finder 恢复它们。";
+"This is a large deletion (%@)." = "这次清理量较大（%@）。";
+"files will be moved to the Trash" = "个文件会被移到废纸篓";
+"files would be freed (dry run — nothing deleted)" = "个文件可释放（试运行，不会删除）";
+"Cleaning" = "正在清理";
+"Cleaning..." = "正在清理...";
+"Cancel cleaning" = "取消清理";
+"Freed: %@" = "已释放：%@";
+"Freed: " = "已释放：";
+"files could not be deleted" = "个文件无法删除";
+"%d files could not be deleted" = "%d 个文件无法删除";
+"Moved to Trash" = "已移到废纸篓";
+"All files went to ~/.Trash. Nothing was permanently deleted." = "所有文件都已移到 ~/.Trash，没有永久删除。";
+"Finish the job?" = "完成最后一步？";
+"Empty Trash" = "清空废纸篓";
+"Empty the Trash?" = "清空废纸篓？";
+"This permanently removes %d item(s) (%@) from your Trash. This cannot be undone." = "这会从废纸篓永久移除 %d 个项目（%@）。此操作无法撤销。";
+"Your Trash contains %d item(s) (%@)." = "你的废纸篓中有 %d 个项目（%@）。";
+"report.filesFreed" = "%d 个文件%@已释放";
+"report.wouldBe" = "预计";
+
+// Update banner
+"%@ is available" = "%@ 可用";
+"MacSift %@ is available" = "MacSift %@ 可用";
+"%@ is available" = "%@ 可用";
+"is available" = "可用";
+"You have" = "当前版本";
+"download" = "下载";
+"You have %@" = "当前版本 %@";
+"%@ download" = "%@ 下载";
+"Release notes" = "发行说明";
+"Download update" = "下载更新";
+"Download failed. Open the release page to try again manually." = "下载失败。请打开发布页面手动重试。";
+"Drag into /Applications" = "拖入 /Applications";
+"Open release page" = "打开发布页面";
+"Dismiss until the next release" = "在下个版本前隐藏";
+"You have %@ · %@ download" = "当前版本 %@ · %@ 下载";
+
+// Duplicates view
+"Duplicates" = "重复文件";
+"sets · " = "组 · ";
+"duplicates.sidebarSummary" = "%d 组 · %@ 可回收";
+"No duplicates found" = "未发现重复文件";
+"Every scanned file larger than 1 MB is unique by content." = "所有已扫描且大于 1 MB 的文件内容都不重复。";
+"Keep oldest, trash the rest" = "保留最旧项，其余移到废纸篓";
+"duplicate.setHeader" = "%d 个副本 · 每个 %@";
+"%@ each" = "每个 %@";
+
+// Menu bar popover
+"Open MacSift" = "打开 MacSift";
+"cleaned" = "已清理";
+"used" = "已用";
+"total" = "总计";
+"free" = "可用";
+"free of" = "可用，共";
+"Memory" = "内存";
+"CPU" = "CPU";
+"%@ cleaned" = "已清理 %@";
+"%@ free" = "%@ 可用";
+"%@ total" = "%@ 总计";
+"%@ used" = "%@ 已用";
+"Thermal: nominal" = "温度：正常";
+"Thermal: fair" = "温度：尚可";
+"Thermal: serious" = "温度：严重";
+"Thermal: critical" = "温度：临界";
+"Thermal: unknown" = "温度：未知";
+
+// App menu / About
+"About MacSift" = "关于 MacSift";
+"Check for Updates…" = "检查更新…";
+"Scan Now" = "立即扫描";
+"Select All Safe" = "全选安全项";
+"Deselect All" = "取消全选";
+"Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently." = "透明的 macOS 磁盘清理工具。\n只将文件移到废纸篓，不会永久删除。";
+
+// File descriptions
+"description.tempFile" = "临时文件：%@";
+"description.appData" = "未使用的 App 数据：%@";
+"description.largeFile" = "大文件：%@";
+"description.timeMachineSnapshot" = "Time Machine 本地快照";
+"description.xcodeDerivedData" = "Xcode DerivedData：%@";
+"description.xcodeArchive" = "Xcode 归档：%@";
+"description.iosDebugSymbols" = "iOS 调试符号：%@";
+"description.simulatorCache" = "模拟器缓存：%@";
+"description.xcodeJunk" = "Xcode 垃圾：%@";
+"description.npmCache" = "npm 缓存：%@";
+"description.yarnCache" = "yarn 缓存：%@";
+"description.pnpmCache" = "pnpm 缓存：%@";
+"description.pipCache" = "pip 缓存：%@";
+"description.cargoCache" = "Cargo 缓存：%@";
+"description.rustToolchain" = "Rust 工具链：%@";
+"description.goModule" = "Go 模块：%@";
+"description.homebrewDownload" = "Homebrew 下载：%@";
+"description.devCache" = "开发缓存：%@";
+"description.oldDownload" = "旧下载：%@";
+"description.mailAttachment" = "邮件附件：%@";
+"description.namedCache" = "%@ 缓存";
+"description.applicationCache" = "应用缓存：%@";
+"description.systemLog" = "系统日志：%@";
+"description.applicationLog" = "应用日志：%@";
+"description.iosBackup" = "iOS 备份";
+"description.iosBackupNamed" = "iOS 备份：%@";
+
+// Services and notifications
+"System file — deletion blocked for safety" = "系统文件 — 为安全起见已阻止删除";
+"%@ is running and has this file locked. Quit %@ and rescan." = "%@ 正在运行并锁定了该文件。退出 %@ 后重新扫描。";
+"The owning app is running and has this file locked. Quit it and rescan." = "所属 App 正在运行并锁定了该文件。退出它后重新扫描。";
+"Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal." = "需要管理员权限。请在终端运行 `sudo tmutil deletelocalsnapshots %@`。";
+"MacSift · Scan complete" = "MacSift · 扫描完成";
+"notification.scanCompleteBody" = "%d 个文件 · %@ 可回收";
+"Local snapshot — %@" = "本地快照 — %@";
+
+// Group labels
+"group.mailAttachments" = "邮件附件";
+"group.derivedData" = "DerivedData · %@";
+"group.xcodeArchives" = "Xcode 归档";
+"group.iosDebugSymbols" = "iOS %@ 调试符号";
+"group.coreSimulatorCaches" = "CoreSimulator 缓存";
+"group.xcodeOther" = "其他 Xcode 项";
+"group.yarnCache" = "yarn 缓存";
+"group.shellCaches" = "Shell 缓存";
+"group.cargoRegistry" = "Cargo registry";
+"group.rustToolchains" = "Rust 工具链";
+"group.goModules" = "Go 模块";
+"group.pipLibrary" = "pip (Library)";
+"group.xcodeCache" = "Xcode 缓存";
+"group.systemLogs" = "系统日志";
+"group.systemData" = "系统数据";
+"group.iosBackup" = "iOS 备份 — %@";

@@ -146,7 +146,11 @@ struct MainView: View {
                 // Post-cleanup banner: show "You freed X" for a few seconds
                 // after an auto-rescan triggered by a real cleanup.
                 if pendingFreedSize > 0 {
-                    freedBanner = "You just freed \(pendingFreedSize.formattedFileSize)."
+                    freedBanner = L10n.format(
+                        "You just freed %@",
+                        defaultValue: "You just freed %@.",
+                        pendingFreedSize.formattedFileSize
+                    )
                     pendingFreedSize = 0
                     scheduleBannerDismissal()
                 }
@@ -248,7 +252,12 @@ struct MainView: View {
                     Text("Duplicates")
                         .font(.callout.weight(.medium))
                         .foregroundStyle(showDuplicates ? .white : .primary)
-                    Text("\(scanVM.duplicateSets.count) sets · \(totalDuplicateWaste.formattedFileSize) reclaimable")
+                    Text(L10n.format(
+                        "duplicates.sidebarSummary",
+                        defaultValue: "%d sets · %@ reclaimable",
+                        scanVM.duplicateSets.count,
+                        totalDuplicateWaste.formattedFileSize
+                    ))
                         .font(.caption2)
                         .foregroundStyle(showDuplicates ? .white.opacity(0.85) : .secondary)
                         .lineLimit(1)
@@ -302,9 +311,9 @@ struct MainView: View {
     }
 
     private var scanButtonLabel: String {
-        if scanVM.state.isCancelling { return String(localized: "Cancelling…") }
-        if scanVM.state.isScanning { return String(localized: "Cancel Scan") }
-        return String(localized: "Start Scan")
+        if scanVM.state.isCancelling { return L10n.text("Cancelling…", defaultValue: "Cancelling…") }
+        if scanVM.state.isScanning { return L10n.text("Cancel Scan", defaultValue: "Cancel Scan") }
+        return L10n.text("Start Scan", defaultValue: "Start Scan")
     }
 
     private var scanButtonIcon: String {
@@ -565,14 +574,17 @@ struct MainView: View {
         let count = activeResult.totalFileCount
         let size = activeResult.totalSize.formattedFileSize
         let duration = scanVM.result.scanDuration
-        var parts = ["\(count) files", size]
+        var parts = [
+            L10n.format("header.files", defaultValue: "%d files", count),
+            size,
+        ]
         if let volumeID = selectedVolumeID,
            let volume = scanVM.scannedVolumes.first(where: { $0.id == volumeID })
         {
-            parts.insert("on \(volume.name)", at: 0)
+            parts.insert(L10n.format("header.onVolume", defaultValue: "on %@", volume.name), at: 0)
         }
         if duration > 0 {
-            parts.append("scanned in \(String(format: "%.1fs", duration))")
+            parts.append(L10n.format("header.scannedIn", defaultValue: "scanned in %@", String(format: "%.1fs", duration)))
         }
         if let completedAt = scanVM.state.completedScan?.completedAt {
             let formatter = RelativeDateTimeFormatter()
@@ -581,7 +593,7 @@ struct MainView: View {
         }
         let inaccessible = scanVM.result.inaccessibleCount
         if inaccessible > 0 {
-            parts.append("\(inaccessible) inaccessible")
+            parts.append(L10n.format("header.inaccessible", defaultValue: "%d inaccessible", inaccessible))
         }
         return parts.joined(separator: " · ")
     }
@@ -593,14 +605,26 @@ struct MainView: View {
         let paths = scanVM.result.inaccessiblePaths
         guard !paths.isEmpty else { return "" }
         let preview = paths.prefix(10).joined(separator: "\n")
-        let extra = paths.count > 10 ? "\n…and \(paths.count - 10) more" : ""
-        return "Inaccessible paths (sample):\n\(preview)\(extra)"
+        let extra = paths.count > 10
+            ? L10n.format("\n…and %d more", defaultValue: "\n…and %d more", paths.count - 10)
+            : ""
+        return L10n.format(
+            "Inaccessible paths (sample):\n%@%@",
+            defaultValue: "Inaccessible paths (sample):\n%@%@",
+            preview,
+            extra
+        )
     }
 
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if cleaningVM.selectedCount > 0 {
-                Text("^[\(cleaningVM.selectedCount) file](inflect: true) · \(cleaningVM.selectedSize.formattedFileSize)")
+                Text(L10n.format(
+                    "selection.fileCountAndSize",
+                    defaultValue: "%d files · %@",
+                    cleaningVM.selectedCount,
+                    cleaningVM.selectedSize.formattedFileSize
+                ))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -619,7 +643,10 @@ struct MainView: View {
                 Button {
                     cleaningVM.selectAllInCategory(category, files: files)
                 } label: {
-                    Label("Select all in \(category.label)", systemImage: "checkmark.circle")
+                    Label(
+                        L10n.format("Select all in %@", defaultValue: "Select all in %@", category.label),
+                        systemImage: "checkmark.circle"
+                    )
                 }
                 .compatGlassButtonStyle()
                 .controlSize(.large)

@@ -20,28 +20,53 @@
 "Sort file list" = "Sort file list";
 "Rescan disk (⌘R)" = "Rescan disk (⌘R)";
 "Toggle inspector" = "Toggle inspector";
+"Categories" = "Categories";
 
 // ─── Welcome screen ────────────────────────────────────────────────
 "Welcome to MacSift" = "Welcome to MacSift";
 "Discover what's taking up space, with full transparency." = "Discover what's taking up space, with full transparency.";
 "Grant Access" = "Grant Access";
 "Full Disk Access required" = "Full Disk Access required";
+"Full Disk Access Required" = "Full Disk Access Required";
+"Some system files won't be scanned without it." = "Some system files won't be scanned without it.";
+"Tip: drop any folder on the window to scan just that folder." = "Tip: drop any folder on the window to scan just that folder.";
 
 // ─── Scan progress ─────────────────────────────────────────────────
 "Scanning your disk" = "Scanning your disk";
 "Categorizing files for transparency" = "Categorizing files for transparency";
+"files" = "files";
 
 // ─── Results header & storage bar ──────────────────────────────────
 "All Categories" = "All Categories";
 "Clear filter" = "Clear filter";
 "Storage Found" = "Storage Found";
 "reclaimable" = "reclaimable";
+"recoverable" = "recoverable";
+"%@ recoverable" = "%@ recoverable";
 "Filter by name" = "Filter by name";
+"You just freed %@" = "You just freed %@.";
+"header.files" = "%d files";
+"header.onVolume" = "on %@";
+"header.scannedIn" = "scanned in %@";
+"header.inaccessible" = "%d inaccessible";
+"Inaccessible paths (sample):\n%@%@" = "Inaccessible paths (sample):\n%@%@";
+"\n…and %d more" = "\n…and %d more";
+
+// ─── File list ────────────────────────────────────────────────────
+"+ %d smaller groups not shown" = "+ %d smaller groups not shown";
+"Show all" = "Show all";
+"Show less" = "Show less";
+"No files found" = "No files found";
+"No %@ found" = "No %@ found";
+"Your disk looks clean for this category." = "Your disk looks clean for this category.";
+"No matches for \"%@\"" = "No matches for \"%@\"";
 
 // ─── Bottom action bar ─────────────────────────────────────────────
 "Tick rows to select what to clean" = "Tick rows to select what to clean";
 "Clean Selected" = "Clean Selected";
 "Select all safe" = "Select all safe";
+"Select all in %@" = "Select all in %@";
+"selection.fileCountAndSize" = "%d files · %@";
 
 // ─── Volume picker ─────────────────────────────────────────────────
 "Volumes" = "Volumes";
@@ -49,6 +74,9 @@
 "Startup disk" = "Startup disk";
 "External" = "External";
 "mounted" = "mounted";
+"free" = "free";
+"%d mounted" = "%d mounted";
+"%@ free of %@" = "%@ free of %@";
 
 // ─── Category labels ───────────────────────────────────────────────
 "category.cache" = "Caches";
@@ -78,6 +106,11 @@
 // ─── Settings window ───────────────────────────────────────────────
 "General" = "General";
 "Mode" = "Mode";
+"Language" = "Language";
+"language.system" = "System";
+"language.english" = "English";
+"language.simplifiedChinese" = "Simplified Chinese";
+"language.french" = "French";
 "Simple" = "Simple";
 "Advanced" = "Advanced";
 "Dry Run (simulate deletions)" = "Dry Run (simulate deletions)";
@@ -113,30 +146,69 @@
 "MacSift uninstalled" = "MacSift uninstalled";
 "Quit" = "Quit";
 "Done" = "Done";
+"Done." = "Done.";
+"Music" = "Music";
+"Pictures" = "Pictures";
+"Movies" = "Movies";
+"iOS Backups (MobileSync)" = "iOS Backups (MobileSync)";
+"uninstall.message" = "This will:\n\n• Erase all MacSift settings and excluded folders\n• Delete the audit log at ~/Library/Logs/MacSift\n• Remove any downloaded update zips from ~/Downloads\n• Move MacSift.app itself to the Trash\n\nMacSift will quit immediately after. Your scanned files and anything else on disk stay exactly where they are — only MacSift's own data is removed.\n\nYou'll still need to revoke Full Disk Access manually in System Settings if you want it fully gone.";
+"uninstall.settingsErased" = "✓ Settings and exclusions erased";
+"uninstall.auditLogRemoved" = "✓ Audit log removed";
+"uninstall.cachedUpdatesRemoved" = "✓ Removed %d cached update artifact(s) (%@)";
+"uninstall.bundleTrashed" = "✓ MacSift.app moved to Trash";
+"uninstall.partialFailures" = "Partial failures:";
+"uninstall.thanks" = "Thanks for trying MacSift. Click Quit to exit.";
 
 // ─── Cleaning preview ──────────────────────────────────────────────
 "Review what will be cleaned" = "Review what will be cleaned";
+"Review Before Cleaning" = "Review Before Cleaning";
+"Confirm what will be removed" = "Confirm what will be removed";
 "Dry Run" = "Dry Run";
 "Real Clean" = "Real Clean";
+"Dry Run Complete" = "Dry Run Complete";
+"Cleaning Complete" = "Cleaning Complete";
+"Processing files" = "Processing files";
+"Summary of the operation" = "Summary of the operation";
+"Simulate without deleting" = "Simulate without deleting";
+"Simulate %d files (%@)" = "Simulate %d files (%@)";
+"Move to Trash — %d files (%@)" = "Move to Trash — %d files (%@)";
+"Move to Trash" = "Move to Trash";
+"Move %@ to the Trash?" = "Move %@ to the Trash?";
+"Move %d files to the Trash?" = "Move %d files to the Trash?";
+"These items will be moved to the Trash. You can restore them from Finder until you empty the Trash." = "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash.";
+"This is a large deletion (%@)." = "This is a large deletion (%@).";
 "files will be moved to the Trash" = "files will be moved to the Trash";
 "files would be freed (dry run — nothing deleted)" = "files would be freed (dry run — nothing deleted)";
 "Cleaning" = "Cleaning";
+"Cleaning..." = "Cleaning...";
 "Cancel cleaning" = "Cancel cleaning";
 "Freed: " = "Freed: ";
+"Freed: %@" = "Freed: %@";
 "files could not be deleted" = "files could not be deleted";
+"%d files could not be deleted" = "%d files could not be deleted";
 "Moved to Trash" = "Moved to Trash";
 "All files went to ~/.Trash. Nothing was permanently deleted." = "All files went to ~/.Trash. Nothing was permanently deleted.";
 "Reveal in Finder" = "Reveal in Finder";
 "Finish the job?" = "Finish the job?";
 "Empty Trash" = "Empty Trash";
 "Empty the Trash?" = "Empty the Trash?";
+"This permanently removes %d item(s) (%@) from your Trash. This cannot be undone." = "This permanently removes %d item(s) (%@) from your Trash. This cannot be undone.";
+"Your Trash contains %d item(s) (%@)." = "Your Trash contains %d item(s) (%@).";
+"report.filesFreed" = "%d files %@freed";
+"report.wouldBe" = "would be ";
 
 // ─── Update banner ─────────────────────────────────────────────────
 "is available" = "is available";
+"%@ is available" = "%@ is available";
 "You have" = "You have";
 "download" = "download";
+"MacSift %@ is available" = "MacSift %@ is available";
+"You have %@" = "You have %@";
+"You have %@ · %@ download" = "You have %@ · %@ download";
+"%@ download" = "%@ download";
 "Release notes" = "Release notes";
 "Download update" = "Download update";
+"Download failed. Open the release page to try again manually." = "Download failed. Open the release page to try again manually.";
 "Drag into /Applications" = "Drag into /Applications";
 "Open release page" = "Open release page";
 "Dismiss until the next release" = "Dismiss until the next release";
@@ -145,20 +217,109 @@
 "Duplicates" = "Duplicates";
 "sets · " = "sets · ";
 "reclaimable" = "reclaimable";
+"duplicates.sidebarSummary" = "%d sets · %@ reclaimable";
+
+// ─── Inspector ────────────────────────────────────────────────────
+"Selection" = "Selection";
+"Total" = "Total";
+"Files" = "Files";
+"Size" = "Size";
+"Breakdown by category" = "Breakdown by category";
+"Quick Look" = "Quick Look";
+"Copy Path" = "Copy Path";
+"Show all %d files" = "Show all %d files";
+"Exclude from future scans" = "Exclude from future scans";
+"Excluded from future scans" = "Excluded from future scans";
+"Largest files in this group" = "Largest files in this group";
+"Select a row" = "Select a row";
+"Pick a file or folder to see details and actions." = "Pick a file or folder to see details and actions.";
+"selection.groupsTicked" = "%d groups ticked";
+"Back to groups" = "Back to groups";
+"group.filesAndSize" = "%d files · %@";
 "No duplicates found" = "No duplicates found";
 "Every scanned file larger than 1 MB is unique by content." = "Every scanned file larger than 1 MB is unique by content.";
 "Keep oldest, trash the rest" = "Keep oldest, trash the rest";
+"duplicate.setHeader" = "%d copies · %@ each";
+"%@ each" = "%@ each";
 
 // ─── Menu bar popover ──────────────────────────────────────────────
 "Open MacSift" = "Open MacSift";
 "cleaned" = "cleaned";
 "used" = "used";
 "total" = "total";
+"free" = "free";
 "free of" = "free of";
 "Memory" = "Memory";
 "CPU" = "CPU";
+"%@ cleaned" = "%@ cleaned";
+"%@ free" = "%@ free";
+"%@ total" = "%@ total";
+"%@ used" = "%@ used";
 "Thermal: nominal" = "Thermal: nominal";
 "Thermal: fair" = "Thermal: fair";
 "Thermal: serious" = "Thermal: serious";
 "Thermal: critical" = "Thermal: critical";
 "Thermal: unknown" = "Thermal: unknown";
+"Local snapshot — %@" = "Local snapshot — %@";
+
+// ─── App menu / About ─────────────────────────────────────────────
+"About MacSift" = "About MacSift";
+"Check for Updates…" = "Check for Updates…";
+"Scan Now" = "Scan Now";
+"Select All Safe" = "Select All Safe";
+"Deselect All" = "Deselect All";
+"Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently." = "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently.";
+
+// ─── File descriptions ────────────────────────────────────────────
+"description.tempFile" = "Temporary file: %@";
+"description.appData" = "Unused app data: %@";
+"description.largeFile" = "Large file: %@";
+"description.timeMachineSnapshot" = "Time Machine local snapshot";
+"description.xcodeDerivedData" = "Xcode derived data: %@";
+"description.xcodeArchive" = "Xcode archive: %@";
+"description.iosDebugSymbols" = "iOS debug symbols: %@";
+"description.simulatorCache" = "Simulator cache: %@";
+"description.xcodeJunk" = "Xcode junk: %@";
+"description.npmCache" = "npm cache: %@";
+"description.yarnCache" = "yarn cache: %@";
+"description.pnpmCache" = "pnpm cache: %@";
+"description.pipCache" = "pip cache: %@";
+"description.cargoCache" = "Cargo cache: %@";
+"description.rustToolchain" = "Rust toolchain: %@";
+"description.goModule" = "Go module: %@";
+"description.homebrewDownload" = "Homebrew download: %@";
+"description.devCache" = "Dev cache: %@";
+"description.oldDownload" = "Old download: %@";
+"description.mailAttachment" = "Mail attachment: %@";
+"description.namedCache" = "%@ cache";
+"description.applicationCache" = "Application cache: %@";
+"description.systemLog" = "System log: %@";
+"description.applicationLog" = "Application log: %@";
+"description.iosBackup" = "iOS backup";
+"description.iosBackupNamed" = "iOS backup: %@";
+
+// ─── Services and notifications ───────────────────────────────────
+"System file — deletion blocked for safety" = "System file — deletion blocked for safety";
+"%@ is running and has this file locked. Quit %@ and rescan." = "%@ is running and has this file locked. Quit %@ and rescan.";
+"The owning app is running and has this file locked. Quit it and rescan." = "The owning app is running and has this file locked. Quit it and rescan.";
+"Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal." = "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal.";
+"MacSift · Scan complete" = "MacSift · Scan complete";
+"notification.scanCompleteBody" = "%d files · %@ recoverable";
+
+// ─── Group labels ─────────────────────────────────────────────────
+"group.mailAttachments" = "Mail attachments";
+"group.derivedData" = "DerivedData · %@";
+"group.xcodeArchives" = "Xcode archives";
+"group.iosDebugSymbols" = "iOS %@ debug symbols";
+"group.coreSimulatorCaches" = "CoreSimulator caches";
+"group.xcodeOther" = "Xcode other";
+"group.yarnCache" = "yarn cache";
+"group.shellCaches" = "Shell caches";
+"group.cargoRegistry" = "Cargo registry";
+"group.rustToolchains" = "Rust toolchains";
+"group.goModules" = "Go modules";
+"group.pipLibrary" = "pip (Library)";
+"group.xcodeCache" = "Xcode cache";
+"group.systemLogs" = "System logs";
+"group.systemData" = "System data";
+"group.iosBackup" = "iOS backup — %@";

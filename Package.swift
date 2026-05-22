@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "MacSift",
     defaultLocalization: "en",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS("15.0")],
     products: [
         .executable(name: "MacSift", targets: ["MacSift"])
     ],
@@ -19,6 +19,7 @@ let package = Package(
             resources: [
                 .process("Resources/en.lproj/Localizable.strings"),
                 .process("Resources/fr.lproj/Localizable.strings"),
+                .process("Resources/zh-Hans.lproj/Localizable.strings"),
             ]
         ),
         .testTarget(

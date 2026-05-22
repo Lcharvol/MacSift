@@ -22,8 +22,10 @@ struct CleaningPreviewView: View {
     private var confirmButtonLabel: String {
         let count = cleaningVM.selectedCount
         let size = cleaningVM.selectedSize.formattedFileSize
-        let verb = appState.isDryRun ? "Simulate" : "Move to Trash —"
-        return "\(verb) \(count) files (\(size))"
+        if appState.isDryRun {
+            return L10n.format("Simulate %d files (%@)", defaultValue: "Simulate %d files (%@)", count, size)
+        }
+        return L10n.format("Move to Trash — %d files (%@)", defaultValue: "Move to Trash — %d files (%@)", count, size)
     }
 
     var body: some View {
@@ -60,15 +62,30 @@ struct CleaningPreviewView: View {
 
     private var destructiveAlertTitle: String {
         if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
-            return "Move \(cleaningVM.selectedSize.formattedFileSize) to the Trash?"
+            return L10n.format(
+                "Move %@ to the Trash?",
+                defaultValue: "Move %@ to the Trash?",
+                cleaningVM.selectedSize.formattedFileSize
+            )
         }
-        return "Move \(cleaningVM.selectedCount) files to the Trash?"
+        return L10n.format(
+            "Move %d files to the Trash?",
+            defaultValue: "Move %d files to the Trash?",
+            cleaningVM.selectedCount
+        )
     }
 
     private var destructiveAlertMessage: String {
-        var msg = "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash."
+        var msg = L10n.text(
+            "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash.",
+            defaultValue: "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash."
+        )
         if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
-            msg = "⚠️ This is a large deletion (\(cleaningVM.selectedSize.formattedFileSize)). " + msg
+            msg = L10n.format(
+                "This is a large deletion (%@).",
+                defaultValue: "This is a large deletion (%@).",
+                cleaningVM.selectedSize.formattedFileSize
+            ) + " " + msg
         }
         return msg
     }
@@ -93,15 +110,19 @@ struct CleaningPreviewView: View {
     }
 
     private var headerTitle: String {
-        if cleaningVM.state == .cleaning { return "Cleaning..." }
-        if cleaningVM.report != nil { return appState.isDryRun ? "Dry Run Complete" : "Cleaning Complete" }
-        return "Review Before Cleaning"
+        if cleaningVM.state == .cleaning { return L10n.text("Cleaning...", defaultValue: "Cleaning...") }
+        if cleaningVM.report != nil {
+            return appState.isDryRun
+                ? L10n.text("Dry Run Complete", defaultValue: "Dry Run Complete")
+                : L10n.text("Cleaning Complete", defaultValue: "Cleaning Complete")
+        }
+        return L10n.text("Review Before Cleaning", defaultValue: "Review Before Cleaning")
     }
 
     private var headerSubtitle: String {
-        if cleaningVM.state == .cleaning { return "Processing files" }
-        if cleaningVM.report != nil { return "Summary of the operation" }
-        return "Confirm what will be removed"
+        if cleaningVM.state == .cleaning { return L10n.text("Processing files", defaultValue: "Processing files") }
+        if cleaningVM.report != nil { return L10n.text("Summary of the operation", defaultValue: "Summary of the operation") }
+        return L10n.text("Confirm what will be removed", defaultValue: "Confirm what will be removed")
     }
 
     // MARK: - Preview
@@ -174,7 +195,7 @@ struct CleaningPreviewView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.label)
                     .font(.callout.weight(.semibold))
-                Text("\(files.count) files")
+                Text(L10n.format("header.files", defaultValue: "%d files", files.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -226,7 +247,7 @@ struct CleaningPreviewView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Text("Freed: \(progress.freedSoFar.formattedFileSize)")
+                    Text(L10n.format("Freed: %@", defaultValue: "Freed: %@", progress.freedSoFar.formattedFileSize))
                         .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -253,7 +274,7 @@ struct CleaningPreviewView: View {
                     .font(.system(size: 40, weight: .semibold))
                     .monospacedDigit()
 
-                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be " : "")freed")
+                Text(reportFilesFreedText(report))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -269,7 +290,11 @@ struct CleaningPreviewView: View {
 
             if !report.failedFiles.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(report.failedFiles.count) files could not be deleted")
+                    Text(L10n.format(
+                        "%d files could not be deleted",
+                        defaultValue: "%d files could not be deleted",
+                        report.failedFiles.count
+                    ))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.orange)
 
@@ -338,8 +363,25 @@ struct CleaningPreviewView: View {
         } message: {
             let size = trashSummary?.totalSize.formattedFileSize ?? "0 B"
             let count = trashSummary?.itemCount ?? 0
-            Text("This permanently removes ^[\(count) item](inflect: true) (\(size)) from your Trash. This cannot be undone.")
+            Text(L10n.format(
+                "This permanently removes %d item(s) (%@) from your Trash. This cannot be undone.",
+                defaultValue: "This permanently removes %d item(s) (%@) from your Trash. This cannot be undone.",
+                count,
+                size
+            ))
         }
+    }
+
+    private func reportFilesFreedText(_ report: CleaningReport) -> String {
+        let dryRunQualifier = appState.isDryRun
+            ? L10n.text("report.wouldBe", defaultValue: "would be ")
+            : ""
+        return L10n.format(
+            "report.filesFreed",
+            defaultValue: "%d files %@freed",
+            report.deletedCount,
+            dryRunQualifier
+        )
     }
 
     /// Small reassurance row that confirms files were moved to the user's
@@ -397,7 +439,12 @@ struct CleaningPreviewView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Finish the job?")
                     .font(.callout.weight(.medium))
-                Text("Your Trash contains ^[\(summary.itemCount) item](inflect: true) (\(summary.totalSize.formattedFileSize)).")
+                Text(L10n.format(
+                    "Your Trash contains %d item(s) (%@).",
+                    defaultValue: "Your Trash contains %d item(s) (%@).",
+                    summary.itemCount,
+                    summary.totalSize.formattedFileSize
+                ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

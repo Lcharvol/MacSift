@@ -24,7 +24,7 @@ struct VolumePickerView: View {
                     iconName: "externaldrive.connected.to.line.below",
                     size: sizeByVolume.values.reduce(0, +),
                     id: nil,
-                    subtitle: "\(volumes.count) mounted"
+                    subtitle: L10n.format("%d mounted", defaultValue: "%d mounted", volumes.count)
                 )
                 ForEach(volumes) { volume in
                     volumeButton(
@@ -87,6 +87,6 @@ struct VolumePickerView: View {
         }
         let free = volume.availableCapacity.formattedFileSize
         let total = volume.totalCapacity.formattedFileSize
-        return "\(free) free of \(total)"
+        return L10n.format("%@ free of %@", defaultValue: "%@ free of %@", free, total)
     }
 }

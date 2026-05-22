@@ -42,7 +42,7 @@ struct StorageBarView: View {
             Text("Storage Found")
                 .font(.headline)
             Spacer()
-            Text("\(totalSize.formattedFileSize) recoverable")
+            Text(L10n.format("%@ recoverable", defaultValue: "%@ recoverable", totalSize.formattedFileSize))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

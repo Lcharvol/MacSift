@@ -9,9 +9,9 @@ enum FileListSortOption: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .sizeDesc: String(localized: "sort.sizeDesc", defaultValue: "Size (largest first)")
-        case .nameAsc: String(localized: "sort.nameAsc", defaultValue: "Name (A-Z)")
-        case .dateDesc: String(localized: "sort.mostRecent", defaultValue: "Most recent first")
+        case .sizeDesc: L10n.text("sort.sizeDesc", defaultValue: "Size (largest first)")
+        case .nameAsc: L10n.text("sort.nameAsc", defaultValue: "Name (A-Z)")
+        case .dateDesc: L10n.text("sort.mostRecent", defaultValue: "Most recent first")
         }
     }
 }
@@ -111,7 +111,11 @@ struct FileListSection: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 6) {
-                            Text("+ \(hidden) smaller groups not shown")
+                            Text(L10n.format(
+                                "+ %d smaller groups not shown",
+                                defaultValue: "+ %d smaller groups not shown",
+                                hidden
+                            ))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Show all") {
@@ -155,7 +159,7 @@ private struct FileListEmptyState: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 44))
                 .foregroundStyle(.tertiary)
-            Text(category == nil ? "No files found" : "No \(category!.label.lowercased()) found")
+            Text(emptyTitle)
                 .font(.headline)
                 .foregroundStyle(.secondary)
             Text("Your disk looks clean for this category.")
@@ -163,6 +167,13 @@ private struct FileListEmptyState: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyTitle: String {
+        guard let category else {
+            return L10n.text("No files found", defaultValue: "No files found")
+        }
+        return L10n.format("No %@ found", defaultValue: "No %@ found", category.label.lowercased())
     }
 }
 
@@ -174,7 +185,7 @@ private struct FileListNoMatchesState: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
-            Text("No matches for \"\(query)\"")
+            Text(L10n.format("No matches for \"%@\"", defaultValue: "No matches for \"%@\"", query))
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }

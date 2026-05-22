@@ -60,7 +60,11 @@ struct InspectorView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Selection")
                             .font(.headline)
-                        Text("^[\(summary.groupCount) group](inflect: true) ticked")
+                        Text(L10n.format(
+                            "selection.groupsTicked",
+                            defaultValue: "%d groups ticked",
+                            summary.groupCount
+                        ))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -206,7 +210,10 @@ struct InspectorView: View {
                 Button {
                     onExpand?(group)
                 } label: {
-                    Label("Show all \(group.fileCount) files", systemImage: "list.bullet.below.rectangle")
+                    Label(
+                        L10n.format("Show all %d files", defaultValue: "Show all %d files", group.fileCount),
+                        systemImage: "list.bullet.below.rectangle"
+                    )
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .compatGlassButtonStyle()

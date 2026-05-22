@@ -16,7 +16,11 @@ struct UpdateBannerView: View {
                     .foregroundStyle(.blue)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("MacSift \(info.latestVersion) is available")
+                    Text(L10n.format(
+                        "MacSift %@ is available",
+                        defaultValue: "MacSift %@ is available",
+                        info.latestVersion
+                    ))
                         .font(.callout.weight(.semibold))
                     Text(subtitle(for: info))
                         .font(.caption)
@@ -102,7 +106,10 @@ struct UpdateBannerView: View {
 
     private func subtitle(for info: UpdateInfo) -> String {
         let size = info.downloadSizeBytes.formattedFileSize
-        var parts = ["You have \(updateVM.currentVersion)", "\(size) download"]
+        var parts = [
+            L10n.format("You have %@", defaultValue: "You have %@", updateVM.currentVersion),
+            L10n.format("%@ download", defaultValue: "%@ download", size),
+        ]
         if let published = info.publishedAt {
             let formatter = RelativeDateTimeFormatter()
             formatter.unitsStyle = .short

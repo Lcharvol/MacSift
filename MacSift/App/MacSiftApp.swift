@@ -13,6 +13,7 @@ struct MacSiftApp: App {
                 .environmentObject(appState)
                 .environmentObject(exclusionManager)
                 .environmentObject(updateVM)
+                .environment(\.locale, appState.language.locale)
                 .frame(minWidth: 900, minHeight: 650)
                 .task {
                     // Silent update check on launch, throttled to 24h by
@@ -43,6 +44,7 @@ struct MacSiftApp: App {
         MenuBarExtra {
             MenuBarContent(menuBarVM: menuBarVM)
                 .environmentObject(appState)
+                .environment(\.locale, appState.language.locale)
         } label: {
             Image(systemName: "externaldrive.badge.checkmark")
         }
@@ -58,7 +60,10 @@ struct MacSiftApp: App {
                         .applicationName: "MacSift",
                         .applicationVersion: version,
                         .credits: NSAttributedString(
-                            string: "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently.",
+                            string: L10n.text(
+                                "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently.",
+                                defaultValue: "Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently."
+                            ),
                             attributes: [
                                 .font: NSFont.systemFont(ofSize: 11),
                                 .foregroundColor: NSColor.secondaryLabelColor,
@@ -100,6 +105,7 @@ struct MacSiftApp: App {
         Settings {
             SettingsView(exclusionManager: exclusionManager)
                 .environmentObject(appState)
+                .environment(\.locale, appState.language.locale)
         }
     }
 }

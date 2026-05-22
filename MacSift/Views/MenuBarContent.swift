@@ -18,25 +18,25 @@ struct MenuBarContent: View {
                 metricRow(
                     icon: "internaldrive",
                     tint: .blue,
-                    label: "Startup disk",
-                    primary: "\(menuBarVM.metrics.diskFree.formattedFileSize) free",
-                    secondary: "\(menuBarVM.metrics.diskTotal.formattedFileSize) total",
+                    label: L10n.text("Startup disk", defaultValue: "Startup disk"),
+                    primary: L10n.format("%@ free", defaultValue: "%@ free", menuBarVM.metrics.diskFree.formattedFileSize),
+                    secondary: L10n.format("%@ total", defaultValue: "%@ total", menuBarVM.metrics.diskTotal.formattedFileSize),
                     fraction: menuBarVM.metrics.diskUsedFraction
                 )
 
                 metricRow(
                     icon: "memorychip",
                     tint: .green,
-                    label: "Memory",
-                    primary: "\(menuBarVM.metrics.memoryUsed.formattedFileSize) used",
-                    secondary: "\(menuBarVM.metrics.memoryTotal.formattedFileSize) total",
+                    label: L10n.text("Memory", defaultValue: "Memory"),
+                    primary: L10n.format("%@ used", defaultValue: "%@ used", menuBarVM.metrics.memoryUsed.formattedFileSize),
+                    secondary: L10n.format("%@ total", defaultValue: "%@ total", menuBarVM.metrics.memoryTotal.formattedFileSize),
                     fraction: menuBarVM.metrics.memoryUsedFraction
                 )
 
                 metricRow(
                     icon: "cpu",
                     tint: cpuTint,
-                    label: "CPU",
+                    label: L10n.text("CPU", defaultValue: "CPU"),
                     primary: cpuLabel,
                     secondary: thermalLabel,
                     fraction: menuBarVM.metrics.cpuLoad
@@ -66,7 +66,7 @@ struct MenuBarContent: View {
                 .font(.callout.weight(.semibold))
             Spacer()
             if appState.lifetimeCleanedBytes > 0 {
-                Text("\(appState.lifetimeCleanedBytes.formattedFileSize) cleaned")
+                Text(L10n.format("%@ cleaned", defaultValue: "%@ cleaned", appState.lifetimeCleanedBytes.formattedFileSize))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -173,16 +173,16 @@ struct MenuBarContent: View {
     }
 
     private var cpuLabel: String {
-        "\(Int(menuBarVM.metrics.cpuLoad * 100))% used"
+        L10n.format("%@ used", defaultValue: "%@ used", "\(Int(menuBarVM.metrics.cpuLoad * 100))%")
     }
 
     private var thermalLabel: String {
         switch menuBarVM.metrics.thermalState {
-        case .nominal: return String(localized: "Thermal: nominal")
-        case .fair: return String(localized: "Thermal: fair")
-        case .serious: return String(localized: "Thermal: serious")
-        case .critical: return String(localized: "Thermal: critical")
-        @unknown default: return String(localized: "Thermal: unknown")
+        case .nominal: return L10n.text("Thermal: nominal", defaultValue: "Thermal: nominal")
+        case .fair: return L10n.text("Thermal: fair", defaultValue: "Thermal: fair")
+        case .serious: return L10n.text("Thermal: serious", defaultValue: "Thermal: serious")
+        case .critical: return L10n.text("Thermal: critical", defaultValue: "Thermal: critical")
+        @unknown default: return L10n.text("Thermal: unknown", defaultValue: "Thermal: unknown")
         }
     }
 

@@ -6,16 +6,155 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-26
+
 ### Added
-- **Simplified Chinese localization** (`zh-Hans`).
+- **Simplified Chinese localization** (`zh-Hans`). Initial contribution by
+  @eryajf in #4, reworked in #5.
 - **In-app language picker** in Settings (System / English / Simplified
-  Chinese / French). Selecting a language sets `\.locale` on every scene so
-  SwiftUI re-renders against the matching `.lproj` bundle. The choice is
-  persisted across launches under `appLanguage`.
+  Chinese / French). Selecting a language sets `\.locale` on every scene
+  so SwiftUI re-renders against the matching `.lproj` bundle. The choice
+  is persisted across launches under `appLanguage`.
 - **`L10n` helper** for non-SwiftUI call sites (services, view models,
-  AppKit interop) that compose strings outside a `View.body` and therefore
-  can't rely on the environment locale. Caches resolved bundles to keep
-  per-file scan paths cheap.
+  AppKit interop) that compose strings outside a `View.body` and
+  therefore can't rely on the environment locale. Caches resolved
+  bundles to keep per-file scan paths cheap; probes lowercase variants
+  to handle SwiftPM lowercasing `zh-Hans.lproj` → `zh-hans.lproj` on
+  disk.
+
+### Tests
+- Test suites that assert against user-facing strings (`FileGrouper`,
+  `FileDescriptions`, `CleaningEngine`) are now locale-stable — they
+  pin English explicitly instead of depending on the host machine's
+  preferred language.
+
+## [0.3.1] — 2026-05-14
+
+### Fixed
+- **macOS 15 (Sequoia) compatibility.** Liquid Glass APIs introduced in
+  macOS 26 (Tahoe) are now gated behind runtime availability checks via
+  `compatGlassEffect` / `compatGlassButtonStyle`. On Sequoia the app
+  falls back to `.regularMaterial` / `.bordered` instead of crashing on
+  symbol lookup at launch.
+
+## [0.3.0] — 2026-04-15
+
+### Added
+- **Duplicate file detection.** A new sidebar entry surfaces sets of
+  files that match by content hash (1 MB+ files only). One click on
+  "Keep oldest, trash the rest" sends all redundant copies to the
+  Trash, sorted by mtime so the original stays put.
+
+## [0.2.11] — 2026-04-15
+
+### Added
+- **French localization** (`fr.lproj`). Voice matches the English
+  original — direct, honest, no corporate-speak.
+
+### Docs
+- Homebrew cask is now the recommended install option.
+
+## [0.2.10] — 2026-04-15
+
+### Security
+- **Audit #2 — 10 findings fixed** (H1–H3, M1–M3, L1–L4). Covers
+  hardening across the cleaning engine, update checker URL validation,
+  and the uninstall flow.
+
+## [0.2.9] — 2026-04-15
+
+### Added
+- **In-app uninstall flow** in Settings. Wipes settings, exclusions,
+  the audit log, any cached update artifacts, and moves `MacSift.app`
+  itself to the Trash — with an explicit confirmation alert and a
+  per-step summary. Full Disk Access still has to be revoked manually
+  in System Settings.
+
+## [0.2.8] — 2026-04-15
+
+### Security
+- **Security audit #1 — 10 findings fixed** (H1–H3, M1–M3, L1–L4).
+
+## [0.2.7] — 2026-04-15
+
+### Removed
+- **Dock badge with safe-group count.** It was being read as unread
+  notifications and caused more confusion than it was worth.
+
+### Docs
+- Project is now MIT-licensed.
+
+## [0.2.6] — 2026-04-15
+
+### Performance
+- **Batched trash via `NSWorkspace.recycle`.** Cleaning thousands of
+  files now goes through a single AppKit call per chunk instead of
+  one `FileManager.trashItem` per file, which was the bottleneck on
+  large cache sweeps.
+
+## [0.2.5] — 2026-04-14
+
+### Fixed
+- **Scan progress counter froze in multi-volume mode.** Caused by
+  cumulative-vs-delta confusion between parallel scan tasks; each task
+  now yields its own delta and the view model accumulates them.
+
+## [0.2.4] — 2026-04-14
+
+### Fixed
+- **Stale sidebar totals at the start of a new scan.** Volume-filtered
+  caches are now cleared at scan start so the previous scan's numbers
+  don't bleed into the new one.
+
+## [0.2.3] — 2026-04-14
+
+### Performance
+- **Cached volume-filtered views off the render path.** Switching
+  between categories no longer rebuilds the filtered file list inside
+  `View.body`.
+
+## [0.2.2] — 2026-04-14
+
+### Added
+- **Menu bar widget** with live disk / memory / CPU metrics and a
+  one-click "Scan now" affordance. The status item is always inserted —
+  binding `isInserted:` to a `@Published` produced an infinite rebuild
+  loop on macOS 26 that pegged a core at 100% and starved the main
+  thread.
+
+### Tests
+- +20 tests covering the network layer, the grouper, and `AppState`.
+- 8 coverage gaps from the prior audit closed.
+
+## [0.2.1] — 2026-04-14
+
+### Added
+- **In-app update banner** with one-click download. Throttled to a
+  silent check once every 24h; the banner shows the version delta and
+  links to the GitHub release notes.
+
+## [0.2.0] — 2026-04-14
+
+### Added
+- **Multi-volume scanning.** A sidebar volume picker lets you target a
+  specific external disk or scan everything. The header subtitle and
+  totals reflect the selected volume.
+- **"Reveal in Finder" affordance** after a real clean, so the user
+  can see with their own eyes that files landed in `~/.Trash` rather
+  than being hard-deleted.
+- **Classifier rules array**, on-disk audit log, plus smoke and perf
+  tests.
+- **Inaccessible path sampling** in the scan result (up to 10 paths)
+  so Full Disk Access errors are diagnosable from the UI.
+
+### Fixed
+- **Friendlier error when `trashItem` fails on a locked cache DB.**
+  The error message now names the owning app and tells the user to
+  quit it and rescan.
+- **Lifecycle and observability gaps** from the first audit.
+
+### Docs
+- Sequoia Gatekeeper flow documented in README.
 
 ## [0.1.4] — 2026-04-13
 

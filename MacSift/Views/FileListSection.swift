@@ -7,11 +7,11 @@ enum FileListSortOption: String, CaseIterable, Identifiable {
     case dateDesc
 
     var id: String { rawValue }
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
-        case .sizeDesc: String(localized: "sort.sizeDesc", defaultValue: "Size (largest first)")
-        case .nameAsc: String(localized: "sort.nameAsc", defaultValue: "Name (A-Z)")
-        case .dateDesc: String(localized: "sort.mostRecent", defaultValue: "Most recent first")
+        case .sizeDesc: "sort.sizeDesc"
+        case .nameAsc: "sort.nameAsc"
+        case .dateDesc: "sort.mostRecent"
         }
     }
 }
@@ -155,7 +155,7 @@ private struct FileListEmptyState: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 44))
                 .foregroundStyle(.tertiary)
-            Text(category == nil ? "No files found" : "No \(category!.label.lowercased()) found")
+            Text(emptyTitle)
                 .font(.headline)
                 .foregroundStyle(.secondary)
             Text("Your disk looks clean for this category.")
@@ -163,6 +163,13 @@ private struct FileListEmptyState: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyTitle: LocalizedStringKey {
+        guard let category else {
+            return "No files found"
+        }
+        return "No \(category.label.lowercased()) found"
     }
 }
 

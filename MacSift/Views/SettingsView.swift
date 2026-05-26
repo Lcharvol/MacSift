@@ -26,6 +26,12 @@ struct SettingsView: View {
                     Text("Advanced").tag(AppState.Mode.advanced)
                 }
 
+                Picker("Language", selection: $appState.language) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+
                 Toggle("Dry Run (simulate deletions)", isOn: $appState.isDryRun)
 
                 HStack {
@@ -208,18 +214,7 @@ struct SettingsView: View {
                 Task { await performUninstall() }
             }
         } message: {
-            Text("""
-This will:
-
-• Erase all MacSift settings and excluded folders
-• Delete the audit log at ~/Library/Logs/MacSift
-• Remove any downloaded update zips from ~/Downloads
-• Move MacSift.app itself to the Trash
-
-MacSift will quit immediately after. Your scanned files and anything else on disk stay exactly where they are — only MacSift's own data is removed.
-
-You'll still need to revoke Full Disk Access manually in System Settings if you want it fully gone.
-""")
+            Text("uninstall.message")
         }
         .alert("MacSift uninstalled", isPresented: $showUninstallResult) {
             Button("Quit") {
@@ -278,27 +273,32 @@ You'll still need to revoke Full Disk Access manually in System Settings if you 
     private func uninstallSummaryText(for report: UninstallService.Report) -> String {
         var lines: [String] = []
         if report.clearedUserDefaults {
-            lines.append("✓ Settings and exclusions erased")
+            lines.append(L10n.text("uninstall.settingsErased", defaultValue: "✓ Settings and exclusions erased"))
         }
         if report.removedLogsAt != nil {
-            lines.append("✓ Audit log removed")
+            lines.append(L10n.text("uninstall.auditLogRemoved", defaultValue: "✓ Audit log removed"))
         }
         if report.removedUpdateArtifacts > 0 {
             let size = report.reclaimedUpdateBytes.formattedFileSize
-            lines.append("✓ Removed \(report.removedUpdateArtifacts) cached update artifact(s) (\(size))")
+            lines.append(L10n.format(
+                "uninstall.cachedUpdatesRemoved",
+                defaultValue: "✓ Removed %d cached update artifact(s) (%@)",
+                report.removedUpdateArtifacts,
+                size
+            ))
         }
         if report.trashedBundleAt != nil {
-            lines.append("✓ MacSift.app moved to Trash")
+            lines.append(L10n.text("uninstall.bundleTrashed", defaultValue: "✓ MacSift.app moved to Trash"))
         }
         if !report.errors.isEmpty {
             lines.append("")
-            lines.append("Partial failures:")
+            lines.append(L10n.text("uninstall.partialFailures", defaultValue: "Partial failures:"))
             for err in report.errors {
                 lines.append("• \(err)")
             }
         }
         lines.append("")
-        lines.append("Thanks for trying MacSift. Click Quit to exit.")
+        lines.append(L10n.text("uninstall.thanks", defaultValue: "Thanks for trying MacSift. Click Quit to exit."))
         return lines.joined(separator: "\n")
     }
 
@@ -307,6 +307,7 @@ You'll still need to revoke Full Disk Access manually in System Settings if you 
         // the default value back to UserDefaults — no need to removeObject
         // first (that was redundant and only fired didSet a second time).
         appState.mode = .simple
+        appState.language = .system
         appState.isDryRun = true
         appState.largeFileThresholdMB = 500
         appState.oldDownloadsAgeDays = 90

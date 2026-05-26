@@ -374,7 +374,7 @@ final class ScanViewModel: ObservableObject {
                 url: URL(filePath: "/Volumes/snapshot/\(snap.identifier)"),
                 size: 0,
                 category: .timeMachineSnapshots,
-                description: "Local snapshot — \(snap.displayDate)",
+                description: L10n.format("Local snapshot — %@", defaultValue: "Local snapshot — %@", snap.displayDate),
                 modificationDate: .now,
                 isDirectory: false
             )

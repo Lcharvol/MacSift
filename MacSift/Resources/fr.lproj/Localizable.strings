@@ -18,28 +18,53 @@
 "Sort file list" = "Trier la liste des fichiers";
 "Rescan disk (⌘R)" = "Relancer l'analyse (⌘R)";
 "Toggle inspector" = "Afficher / masquer l'inspecteur";
+"Categories" = "Catégories";
 
 // ─── Welcome screen ────────────────────────────────────────────────
 "Welcome to MacSift" = "Bienvenue dans MacSift";
 "Discover what's taking up space, with full transparency." = "Voyez ce qui occupe votre disque, en toute transparence.";
 "Grant Access" = "Autoriser l'accès";
 "Full Disk Access required" = "Accès complet au disque requis";
+"Full Disk Access Required" = "Accès complet au disque requis";
+"Some system files won't be scanned without it." = "Certains fichiers système ne seront pas analysés sans cet accès.";
+"Tip: drop any folder on the window to scan just that folder." = "Astuce : déposez un dossier sur la fenêtre pour analyser uniquement ce dossier.";
 
 // ─── Scan progress ─────────────────────────────────────────────────
 "Scanning your disk" = "Analyse de votre disque";
 "Categorizing files for transparency" = "Classement des fichiers pour plus de transparence";
+"files" = "fichiers";
 
 // ─── Results header & storage bar ──────────────────────────────────
 "All Categories" = "Toutes les catégories";
 "Clear filter" = "Réinitialiser le filtre";
 "Storage Found" = "Espace identifié";
 "reclaimable" = "récupérable";
+"recoverable" = "récupérable";
+"%@ recoverable" = "%@ récupérables";
 "Filter by name" = "Filtrer par nom";
+"You just freed %@" = "Vous venez de libérer %@.";
+"header.files" = "%d fichiers";
+"header.onVolume" = "sur %@";
+"header.scannedIn" = "analysé en %@";
+"header.inaccessible" = "%d inaccessibles";
+"Inaccessible paths (sample):\n%@%@" = "Chemins inaccessibles (exemple) :\n%@%@";
+"\n…and %d more" = "\n…et %d de plus";
+
+// ─── File list ────────────────────────────────────────────────────
+"+ %d smaller groups not shown" = "+ %d petits groupes masqués";
+"Show all" = "Tout afficher";
+"Show less" = "Réduire";
+"No files found" = "Aucun fichier trouvé";
+"No %@ found" = "Aucun %@ trouvé";
+"Your disk looks clean for this category." = "Votre disque semble propre pour cette catégorie.";
+"No matches for \"%@\"" = "Aucun résultat pour « %@ »";
 
 // ─── Bottom action bar ─────────────────────────────────────────────
 "Tick rows to select what to clean" = "Cochez ce que vous souhaitez nettoyer";
 "Clean Selected" = "Nettoyer la sélection";
 "Select all safe" = "Tout sélectionner (sûr)";
+"Select all in %@" = "Tout sélectionner dans %@";
+"selection.fileCountAndSize" = "%d fichiers · %@";
 
 // ─── Volume picker ─────────────────────────────────────────────────
 "Volumes" = "Volumes";
@@ -47,6 +72,8 @@
 "Startup disk" = "Disque de démarrage";
 "External" = "Externe";
 "mounted" = "montés";
+"%d mounted" = "%d montés";
+"%@ free of %@" = "%@ libres sur %@";
 
 // ─── Category labels ───────────────────────────────────────────────
 "category.cache" = "Caches";
@@ -76,6 +103,11 @@
 // ─── Settings window ───────────────────────────────────────────────
 "General" = "Général";
 "Mode" = "Mode";
+"Language" = "Langue";
+"language.system" = "Système";
+"language.english" = "Anglais";
+"language.simplifiedChinese" = "Chinois simplifié";
+"language.french" = "Français";
 "Simple" = "Simple";
 "Advanced" = "Avancé";
 "Dry Run (simulate deletions)" = "Simulation (aucune suppression réelle)";
@@ -111,30 +143,69 @@
 "MacSift uninstalled" = "MacSift désinstallé";
 "Quit" = "Quitter";
 "Done" = "Terminé";
+"Done." = "Terminé.";
+"Music" = "Musique";
+"Pictures" = "Images";
+"Movies" = "Films";
+"iOS Backups (MobileSync)" = "Sauvegardes iOS (MobileSync)";
+"uninstall.message" = "Cette action va :\n\n• Effacer tous les réglages MacSift et les dossiers exclus\n• Supprimer le journal d'audit dans ~/Library/Logs/MacSift\n• Supprimer les zips de mise à jour téléchargés dans ~/Downloads\n• Déplacer MacSift.app lui-même vers la Corbeille\n\nMacSift quittera immédiatement après. Vos fichiers analysés et le reste du disque resteront exactement en place — seules les données propres à MacSift seront supprimées.\n\nVous devrez encore révoquer l'accès complet au disque manuellement dans Réglages système si vous voulez le retirer totalement.";
+"uninstall.settingsErased" = "✓ Réglages et exclusions effacés";
+"uninstall.auditLogRemoved" = "✓ Journal d'audit supprimé";
+"uninstall.cachedUpdatesRemoved" = "✓ %d élément(s) de mise à jour en cache supprimé(s) (%@)";
+"uninstall.bundleTrashed" = "✓ MacSift.app déplacé vers la Corbeille";
+"uninstall.partialFailures" = "Échecs partiels :";
+"uninstall.thanks" = "Merci d'avoir essayé MacSift. Cliquez sur Quitter pour fermer.";
 
 // ─── Cleaning preview ──────────────────────────────────────────────
 "Review what will be cleaned" = "Vérifiez ce qui va être nettoyé";
+"Review Before Cleaning" = "Vérifier avant nettoyage";
+"Confirm what will be removed" = "Confirmez ce qui sera supprimé";
 "Dry Run" = "Simulation";
 "Real Clean" = "Nettoyage réel";
+"Dry Run Complete" = "Simulation terminée";
+"Cleaning Complete" = "Nettoyage terminé";
+"Processing files" = "Traitement des fichiers";
+"Summary of the operation" = "Résumé de l'opération";
+"Simulate without deleting" = "Simuler sans supprimer";
+"Simulate %d files (%@)" = "Simuler %d fichiers (%@)";
+"Move to Trash — %d files (%@)" = "Mettre à la Corbeille — %d fichiers (%@)";
+"Move to Trash" = "Mettre à la Corbeille";
+"Move %@ to the Trash?" = "Mettre %@ à la Corbeille ?";
+"Move %d files to the Trash?" = "Mettre %d fichiers à la Corbeille ?";
+"These items will be moved to the Trash. You can restore them from Finder until you empty the Trash." = "Ces éléments seront déplacés vers la Corbeille. Vous pouvez les restaurer depuis le Finder tant que la Corbeille n'est pas vidée.";
+"This is a large deletion (%@)." = "Il s'agit d'une suppression importante (%@).";
 "files will be moved to the Trash" = "fichiers seront déplacés vers la Corbeille";
 "files would be freed (dry run — nothing deleted)" = "fichiers seraient libérés (simulation — rien n'est supprimé)";
 "Cleaning" = "Nettoyage";
+"Cleaning..." = "Nettoyage...";
 "Cancel cleaning" = "Annuler le nettoyage";
 "Freed: " = "Libéré : ";
+"Freed: %@" = "Libéré : %@";
 "files could not be deleted" = "fichiers n'ont pas pu être supprimés";
+"%d files could not be deleted" = "%d fichiers n'ont pas pu être supprimés";
 "Moved to Trash" = "Déplacé vers la Corbeille";
 "All files went to ~/.Trash. Nothing was permanently deleted." = "Tous les fichiers sont dans ~/.Trash. Rien n'a été supprimé définitivement.";
 "Reveal in Finder" = "Afficher dans le Finder";
 "Finish the job?" = "Finir le travail ?";
 "Empty Trash" = "Vider la Corbeille";
 "Empty the Trash?" = "Vider la Corbeille ?";
+"This permanently removes %d item(s) (%@) from your Trash. This cannot be undone." = "Cette action supprime définitivement %d élément(s) (%@) de la Corbeille. Elle est irréversible.";
+"Your Trash contains %d item(s) (%@)." = "Votre Corbeille contient %d élément(s) (%@).";
+"report.filesFreed" = "%d fichiers %@libérés";
+"report.wouldBe" = "seraient ";
 
 // ─── Update banner ─────────────────────────────────────────────────
 "is available" = "est disponible";
+"%@ is available" = "%@ est disponible";
 "You have" = "Vous avez";
 "download" = "à télécharger";
+"MacSift %@ is available" = "MacSift %@ est disponible";
+"You have %@" = "Vous avez %@";
+"You have %@ · %@ download" = "Vous avez %@ · %@ à télécharger";
+"%@ download" = "%@ à télécharger";
 "Release notes" = "Notes de version";
 "Download update" = "Télécharger la mise à jour";
+"Download failed. Open the release page to try again manually." = "Échec du téléchargement. Ouvrez la page de la release pour réessayer manuellement.";
 "Drag into /Applications" = "Faites glisser dans /Applications";
 "Open release page" = "Ouvrir la page de la release";
 "Dismiss until the next release" = "Masquer jusqu'à la prochaine version";
@@ -143,20 +214,109 @@
 "Duplicates" = "Doublons";
 "sets · " = "ensembles · ";
 "reclaimable" = "récupérable";
+"duplicates.sidebarSummary" = "%d ensembles · %@ récupérables";
+
+// ─── Inspector ────────────────────────────────────────────────────
+"Selection" = "Sélection";
+"Total" = "Total";
+"Files" = "Fichiers";
+"Size" = "Taille";
+"Breakdown by category" = "Répartition par catégorie";
+"Quick Look" = "Coup d'œil";
+"Copy Path" = "Copier le chemin";
+"Show all %d files" = "Afficher les %d fichiers";
+"Exclude from future scans" = "Exclure des prochaines analyses";
+"Excluded from future scans" = "Exclu des prochaines analyses";
+"Largest files in this group" = "Plus gros fichiers de ce groupe";
+"Select a row" = "Sélectionnez une ligne";
+"Pick a file or folder to see details and actions." = "Choisissez un fichier ou un dossier pour voir les détails et les actions.";
+"selection.groupsTicked" = "%d groupes cochés";
+"Back to groups" = "Retour aux groupes";
+"group.filesAndSize" = "%d fichiers · %@";
 "No duplicates found" = "Aucun doublon trouvé";
 "Every scanned file larger than 1 MB is unique by content." = "Chaque fichier analysé de plus de 1 Mo est unique.";
 "Keep oldest, trash the rest" = "Garder le plus ancien, mettre les autres à la Corbeille";
+"duplicate.setHeader" = "%d copies · %@ chacun";
+"%@ each" = "%@ chacun";
 
 // ─── Menu bar popover ──────────────────────────────────────────────
 "Open MacSift" = "Ouvrir MacSift";
 "cleaned" = "nettoyés";
 "used" = "utilisé";
 "total" = "total";
+"free" = "libres";
 "free of" = "libres sur";
 "Memory" = "Mémoire";
 "CPU" = "Processeur";
+"%@ cleaned" = "%@ nettoyés";
+"%@ free" = "%@ libres";
+"%@ total" = "%@ au total";
+"%@ used" = "%@ utilisés";
 "Thermal: nominal" = "Thermique : normal";
 "Thermal: fair" = "Thermique : correct";
 "Thermal: serious" = "Thermique : sérieux";
 "Thermal: critical" = "Thermique : critique";
 "Thermal: unknown" = "Thermique : inconnu";
+"Local snapshot — %@" = "Instantané local — %@";
+
+// ─── App menu / About ─────────────────────────────────────────────
+"About MacSift" = "À propos de MacSift";
+"Check for Updates…" = "Rechercher des mises à jour…";
+"Scan Now" = "Analyser maintenant";
+"Select All Safe" = "Tout sélectionner (sûr)";
+"Deselect All" = "Tout désélectionner";
+"Transparent macOS disk cleaning utility.\nMoves files to the Trash — never deletes permanently." = "Utilitaire transparent de nettoyage de disque macOS.\nDéplace les fichiers vers la Corbeille — ne supprime jamais définitivement.";
+
+// ─── File descriptions ────────────────────────────────────────────
+"description.tempFile" = "Fichier temporaire : %@";
+"description.appData" = "Données d'app inutilisées : %@";
+"description.largeFile" = "Gros fichier : %@";
+"description.timeMachineSnapshot" = "Instantané local Time Machine";
+"description.xcodeDerivedData" = "DerivedData Xcode : %@";
+"description.xcodeArchive" = "Archive Xcode : %@";
+"description.iosDebugSymbols" = "Symboles de débogage iOS : %@";
+"description.simulatorCache" = "Cache du simulateur : %@";
+"description.xcodeJunk" = "Résidu Xcode : %@";
+"description.npmCache" = "Cache npm : %@";
+"description.yarnCache" = "Cache yarn : %@";
+"description.pnpmCache" = "Cache pnpm : %@";
+"description.pipCache" = "Cache pip : %@";
+"description.cargoCache" = "Cache Cargo : %@";
+"description.rustToolchain" = "Toolchain Rust : %@";
+"description.goModule" = "Module Go : %@";
+"description.homebrewDownload" = "Téléchargement Homebrew : %@";
+"description.devCache" = "Cache de dev : %@";
+"description.oldDownload" = "Ancien téléchargement : %@";
+"description.mailAttachment" = "Pièce jointe Mail : %@";
+"description.namedCache" = "Cache %@";
+"description.applicationCache" = "Cache d'application : %@";
+"description.systemLog" = "Journal système : %@";
+"description.applicationLog" = "Journal d'application : %@";
+"description.iosBackup" = "Sauvegarde iOS";
+"description.iosBackupNamed" = "Sauvegarde iOS : %@";
+
+// ─── Services and notifications ───────────────────────────────────
+"System file — deletion blocked for safety" = "Fichier système — suppression bloquée par sécurité";
+"%@ is running and has this file locked. Quit %@ and rescan." = "%@ est en cours d'exécution et verrouille ce fichier. Quittez %@ puis relancez l'analyse.";
+"The owning app is running and has this file locked. Quit it and rescan." = "L'app propriétaire est en cours d'exécution et verrouille ce fichier. Quittez-la puis relancez l'analyse.";
+"Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal." = "Nécessite les privilèges administrateur. Exécutez `sudo tmutil deletelocalsnapshots %@` dans Terminal.";
+"MacSift · Scan complete" = "MacSift · Analyse terminée";
+"notification.scanCompleteBody" = "%d fichiers · %@ récupérables";
+
+// ─── Group labels ─────────────────────────────────────────────────
+"group.mailAttachments" = "Pièces jointes Mail";
+"group.derivedData" = "DerivedData · %@";
+"group.xcodeArchives" = "Archives Xcode";
+"group.iosDebugSymbols" = "Symboles de débogage iOS %@";
+"group.coreSimulatorCaches" = "Caches CoreSimulator";
+"group.xcodeOther" = "Autres éléments Xcode";
+"group.yarnCache" = "Cache yarn";
+"group.shellCaches" = "Caches shell";
+"group.cargoRegistry" = "Registre Cargo";
+"group.rustToolchains" = "Toolchains Rust";
+"group.goModules" = "Modules Go";
+"group.pipLibrary" = "pip (Library)";
+"group.xcodeCache" = "Cache Xcode";
+"group.systemLogs" = "Journaux système";
+"group.systemData" = "Données système";
+"group.iosBackup" = "Sauvegarde iOS — %@";

@@ -14,10 +14,14 @@ enum RiskLevel: String, CaseIterable, Sendable {
     }
 
     var label: String {
+        localizedLabel()
+    }
+
+    func localizedLabel(locale: Locale = .current) -> String {
         switch self {
-        case .safe: String(localized: "risk.safe", defaultValue: "Safe to delete")
-        case .moderate: String(localized: "risk.moderate", defaultValue: "Review recommended")
-        case .risky: String(localized: "risk.risky", defaultValue: "Use caution")
+        case .safe: L10n.text("risk.safe", defaultValue: "Safe to delete", locale: locale)
+        case .moderate: L10n.text("risk.moderate", defaultValue: "Review recommended", locale: locale)
+        case .risky: L10n.text("risk.risky", defaultValue: "Use caution", locale: locale)
         }
     }
 }
@@ -38,18 +42,22 @@ enum FileCategory: String, CaseIterable, Hashable, Identifiable, Sendable {
     var id: String { rawValue }
 
     var label: String {
+        localizedLabel()
+    }
+
+    func localizedLabel(locale: Locale = .current) -> String {
         switch self {
-        case .cache: String(localized: "category.cache", defaultValue: "Caches")
-        case .logs: String(localized: "category.logs", defaultValue: "Logs")
-        case .tempFiles: String(localized: "category.tempFiles", defaultValue: "Temporary Files")
-        case .appData: String(localized: "category.appData", defaultValue: "Unused App Data")
-        case .largeFiles: String(localized: "category.largeFiles", defaultValue: "Large Files")
-        case .timeMachineSnapshots: String(localized: "category.timeMachineSnapshots", defaultValue: "Time Machine Snapshots")
-        case .iosBackups: String(localized: "category.iosBackups", defaultValue: "iOS Backups")
-        case .xcodeJunk: String(localized: "category.xcodeJunk", defaultValue: "Xcode Junk")
-        case .devCaches: String(localized: "category.devCaches", defaultValue: "Dev Caches")
-        case .oldDownloads: String(localized: "category.oldDownloads", defaultValue: "Old Downloads")
-        case .mailDownloads: String(localized: "category.mailDownloads", defaultValue: "Mail Attachments")
+        case .cache: L10n.text("category.cache", defaultValue: "Caches", locale: locale)
+        case .logs: L10n.text("category.logs", defaultValue: "Logs", locale: locale)
+        case .tempFiles: L10n.text("category.tempFiles", defaultValue: "Temporary Files", locale: locale)
+        case .appData: L10n.text("category.appData", defaultValue: "Unused App Data", locale: locale)
+        case .largeFiles: L10n.text("category.largeFiles", defaultValue: "Large Files", locale: locale)
+        case .timeMachineSnapshots: L10n.text("category.timeMachineSnapshots", defaultValue: "Time Machine Snapshots", locale: locale)
+        case .iosBackups: L10n.text("category.iosBackups", defaultValue: "iOS Backups", locale: locale)
+        case .xcodeJunk: L10n.text("category.xcodeJunk", defaultValue: "Xcode Junk", locale: locale)
+        case .devCaches: L10n.text("category.devCaches", defaultValue: "Dev Caches", locale: locale)
+        case .oldDownloads: L10n.text("category.oldDownloads", defaultValue: "Old Downloads", locale: locale)
+        case .mailDownloads: L10n.text("category.mailDownloads", defaultValue: "Mail Attachments", locale: locale)
         }
     }
 

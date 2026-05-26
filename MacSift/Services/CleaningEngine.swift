@@ -208,7 +208,10 @@ struct CleaningEngine: Sendable {
             for file in chunk {
                 let path = file.url.path(percentEncoded: false)
                 if Self.isProtectedPath(path) {
-                    failedFiles.append((file, "System file — deletion blocked for safety"))
+                    failedFiles.append((file, L10n.text(
+                        "System file — deletion blocked for safety",
+                        defaultValue: "System file — deletion blocked for safety"
+                    )))
                     processed += 1
                     continue
                 }
@@ -294,7 +297,10 @@ struct CleaningEngine: Sendable {
         let path = file.url.path(percentEncoded: false)
 
         if isProtectedPath(path) {
-            return .failed(reason: "System file — deletion blocked for safety")
+            return .failed(reason: L10n.text(
+                "System file — deletion blocked for safety",
+                defaultValue: "System file — deletion blocked for safety"
+            ))
         }
 
         let fm = FileManager.default
@@ -332,9 +338,17 @@ struct CleaningEngine: Sendable {
            components.count > cachesIndex + 1 {
             let ownerKey = components[cachesIndex + 1]
             let label = BundleNames.humanLabel(for: ownerKey)
-            return "\(label) is running and has this file locked. Quit \(label) and rescan."
+            return L10n.format(
+                "%@ is running and has this file locked. Quit %@ and rescan.",
+                defaultValue: "%@ is running and has this file locked. Quit %@ and rescan.",
+                label,
+                label
+            )
         }
-        return "The owning app is running and has this file locked. Quit it and rescan."
+        return L10n.text(
+            "The owning app is running and has this file locked. Quit it and rescan.",
+            defaultValue: "The owning app is running and has this file locked. Quit it and rescan."
+        )
     }
 
     /// Time Machine snapshots have a synthetic URL; dispatch to `tmutil`
@@ -352,7 +366,11 @@ struct CleaningEngine: Sendable {
         } catch {
             let msg = error.localizedDescription
             let hint = msg.contains("not permitted") || msg.contains("requires") || msg.contains("must be run")
-                ? "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots \(dateString)` in Terminal."
+                ? L10n.format(
+                    "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal.",
+                    defaultValue: "Requires admin privileges. Run `sudo tmutil deletelocalsnapshots %@` in Terminal.",
+                    dateString
+                )
                 : msg
             return .failed(reason: hint)
         }

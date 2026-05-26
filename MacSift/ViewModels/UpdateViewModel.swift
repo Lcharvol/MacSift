@@ -89,7 +89,10 @@ final class UpdateViewModel: ObservableObject {
             downloadState = .readyToInstall(appURL)
             MacSiftLog.info("Update \(update.latestVersion) downloaded to \(appURL.path(percentEncoded: false))")
         } catch {
-            downloadState = .failed("Download failed. Open the release page to try again manually.")
+            downloadState = .failed(L10n.text(
+                "Download failed. Open the release page to try again manually.",
+                defaultValue: "Download failed. Open the release page to try again manually."
+            ))
             MacSiftLog.error("Update download failed: \(error)")
         }
     }

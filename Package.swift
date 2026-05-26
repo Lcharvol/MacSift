@@ -19,6 +19,7 @@ let package = Package(
             resources: [
                 .process("Resources/en.lproj/Localizable.strings"),
                 .process("Resources/fr.lproj/Localizable.strings"),
+                .process("Resources/zh-Hans.lproj/Localizable.strings"),
             ]
         ),
         .testTarget(

@@ -19,11 +19,13 @@ struct CleaningPreviewView: View {
 
     /// Build the confirm button label, accounting for grouped selections so the
     /// user understands that one tick may include thousands of underlying files.
-    private var confirmButtonLabel: String {
+    private var confirmButtonLabel: LocalizedStringKey {
         let count = cleaningVM.selectedCount
         let size = cleaningVM.selectedSize.formattedFileSize
-        let verb = appState.isDryRun ? "Simulate" : "Move to Trash —"
-        return "\(verb) \(count) files (\(size))"
+        if appState.isDryRun {
+            return "Simulate \(count) files (\(size))"
+        }
+        return "Move to Trash — \(count) files (\(size))"
     }
 
     var body: some View {
@@ -53,24 +55,25 @@ struct CleaningPreviewView: View {
                 }
             },
             message: {
-                Text(destructiveAlertMessage)
+                destructiveAlertMessage
             }
         )
     }
 
-    private var destructiveAlertTitle: String {
+    private var destructiveAlertTitle: LocalizedStringKey {
         if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
             return "Move \(cleaningVM.selectedSize.formattedFileSize) to the Trash?"
         }
         return "Move \(cleaningVM.selectedCount) files to the Trash?"
     }
 
-    private var destructiveAlertMessage: String {
-        var msg = "These items will be moved to the Trash. You can restore them from Finder until you empty the Trash."
+    @ViewBuilder
+    private var destructiveAlertMessage: some View {
         if cleaningVM.selectedSize >= Self.largeDeletionWarningBytes {
-            msg = "⚠️ This is a large deletion (\(cleaningVM.selectedSize.formattedFileSize)). " + msg
+            Text("This is a large deletion (\(cleaningVM.selectedSize.formattedFileSize)). These items will be moved to the Trash. You can restore them from Finder until you empty the Trash.")
+        } else {
+            Text("These items will be moved to the Trash. You can restore them from Finder until you empty the Trash.")
         }
-        return msg
     }
 
     private var header: some View {
@@ -92,13 +95,15 @@ struct CleaningPreviewView: View {
         .padding(20)
     }
 
-    private var headerTitle: String {
+    private var headerTitle: LocalizedStringKey {
         if cleaningVM.state == .cleaning { return "Cleaning..." }
-        if cleaningVM.report != nil { return appState.isDryRun ? "Dry Run Complete" : "Cleaning Complete" }
+        if cleaningVM.report != nil {
+            return appState.isDryRun ? "Dry Run Complete" : "Cleaning Complete"
+        }
         return "Review Before Cleaning"
     }
 
-    private var headerSubtitle: String {
+    private var headerSubtitle: LocalizedStringKey {
         if cleaningVM.state == .cleaning { return "Processing files" }
         if cleaningVM.report != nil { return "Summary of the operation" }
         return "Confirm what will be removed"
@@ -253,7 +258,7 @@ struct CleaningPreviewView: View {
                     .font(.system(size: 40, weight: .semibold))
                     .monospacedDigit()
 
-                Text("\(report.deletedCount) files \(appState.isDryRun ? "would be " : "")freed")
+                reportFilesFreedText(report)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -269,7 +274,7 @@ struct CleaningPreviewView: View {
 
             if !report.failedFiles.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(report.failedFiles.count) files could not be deleted")
+                    Text("^[\(report.failedFiles.count) file](inflect: true) could not be deleted")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.orange)
 
@@ -340,6 +345,13 @@ struct CleaningPreviewView: View {
             let count = trashSummary?.itemCount ?? 0
             Text("This permanently removes ^[\(count) item](inflect: true) (\(size)) from your Trash. This cannot be undone.")
         }
+    }
+
+    private func reportFilesFreedText(_ report: CleaningReport) -> Text {
+        if appState.isDryRun {
+            return Text("^[\(report.deletedCount) file](inflect: true) would be freed")
+        }
+        return Text("^[\(report.deletedCount) file](inflect: true) freed")
     }
 
     /// Small reassurance row that confirms files were moved to the user's

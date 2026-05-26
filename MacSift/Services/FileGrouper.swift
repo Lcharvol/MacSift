@@ -65,7 +65,7 @@ enum FileGrouper {
             let representative = files[0].url.deletingLastPathComponent()
             return [FileGroup(
                 id: "mailDownloads:all",
-                label: "Mail attachments",
+                label: L10n.text("group.mailAttachments", defaultValue: "Mail attachments"),
                 category: .mailDownloads,
                 totalSize: total,
                 fileCount: files.count,
@@ -110,22 +110,22 @@ enum FileGrouper {
                     return folder
                 }()
                 key = "derivedData:\(folder)"
-                label = "DerivedData · \(projectName)"
+                label = L10n.format("group.derivedData", defaultValue: "DerivedData · %@", projectName)
             } else if path.hasPrefix(archivesRoot) {
                 key = "xcodeJunk:archives"
-                label = "Xcode archives"
+                label = L10n.text("group.xcodeArchives", defaultValue: "Xcode archives")
             } else if path.hasPrefix(deviceSupportRoot) {
                 // Group by iOS version folder e.g. "17.4 (21E219)"
                 let relative = String(path.dropFirst(deviceSupportRoot.count))
                 let folder = relative.split(separator: "/").first.map(String.init) ?? "DeviceSupport"
                 key = "deviceSupport:\(folder)"
-                label = "iOS \(folder) debug symbols"
+                label = L10n.format("group.iosDebugSymbols", defaultValue: "iOS %@ debug symbols", folder)
             } else if path.hasPrefix(simulatorCachesRoot) {
                 key = "xcodeJunk:simulatorCaches"
-                label = "CoreSimulator caches"
+                label = L10n.text("group.coreSimulatorCaches", defaultValue: "CoreSimulator caches")
             } else {
                 key = "xcodeJunk:other"
-                label = "Xcode other"
+                label = L10n.text("group.xcodeOther", defaultValue: "Xcode other")
             }
 
             buckets[key, default: []].append(file)
@@ -161,17 +161,17 @@ enum FileGrouper {
         let rootPatterns: [(prefix: String, label: String, key: String)] = [
             (".cache/huggingface", "Hugging Face", "huggingface"),
             (".cache/pip", "pip", "pip"),
-            (".cache/yarn", "yarn cache", "yarn-cache"),
-            (".cache", "Shell caches", "cache"),
+            (".cache/yarn", L10n.text("group.yarnCache", defaultValue: "yarn cache"), "yarn-cache"),
+            (".cache", L10n.text("group.shellCaches", defaultValue: "Shell caches"), "cache"),
             (".npm", "npm", "npm"),
             (".yarn", "yarn", "yarn"),
             (".pnpm-store", "pnpm", "pnpm"),
-            (".cargo/registry/cache", "Cargo registry", "cargo"),
-            (".rustup/toolchains", "Rust toolchains", "rustup"),
-            ("go/pkg/mod", "Go modules", "go"),
+            (".cargo/registry/cache", L10n.text("group.cargoRegistry", defaultValue: "Cargo registry"), "cargo"),
+            (".rustup/toolchains", L10n.text("group.rustToolchains", defaultValue: "Rust toolchains"), "rustup"),
+            ("go/pkg/mod", L10n.text("group.goModules", defaultValue: "Go modules"), "go"),
             ("Library/Caches/Homebrew", "Homebrew", "homebrew"),
-            ("Library/Caches/pip", "pip (Library)", "pip-lib"),
-            ("Library/Caches/com.apple.dt.Xcode", "Xcode cache", "xcode-cache"),
+            ("Library/Caches/pip", L10n.text("group.pipLibrary", defaultValue: "pip (Library)"), "pip-lib"),
+            ("Library/Caches/com.apple.dt.Xcode", L10n.text("group.xcodeCache", defaultValue: "Xcode cache"), "xcode-cache"),
         ]
 
         var buckets: [String: (label: String, files: [ScannedFile])] = [:]
@@ -268,7 +268,9 @@ enum FileGrouper {
             let total = systemBucket.reduce(0 as Int64) { $0 + $1.size }
             groups.append(FileGroup(
                 id: "\(category.rawValue):__system__",
-                label: category == .logs ? "System logs" : "System data",
+                label: category == .logs
+                    ? L10n.text("group.systemLogs", defaultValue: "System logs")
+                    : L10n.text("group.systemData", defaultValue: "System data"),
                 category: category,
                 totalSize: total,
                 fileCount: systemBucket.count,
@@ -312,7 +314,7 @@ enum FileGrouper {
             }()
             return FileGroup(
                 id: "iosBackup:\(id)",
-                label: "iOS backup — \(label)",
+                label: L10n.format("group.iosBackup", defaultValue: "iOS backup — %@", label),
                 category: .iosBackups,
                 totalSize: total,
                 fileCount: bucketFiles.count,

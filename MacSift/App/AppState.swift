@@ -50,8 +50,19 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(showMenuBarExtra, forKey: "showMenuBarExtra") }
     }
 
+    /// App language is explicit so MacSift can switch UI language without
+    /// requiring a system-wide language change. `.system` preserves the
+    /// macOS default behavior.
+    @Published var language: AppLanguage {
+        didSet {
+            UserDefaults.standard.set(language.rawValue, forKey: "appLanguage")
+            L10n.setLanguage(language)
+        }
+    }
+
     init() {
         let savedMode = UserDefaults.standard.string(forKey: "appMode") ?? Mode.simple.rawValue
+        let savedLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
         self.mode = Mode(rawValue: savedMode) ?? .simple
         self.isDryRun = UserDefaults.standard.object(forKey: "isDryRun") as? Bool ?? true
         self.largeFileThresholdMB = UserDefaults.standard.object(forKey: "largeFileThresholdMB") as? Int ?? 500
@@ -59,6 +70,8 @@ final class AppState: ObservableObject {
         self.lifetimeScanCount = UserDefaults.standard.integer(forKey: "lifetimeScanCount")
         self.lifetimeCleanedBytes = Int64(UserDefaults.standard.integer(forKey: "lifetimeCleanedBytes"))
         self.showMenuBarExtra = UserDefaults.standard.object(forKey: "showMenuBarExtra") as? Bool ?? true
+        self.language = AppLanguage(rawValue: savedLanguage) ?? .system
+        L10n.setLanguage(self.language)
     }
 
     var largeFileThresholdBytes: Int64 {

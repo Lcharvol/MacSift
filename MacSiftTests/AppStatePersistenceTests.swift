@@ -18,6 +18,7 @@ struct AppStatePersistenceTests {
     private static let keys = [
         "appMode", "isDryRun", "largeFileThresholdMB",
         "oldDownloadsAgeDays", "lifetimeScanCount", "lifetimeCleanedBytes",
+        "appLanguage",
     ]
 
     private func captureAndClear() -> [String: Any] {
@@ -53,6 +54,7 @@ struct AppStatePersistenceTests {
         #expect(state.oldDownloadsAgeDays == 90)
         #expect(state.lifetimeScanCount == 0)
         #expect(state.lifetimeCleanedBytes == 0)
+        #expect(state.language == .system)
     }
 
     @Test func writingModeIsPersisted() {
@@ -75,6 +77,16 @@ struct AppStatePersistenceTests {
         a.isDryRun = false
         let b = AppState()
         #expect(b.isDryRun == false)
+    }
+
+    @Test func writingLanguageIsPersisted() {
+        let saved = captureAndClear()
+        defer { restore(saved) }
+
+        let a = AppState()
+        a.language = .simplifiedChinese
+        let b = AppState()
+        #expect(b.language == .simplifiedChinese)
     }
 
     @Test func writingThresholdIsPersisted() {

@@ -37,7 +37,7 @@ struct MainView: View {
     /// banner after the auto-rescan finishes.
     @State private var pendingFreedSize: Int64 = 0
     /// The visible banner message. When non-nil, shown above the results.
-    @State private var freedBanner: String?
+    @State private var freedBanner: LocalizedStringKey?
     /// Cached volume-filtered views. Recomputed ONLY when the scan
     /// finishes or the user switches volumes — NOT on every category
     /// click. Without this cache, clicking a category re-walked every
@@ -248,7 +248,7 @@ struct MainView: View {
                     Text("Duplicates")
                         .font(.callout.weight(.medium))
                         .foregroundStyle(showDuplicates ? .white : .primary)
-                    Text("\(scanVM.duplicateSets.count) sets · \(totalDuplicateWaste.formattedFileSize) reclaimable")
+                    Text("^[\(scanVM.duplicateSets.count) set](inflect: true) · \(totalDuplicateWaste.formattedFileSize) reclaimable")
                         .font(.caption2)
                         .foregroundStyle(showDuplicates ? .white.opacity(0.85) : .secondary)
                         .lineLimit(1)
@@ -301,10 +301,10 @@ struct MainView: View {
         .padding(16)
     }
 
-    private var scanButtonLabel: String {
-        if scanVM.state.isCancelling { return String(localized: "Cancelling…") }
-        if scanVM.state.isScanning { return String(localized: "Cancel Scan") }
-        return String(localized: "Start Scan")
+    private var scanButtonLabel: LocalizedStringKey {
+        if scanVM.state.isCancelling { return "Cancelling…" }
+        if scanVM.state.isScanning { return "Cancel Scan" }
+        return "Start Scan"
     }
 
     private var scanButtonIcon: String {
@@ -565,14 +565,17 @@ struct MainView: View {
         let count = activeResult.totalFileCount
         let size = activeResult.totalSize.formattedFileSize
         let duration = scanVM.result.scanDuration
-        var parts = ["\(count) files", size]
+        var parts = [
+            L10n.format("header.files", defaultValue: "%d files", count),
+            size,
+        ]
         if let volumeID = selectedVolumeID,
            let volume = scanVM.scannedVolumes.first(where: { $0.id == volumeID })
         {
-            parts.insert("on \(volume.name)", at: 0)
+            parts.insert(L10n.format("header.onVolume", defaultValue: "on %@", volume.name), at: 0)
         }
         if duration > 0 {
-            parts.append("scanned in \(String(format: "%.1fs", duration))")
+            parts.append(L10n.format("header.scannedIn", defaultValue: "scanned in %@", String(format: "%.1fs", duration)))
         }
         if let completedAt = scanVM.state.completedScan?.completedAt {
             let formatter = RelativeDateTimeFormatter()
@@ -581,7 +584,7 @@ struct MainView: View {
         }
         let inaccessible = scanVM.result.inaccessibleCount
         if inaccessible > 0 {
-            parts.append("\(inaccessible) inaccessible")
+            parts.append(L10n.format("header.inaccessible", defaultValue: "%d inaccessible", inaccessible))
         }
         return parts.joined(separator: " · ")
     }
@@ -593,8 +596,15 @@ struct MainView: View {
         let paths = scanVM.result.inaccessiblePaths
         guard !paths.isEmpty else { return "" }
         let preview = paths.prefix(10).joined(separator: "\n")
-        let extra = paths.count > 10 ? "\n…and \(paths.count - 10) more" : ""
-        return "Inaccessible paths (sample):\n\(preview)\(extra)"
+        let extra = paths.count > 10
+            ? L10n.format("\n…and %d more", defaultValue: "\n…and %d more", paths.count - 10)
+            : ""
+        return L10n.format(
+            "Inaccessible paths (sample):\n%@%@",
+            defaultValue: "Inaccessible paths (sample):\n%@%@",
+            preview,
+            extra
+        )
     }
 
     private var bottomBar: some View {

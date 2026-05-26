@@ -32,7 +32,7 @@ struct FileDescriptionsIOSBackupTests {
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
 
         let fileInside = root.appending(path: "Manifest.db")
-        let description = FileDescriptions.describe(url: fileInside, category: .iosBackups)
+        let description = FileDescriptions.describe(url: fileInside, category: .iosBackups, locale: Locale(identifier: "en"))
 
         #expect(description.contains("iOS backup:"))
         #expect(description.contains("Jane's iPhone"))
@@ -43,7 +43,7 @@ struct FileDescriptionsIOSBackupTests {
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
 
         let fileInside = root.appending(path: "Manifest.db")
-        let description = FileDescriptions.describe(url: fileInside, category: .iosBackups)
+        let description = FileDescriptions.describe(url: fileInside, category: .iosBackups, locale: Locale(identifier: "en"))
 
         #expect(description.contains("iPhone14,5"))
     }

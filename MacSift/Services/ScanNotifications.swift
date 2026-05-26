@@ -32,8 +32,13 @@ enum ScanNotifications {
             guard granted else { return }
 
             let content = UNMutableNotificationContent()
-            content.title = "MacSift · Scan complete"
-            content.body = "\(fileCount) files · \(totalSize.formattedFileSize) recoverable"
+            content.title = L10n.text("MacSift · Scan complete", defaultValue: "MacSift · Scan complete")
+            content.body = L10n.format(
+                "notification.scanCompleteBody",
+                defaultValue: "%d files · %@ recoverable",
+                fileCount,
+                totalSize.formattedFileSize
+            )
             content.sound = .default
 
             let request = UNNotificationRequest(

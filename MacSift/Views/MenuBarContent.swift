@@ -77,9 +77,9 @@ struct MenuBarContent: View {
     private func metricRow(
         icon: String,
         tint: Color,
-        label: String,
-        primary: String,
-        secondary: String,
+        label: LocalizedStringKey,
+        primary: LocalizedStringKey,
+        secondary: LocalizedStringKey,
         fraction: Double
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -172,17 +172,17 @@ struct MenuBarContent: View {
         return .green
     }
 
-    private var cpuLabel: String {
+    private var cpuLabel: LocalizedStringKey {
         "\(Int(menuBarVM.metrics.cpuLoad * 100))% used"
     }
 
-    private var thermalLabel: String {
+    private var thermalLabel: LocalizedStringKey {
         switch menuBarVM.metrics.thermalState {
-        case .nominal: return String(localized: "Thermal: nominal")
-        case .fair: return String(localized: "Thermal: fair")
-        case .serious: return String(localized: "Thermal: serious")
-        case .critical: return String(localized: "Thermal: critical")
-        @unknown default: return String(localized: "Thermal: unknown")
+        case .nominal: return "Thermal: nominal"
+        case .fair: return "Thermal: fair"
+        case .serious: return "Thermal: serious"
+        case .critical: return "Thermal: critical"
+        @unknown default: return "Thermal: unknown"
         }
     }
 

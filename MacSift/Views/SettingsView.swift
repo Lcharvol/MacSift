@@ -214,18 +214,7 @@ struct SettingsView: View {
                 Task { await performUninstall() }
             }
         } message: {
-            Text(L10n.text("uninstall.message", defaultValue: """
-This will:
-
-• Erase all MacSift settings and excluded folders
-• Delete the audit log at ~/Library/Logs/MacSift
-• Remove any downloaded update zips from ~/Downloads
-• Move MacSift.app itself to the Trash
-
-MacSift will quit immediately after. Your scanned files and anything else on disk stay exactly where they are — only MacSift's own data is removed.
-
-You'll still need to revoke Full Disk Access manually in System Settings if you want it fully gone.
-"""))
+            Text("uninstall.message")
         }
         .alert("MacSift uninstalled", isPresented: $showUninstallResult) {
             Button("Quit") {

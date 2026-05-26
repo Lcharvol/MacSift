@@ -6,6 +6,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Simplified Chinese localization** (`zh-Hans`).
+- **In-app language picker** in Settings (System / English / Simplified
+  Chinese / French). Selecting a language sets `\.locale` on every scene so
+  SwiftUI re-renders against the matching `.lproj` bundle. The choice is
+  persisted across launches under `appLanguage`.
+- **`L10n` helper** for non-SwiftUI call sites (services, view models,
+  AppKit interop) that compose strings outside a `View.body` and therefore
+  can't rely on the environment locale. Caches resolved bundles to keep
+  per-file scan paths cheap.
+
 ## [0.1.4] — 2026-04-13
 
 ### Added

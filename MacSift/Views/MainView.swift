@@ -37,7 +37,7 @@ struct MainView: View {
     /// banner after the auto-rescan finishes.
     @State private var pendingFreedSize: Int64 = 0
     /// The visible banner message. When non-nil, shown above the results.
-    @State private var freedBanner: String?
+    @State private var freedBanner: LocalizedStringKey?
     /// Cached volume-filtered views. Recomputed ONLY when the scan
     /// finishes or the user switches volumes — NOT on every category
     /// click. Without this cache, clicking a category re-walked every
@@ -146,11 +146,7 @@ struct MainView: View {
                 // Post-cleanup banner: show "You freed X" for a few seconds
                 // after an auto-rescan triggered by a real cleanup.
                 if pendingFreedSize > 0 {
-                    freedBanner = L10n.format(
-                        "You just freed %@",
-                        defaultValue: "You just freed %@.",
-                        pendingFreedSize.formattedFileSize
-                    )
+                    freedBanner = "You just freed \(pendingFreedSize.formattedFileSize)."
                     pendingFreedSize = 0
                     scheduleBannerDismissal()
                 }
@@ -252,12 +248,7 @@ struct MainView: View {
                     Text("Duplicates")
                         .font(.callout.weight(.medium))
                         .foregroundStyle(showDuplicates ? .white : .primary)
-                    Text(L10n.format(
-                        "duplicates.sidebarSummary",
-                        defaultValue: "%d sets · %@ reclaimable",
-                        scanVM.duplicateSets.count,
-                        totalDuplicateWaste.formattedFileSize
-                    ))
+                    Text("^[\(scanVM.duplicateSets.count) set](inflect: true) · \(totalDuplicateWaste.formattedFileSize) reclaimable")
                         .font(.caption2)
                         .foregroundStyle(showDuplicates ? .white.opacity(0.85) : .secondary)
                         .lineLimit(1)
@@ -310,10 +301,10 @@ struct MainView: View {
         .padding(16)
     }
 
-    private var scanButtonLabel: String {
-        if scanVM.state.isCancelling { return L10n.text("Cancelling…", defaultValue: "Cancelling…") }
-        if scanVM.state.isScanning { return L10n.text("Cancel Scan", defaultValue: "Cancel Scan") }
-        return L10n.text("Start Scan", defaultValue: "Start Scan")
+    private var scanButtonLabel: LocalizedStringKey {
+        if scanVM.state.isCancelling { return "Cancelling…" }
+        if scanVM.state.isScanning { return "Cancel Scan" }
+        return "Start Scan"
     }
 
     private var scanButtonIcon: String {
@@ -619,12 +610,7 @@ struct MainView: View {
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if cleaningVM.selectedCount > 0 {
-                Text(L10n.format(
-                    "selection.fileCountAndSize",
-                    defaultValue: "%d files · %@",
-                    cleaningVM.selectedCount,
-                    cleaningVM.selectedSize.formattedFileSize
-                ))
+                Text("^[\(cleaningVM.selectedCount) file](inflect: true) · \(cleaningVM.selectedSize.formattedFileSize)")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -643,10 +629,7 @@ struct MainView: View {
                 Button {
                     cleaningVM.selectAllInCategory(category, files: files)
                 } label: {
-                    Label(
-                        L10n.format("Select all in %@", defaultValue: "Select all in %@", category.label),
-                        systemImage: "checkmark.circle"
-                    )
+                    Label("Select all in \(category.label)", systemImage: "checkmark.circle")
                 }
                 .compatGlassButtonStyle()
                 .controlSize(.large)

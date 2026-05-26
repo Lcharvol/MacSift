@@ -7,11 +7,11 @@ enum FileListSortOption: String, CaseIterable, Identifiable {
     case dateDesc
 
     var id: String { rawValue }
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
-        case .sizeDesc: L10n.text("sort.sizeDesc", defaultValue: "Size (largest first)")
-        case .nameAsc: L10n.text("sort.nameAsc", defaultValue: "Name (A-Z)")
-        case .dateDesc: L10n.text("sort.mostRecent", defaultValue: "Most recent first")
+        case .sizeDesc: "sort.sizeDesc"
+        case .nameAsc: "sort.nameAsc"
+        case .dateDesc: "sort.mostRecent"
         }
     }
 }
@@ -111,11 +111,7 @@ struct FileListSection: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 6) {
-                            Text(L10n.format(
-                                "+ %d smaller groups not shown",
-                                defaultValue: "+ %d smaller groups not shown",
-                                hidden
-                            ))
+                            Text("+ \(hidden) smaller groups not shown")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Show all") {
@@ -169,11 +165,11 @@ private struct FileListEmptyState: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var emptyTitle: String {
+    private var emptyTitle: LocalizedStringKey {
         guard let category else {
-            return L10n.text("No files found", defaultValue: "No files found")
+            return "No files found"
         }
-        return L10n.format("No %@ found", defaultValue: "No %@ found", category.label.lowercased())
+        return "No \(category.label.lowercased()) found"
     }
 }
 
@@ -185,7 +181,7 @@ private struct FileListNoMatchesState: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
-            Text(L10n.format("No matches for \"%@\"", defaultValue: "No matches for \"%@\"", query))
+            Text("No matches for \"\(query)\"")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }

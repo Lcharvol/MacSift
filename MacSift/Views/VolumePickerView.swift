@@ -24,11 +24,11 @@ struct VolumePickerView: View {
                     iconName: "externaldrive.connected.to.line.below",
                     size: sizeByVolume.values.reduce(0, +),
                     id: nil,
-                    subtitle: L10n.format("%d mounted", defaultValue: "%d mounted", volumes.count)
+                    subtitle: "\(volumes.count) mounted"
                 )
                 ForEach(volumes) { volume in
                     volumeButton(
-                        label: volume.name,
+                        label: LocalizedStringKey(volume.name),
                         iconName: volume.isBoot ? "laptopcomputer" : "externaldrive",
                         size: sizeByVolume[volume.id] ?? 0,
                         id: volume.id,
@@ -41,7 +41,7 @@ struct VolumePickerView: View {
         .padding(.bottom, 6)
     }
 
-    private func volumeButton(label: String, iconName: String, size: Int64, id: String?, subtitle: String) -> some View {
+    private func volumeButton(label: LocalizedStringKey, iconName: String, size: Int64, id: String?, subtitle: LocalizedStringKey) -> some View {
         let isSelected = selectedVolumeID == id
         return Button {
             selectedVolumeID = id
@@ -81,12 +81,12 @@ struct VolumePickerView: View {
         .buttonStyle(.plain)
     }
 
-    private func capacitySubtitle(for volume: Volume) -> String {
+    private func capacitySubtitle(for volume: Volume) -> LocalizedStringKey {
         guard volume.totalCapacity > 0 else {
             return volume.isBoot ? "Startup disk" : "External"
         }
         let free = volume.availableCapacity.formattedFileSize
         let total = volume.totalCapacity.formattedFileSize
-        return L10n.format("%@ free of %@", defaultValue: "%@ free of %@", free, total)
+        return "\(free) free of \(total)"
     }
 }

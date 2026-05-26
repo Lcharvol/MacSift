@@ -72,7 +72,6 @@
 "Startup disk" = "Disque de démarrage";
 "External" = "Externe";
 "mounted" = "montés";
-"free" = "libres";
 "%d mounted" = "%d montés";
 "%@ free of %@" = "%@ libres sur %@";
 

@@ -97,6 +97,13 @@ struct CleaningEngineIntegrationTests {
     }
 
     @Test func neverDeletesSystemPaths() async throws {
+        // Force English so the assertion below isn't sensitive to the host
+        // machine's preferred language. The message is user-facing and will
+        // be translated for real users, but tests must be locale-stable.
+        let previous = L10n.currentLanguage
+        L10n.setLanguage(.english)
+        defer { L10n.setLanguage(previous) }
+
         let systemFile = ScannedFile(
             url: URL(filePath: "/System/Library/CoreServices/Finder.app/Contents/Info.plist"),
             size: 1000,

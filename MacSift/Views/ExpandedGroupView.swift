@@ -49,12 +49,7 @@ struct ExpandedGroupView: View {
             VStack(alignment: .trailing, spacing: 1) {
                 Text(group.label)
                     .font(.callout.weight(.semibold))
-                Text(L10n.format(
-                    "group.filesAndSize",
-                    defaultValue: "%d files · %@",
-                    group.fileCount,
-                    group.totalSize.formattedFileSize
-                ))
+                Text("\(group.fileCount) files · \(group.totalSize.formattedFileSize)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -50,14 +50,9 @@ struct DuplicatesListView: View {
     private func header(for set: DuplicateSet) -> some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.format(
-                    "duplicate.setHeader",
-                    defaultValue: "%d copies · %@ each",
-                    set.count,
-                    set.size.formattedFileSize
-                ))
+                Text("^[\(set.count) copies](inflect: true) · \(set.size.formattedFileSize) each")
                     .font(.callout.weight(.semibold))
-                Text(L10n.format("%@ recoverable", defaultValue: "%@ recoverable", set.wastedBytes.formattedFileSize))
+                Text("\(set.wastedBytes.formattedFileSize) reclaimable")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

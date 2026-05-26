@@ -212,7 +212,6 @@
 // Update banner
 "%@ is available" = "%@ 可用";
 "MacSift %@ is available" = "MacSift %@ 可用";
-"%@ is available" = "%@ 可用";
 "is available" = "可用";
 "You have" = "当前版本";
 "download" = "下载";

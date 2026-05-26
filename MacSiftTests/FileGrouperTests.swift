@@ -6,6 +6,12 @@ import Foundation
 struct FileGrouperTests {
     private let home = FileManager.default.homeDirectoryForCurrentUser
 
+    /// Group labels are user-facing and translated. Tests assert against the
+    /// English text, so force the language for the duration of the suite.
+    init() {
+        L10n.setLanguage(.english)
+    }
+
     private func makeFile(_ relative: String, size: Int64, category: FileCategory) -> ScannedFile {
         let url = home.appending(path: relative)
         return ScannedFile(

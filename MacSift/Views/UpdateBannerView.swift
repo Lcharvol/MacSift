@@ -16,11 +16,7 @@ struct UpdateBannerView: View {
                     .foregroundStyle(.blue)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(L10n.format(
-                        "MacSift %@ is available",
-                        defaultValue: "MacSift %@ is available",
-                        info.latestVersion
-                    ))
+                    Text("MacSift \(info.latestVersion) is available")
                         .font(.callout.weight(.semibold))
                     Text(subtitle(for: info))
                         .font(.caption)

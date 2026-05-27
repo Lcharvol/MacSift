@@ -1211,3 +1211,51 @@ code {
     .mockup { grid-template-columns: 1fr; }
     .mk-sidebar { display: none; }
 }
+
+/* ========================================================================
+   OSS stats — Installs + GitHub stars, fed by docs/script.js
+   ======================================================================== */
+
+.oss-stats {
+    padding: 40px 0 0;
+}
+
+.oss-stats__grid {
+    display: flex;
+    justify-content: center;
+    gap: 96px;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 0;
+    border-top: 1px solid var(--rule-soft);
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.oss-stat {
+    text-align: center;
+    flex: 0 0 auto;
+    min-width: 120px;
+}
+
+.oss-stat__num {
+    font-family: 'Instrument Serif', 'New York', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(2.4rem, 5vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.oss-stat__lbl {
+    margin-top: 8px;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+@media (max-width: 480px) {
+    .oss-stats__grid { gap: 48px; padding: 24px 0; }
+    .oss-stat { min-width: 0; }
+}

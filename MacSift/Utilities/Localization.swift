@@ -101,13 +101,28 @@ enum L10n {
         resource: String = "Localizable",
         type: String = "strings"
     ) -> String? {
-        Bundle.module.path(forResource: resource, ofType: type, inDirectory: nil, forLocalization: localization)
+        resourceBundle.path(forResource: resource, ofType: type, inDirectory: nil, forLocalization: localization)
     }
+
+    /// Resource bundle to load `.lproj` content from.
+    ///
+    /// In the shipped `.app`, `build-app.sh` flattens the `.lproj` directories
+    /// into `Contents/Resources/`, so `Bundle.main` is the right place to look
+    /// and the SwiftPM-generated `Bundle.module` would either crash (release
+    /// builds, see issue #6) or point at the developer's build path. In
+    /// tests, `Bundle.main` is the test runner and has no `.lproj`s, so we
+    /// fall back to `Bundle.module`.
+    static let resourceBundle: Bundle = {
+        if Bundle.main.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: "en") != nil {
+            return .main
+        }
+        return .module
+    }()
 
     private static func bundle(for locale: Locale) -> Bundle {
         // SwiftPM lowercases `.lproj` directory names on disk (e.g.
         // `zh-Hans.lproj` → `zh-hans.lproj`), so we probe a few variants of
-        // the locale identifier before falling back to the module bundle.
+        // the locale identifier before falling back to the resource bundle.
         let candidates: [String] = {
             var out: [String] = []
             if let id = Optional(locale.identifier), !id.isEmpty {
@@ -123,14 +138,14 @@ enum L10n {
 
         for identifier in candidates {
             let resolved = bundleCache.bundle(for: identifier) {
-                if let path = Bundle.module.path(forResource: identifier, ofType: "lproj"),
+                if let path = resourceBundle.path(forResource: identifier, ofType: "lproj"),
                    let b = Bundle(path: path) {
                     return b
                 }
-                return .module
+                return resourceBundle
             }
-            if resolved !== Bundle.module { return resolved }
+            if resolved !== resourceBundle { return resolved }
         }
-        return .module
+        return resourceBundle
     }
 }

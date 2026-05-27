@@ -55,13 +55,17 @@ if [ -f "AppIcon.icns" ]; then
 fi
 
 # SwiftPM stashes localized resources in a per-target bundle called
-# MacSift_MacSift.bundle. Copy the whole bundle (so Bundle.module works
-# for any code that references it explicitly) AND flatten the .lproj
-# directories into the .app's Contents/Resources so SwiftUI's default
-# Bundle.main lookup auto-localizes `Text("literal")` calls.
+# MacSift_MacSift.bundle. We flatten its .lproj directories into the .app's
+# Contents/Resources so both `Bundle.main` (used by SwiftUI's `Text("literal")`
+# auto-localization) and our own `L10n` helper find them — `L10n` prefers
+# Bundle.main in the shipped app since the SwiftPM-generated `Bundle.module`
+# either crashes (release builds, issue #6) or points at the developer's
+# absolute build path. Do NOT also copy MacSift_MacSift.bundle into the
+# app — placing it at Contents/Resources/ has no effect, and placing it at
+# the .app root breaks code-signing ("unsealed contents present in bundle
+# root").
 SPM_RESOURCE_BUNDLE="$BIN_PATH/MacSift_MacSift.bundle"
 if [ -d "$SPM_RESOURCE_BUNDLE" ]; then
-    cp -R "$SPM_RESOURCE_BUNDLE" "$BUNDLE/Contents/Resources/"
     for lproj in "$SPM_RESOURCE_BUNDLE"/*.lproj; do
         [ -d "$lproj" ] || continue
         cp -R "$lproj" "$BUNDLE/Contents/Resources/"

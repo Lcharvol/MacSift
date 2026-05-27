@@ -6,6 +6,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-05-27
+
+### Fixed
+- **App crashed on launch in release builds** (#6). SwiftPM's auto-generated
+  `Bundle.module` accessor expects the resource bundle at
+  `Bundle.main.bundleURL/MacSift_MacSift.bundle` (the `.app` root), but
+  `build-app.sh` only copied it under `Contents/Resources/`. The accessor's
+  hardcoded absolute build path masked the bug on the developer's own machine,
+  so end users were the first to hit the `fatalError` on first localized
+  string lookup. `L10n` now routes every lookup through a `resourceBundle`
+  static that prefers `Bundle.main` (where the `.lproj` directories are
+  already flattened) and only falls back to `Bundle.module` in the test
+  runner. Reported by @eryajf.
+
 ## [0.4.0] — 2026-05-26
 
 ### Added

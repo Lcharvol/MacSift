@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an improvement.
+
+        The best feature requests start from a real problem you've had, not from a UI tweak you'd like to see. The questions below try to surface that problem.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation. Don't jump to the solution yet.
+      placeholder: I have ~400 GB tied up in Xcode DerivedData across 30 projects and want to clean only the ones I haven't opened in 6 months — but MacSift only groups them by project name, not by last-used date.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like MacSift to do?
+      description: Your proposed feature. Be as specific as you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectations
+    attributes:
+      label: What would you expect to happen differently?
+      description: UX, UI, or engine-level. A rough mockup or a few lines of pseudo-code are welcome.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Have you considered alternatives?
+      description: Other tools, workarounds, or different angles on the same problem.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Would you be willing to help build this?
+      description: No pressure — small contributions are very welcome.
+      options:
+        - "I'd open a PR if someone scopes it out"
+        - "I can help test a beta build"
+        - "I'd rather just describe the problem and let someone else build it"
+    validations:
+      required: false

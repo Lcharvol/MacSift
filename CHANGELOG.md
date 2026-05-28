@@ -6,6 +6,29 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Selection and cleaning freezes on large scans.** Three compounding
+  causes were pulling the main actor into multi-second stalls on scans
+  with 50k+ files:
+  1. `FileGroup.fileIDs` was a computed property that re-allocated a
+     `Set<String>` on every access. `FileListSection.body` reads it once
+     per visible row, so every selection toggle scaled with the *total*
+     number of grouped files, not the number of selected files. It's now
+     stored, built once in `FileGrouper`.
+  2. `CleaningViewModel.selectionSummary(using:)` walked every file in
+     every group on every selection mutation — O(total scanned files)
+     per click. The rewrite walks `selectedIDs` against a pre-built
+     `fileToGroupID` reverse index, which is O(selected). On a 50k-file
+     scan with one row selected, this is 5 orders of magnitude faster.
+  3. `setSelectedIDs` published *two* `@Published` properties back-to-back
+     (`selectedIDs` and `selectionVersion`), causing two SwiftUI render
+     passes per click. `selectedIDs` is no longer `@Published`; only
+     `selectionVersion` signals changes.
+
+  Added `SelectionPerformanceTests` to guard the new bounds: 100 group
+  toggles on 50k files under 500ms, 100 summary calls on 50k files with
+  1 selected under 200ms.
+
 ## [0.4.1] — 2026-05-27
 
 ### Fixed

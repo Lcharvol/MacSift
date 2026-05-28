@@ -21,12 +21,13 @@ struct FileGroup: Identifiable, Hashable, Sendable {
     let mostRecentModificationDate: Date
     /// Best representative URL for "Reveal in Finder" style actions.
     let representativeURL: URL
+    /// Set of underlying file ids — used for selection roll-up. Stored, not
+    /// computed: `FileListSection` reads it once per visible row on every
+    /// render, and rebuilding the Set per access turned every selection
+    /// toggle into O(sum of all visible group sizes) of hash work on the
+    /// main thread. Built once in `FileGrouper` and shared by all renders.
+    let fileIDs: Set<String>
     /// True when this group contains more than one file. Used by the UI to
     /// decide whether to show a count badge / drill-down affordance.
     var isAggregated: Bool { fileCount > 1 }
-
-    /// Set of underlying file ids — used for selection roll-up.
-    var fileIDs: Set<String> {
-        Set(files.map(\.id))
-    }
 }

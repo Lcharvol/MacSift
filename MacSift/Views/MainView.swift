@@ -130,7 +130,7 @@ struct MainView: View {
                 showDuplicates = false
             }
             if newState.isCompleted {
-                cleaningVM.updateFileIndex(from: scanVM.result)
+                cleaningVM.updateFileIndex(from: scanVM.result, groups: scanVM.allSortedGroups)
                 refreshSelectionSummary()
                 // Drop the volume filter if the selected volume isn't in
                 // the fresh result (e.g., it was unplugged between scans).

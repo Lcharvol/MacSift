@@ -10,19 +10,24 @@ final class CleaningViewModel: ObservableObject {
     }
 
     @Published var state: State = .idle
-    /// Backing storage for the current selection. Kept private so every
-    /// mutation bumps `selectionVersion` — observers use the int instead
-    /// of comparing the whole Set on each SwiftUI render.
-    @Published private(set) var selectedIDs: Set<String> = []
-    /// Increments on every mutation of `selectedIDs`. SwiftUI views
-    /// should `onChange(of: selectionVersion)` instead of the Set itself
-    /// — comparing a 10k-element Set for equality is O(n) per render.
+    /// Current selection. Intentionally NOT `@Published` — observers read
+    /// it through the VM in their body, but mutations are signalled via
+    /// the `selectionVersion` integer below. Publishing both fired
+    /// `objectWillChange` twice per click, doubling SwiftUI render work
+    /// for no behavioral gain.
+    private(set) var selectedIDs: Set<String> = []
+    /// Sole `@Published` signal for selection changes. Increments on every
+    /// mutation. SwiftUI invalidates any view observing the VM as soon as
+    /// this fires; that view's next body re-reads `selectedIDs` fresh.
+    /// Comparing a Set with thousands of entries via `Equatable` in
+    /// `onChange(of:)` is O(n); comparing an Int is O(1).
     @Published private(set) var selectionVersion: Int = 0
     @Published var report: CleaningReport?
     @Published var cleaningProgress: CleaningProgress?
     @Published var showPreview: Bool = false
 
-    /// Replace the selection wholesale. Bumps `selectionVersion` exactly once.
+    /// Replace the selection wholesale. Bumps `selectionVersion` exactly
+    /// once — that's the only signal SwiftUI needs to invalidate observers.
     func setSelectedIDs(_ newValue: Set<String>) {
         selectedIDs = newValue
         selectionVersion &+= 1
@@ -38,41 +43,74 @@ final class CleaningViewModel: ObservableObject {
     /// a separate handle so we can cancel it directly — `Task.detached`
     /// does NOT inherit cancellation from the surrounding task, so the
     /// outer cancellation alone would let the heavy work keep running.
-    private var indexBuildInnerTask: Task<[String: ScannedFile], Never>?
+    private var indexBuildInnerTask: Task<IndexBuildResult, Never>?
+
+    /// Result of the off-main index build. Both lookups are O(1) and are
+    /// reused by `selectionSummary` so it doesn't have to walk every file
+    /// of every group on every selection mutation.
+    private struct IndexBuildResult: Sendable {
+        let fileIndex: [String: ScannedFile]
+        /// For every file id, the id of the `FileGroup` that contains it.
+        /// Lets `selectionSummary` count distinct selected groups in
+        /// O(selected) instead of O(sum of all group sizes).
+        let fileToGroupID: [String: String]
+    }
 
     init(appState: AppState) {
         self.appState = appState
     }
 
-    func updateFileIndex(from result: ScanResult) {
+    /// For every file id, the id of the `FileGroup` that contains it.
+    /// Populated alongside `fileIndex` so `selectionSummary` can count
+    /// distinct selected groups in O(selected) instead of O(total files).
+    private var fileToGroupID: [String: String] = [:]
+
+    func updateFileIndex(from result: ScanResult, groups: [FileGroup]) {
         // Cancel any in-flight index build (both the outer wrapper AND the
         // detached inner task, because detached tasks don't inherit
         // cancellation from enclosing tasks).
         indexBuildInnerTask?.cancel()
         indexBuildTask?.cancel()
 
-        let inner = Task.detached(priority: .userInitiated) { () -> [String: ScannedFile] in
+        let inner = Task.detached(priority: .userInitiated) { () -> IndexBuildResult in
             var dict: [String: ScannedFile] = [:]
+            var ownerByID: [String: String] = [:]
             var counter = 0
             for files in result.filesByCategory.values {
                 for file in files {
                     counter += 1
                     // Check cancellation periodically so an abandoned build
                     // stops walking within milliseconds of the cancel call.
-                    if counter % 2000 == 0 && Task.isCancelled { return dict }
+                    if counter % 2000 == 0 && Task.isCancelled {
+                        return IndexBuildResult(fileIndex: dict, fileToGroupID: ownerByID)
+                    }
                     dict[file.id] = file
                 }
             }
-            return dict
+            // Build the file→group reverse index from the supplied groups.
+            // Cheap relative to the file walk above — each file appears in
+            // exactly one group, so this is O(total files) total.
+            for group in groups {
+                let groupID = group.id
+                for fileID in group.fileIDs {
+                    ownerByID[fileID] = groupID
+                }
+                if counter & 0xFFF == 0 && Task.isCancelled {
+                    return IndexBuildResult(fileIndex: dict, fileToGroupID: ownerByID)
+                }
+                counter += 1
+            }
+            return IndexBuildResult(fileIndex: dict, fileToGroupID: ownerByID)
         }
         indexBuildInnerTask = inner
 
         indexBuildTask = Task { [weak self] in
-            let dict = await inner.value
+            let built = await inner.value
             if Task.isCancelled { return }
             guard let self else { return }
-            self.fileIndex = dict
-            self.setSelectedIDs(self.selectedIDs.intersection(dict.keys))
+            self.fileIndex = built.fileIndex
+            self.fileToGroupID = built.fileToGroupID
+            self.setSelectedIDs(self.selectedIDs.intersection(built.fileIndex.keys))
         }
     }
 
@@ -86,28 +124,32 @@ final class CleaningViewModel: ObservableObject {
         }
     }
 
-    /// Build an aggregate summary from the current selection + the scan's
-    /// grouped view. `allGroups` is typically `scanVM.allSortedGroups`.
-    func selectionSummary(using allGroups: [FileGroup]) -> SelectionSummary {
+    /// Build an aggregate summary from the current selection. The signature
+    /// still accepts `allGroups` so existing call sites compile, but it's
+    /// unused — the actual work walks `selectedIDs` against the pre-built
+    /// `fileIndex` and `fileToGroupID` reverse-index, which is O(selected)
+    /// instead of O(sum of all group sizes). On big scans with thousands
+    /// of selected files this is the difference between a freeze-y click
+    /// and a noop.
+    func selectionSummary(using allGroups: [FileGroup] = []) -> SelectionSummary {
+        _ = allGroups
         guard !selectedIDs.isEmpty else {
             return SelectionSummary(groupCount: 0, fileCount: 0, totalSize: 0, countByCategory: [:])
         }
-        var groupCount = 0
-        var fileCount = 0
         var total: Int64 = 0
         var counts: [FileCategory: Int] = [:]
-        for group in allGroups {
-            // A group counts if ANY of its files are selected (partial or full)
-            let selectedFilesInGroup = group.files.filter { selectedIDs.contains($0.id) }
-            guard !selectedFilesInGroup.isEmpty else { continue }
-            groupCount += 1
-            fileCount += selectedFilesInGroup.count
-            total += selectedFilesInGroup.reduce(0) { $0 + $1.size }
-            counts[group.category, default: 0] += selectedFilesInGroup.count
+        var distinctGroups: Set<String> = []
+        for id in selectedIDs {
+            guard let file = fileIndex[id] else { continue }
+            total += file.size
+            counts[file.category, default: 0] += 1
+            if let owner = fileToGroupID[id] {
+                distinctGroups.insert(owner)
+            }
         }
         return SelectionSummary(
-            groupCount: groupCount,
-            fileCount: fileCount,
+            groupCount: distinctGroups.count,
+            fileCount: counts.values.reduce(0, +),
             totalSize: total,
             countByCategory: counts
         )

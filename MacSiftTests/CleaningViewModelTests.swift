@@ -26,7 +26,8 @@ struct CleaningViewModelTests {
             files: files,
             topFiles: files,
             mostRecentModificationDate: .now,
-            representativeURL: URL(filePath: "/tmp/group-test")
+            representativeURL: URL(filePath: "/tmp/group-test"),
+            fileIDs: Set(files.map(\.id))
         )
     }
 
@@ -38,7 +39,7 @@ struct CleaningViewModelTests {
             dict[file.category, default: []].append(file)
         }
         let result = ScanResult(filesByCategory: dict, scanDuration: 0)
-        vm.updateFileIndex(from: result)
+        vm.updateFileIndex(from: result, groups: [])
         // updateFileIndex runs asynchronously — give it a moment to settle.
         // In production we'd wait on the internal Task, but for tests we can
         // just call it and then directly set the index via the public API.

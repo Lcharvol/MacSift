@@ -28,16 +28,17 @@ struct CleaningViewModelCoverageTests {
             files: files,
             topFiles: files,
             mostRecentModificationDate: .now,
-            representativeURL: URL(filePath: "/tmp/cov-\(id)")
+            representativeURL: URL(filePath: "/tmp/cov-\(id)"),
+            fileIDs: Set(files.map(\.id))
         )
     }
 
-    private func makeVM(with files: [ScannedFile]) -> CleaningViewModel {
+    private func makeVM(with files: [ScannedFile], groups: [FileGroup] = []) -> CleaningViewModel {
         let appState = AppState()
         let vm = CleaningViewModel(appState: appState)
         var dict: [FileCategory: [ScannedFile]] = [:]
         for file in files { dict[file.category, default: []].append(file) }
-        vm.updateFileIndex(from: ScanResult(filesByCategory: dict, scanDuration: 0))
+        vm.updateFileIndex(from: ScanResult(filesByCategory: dict, scanDuration: 0), groups: groups)
         return vm
     }
 
@@ -48,7 +49,7 @@ struct CleaningViewModelCoverageTests {
         let logGroup = makeGroup(id: "logGroup", files: logFiles, category: .logs)
         let allGroups = [cacheGroup, logGroup]
 
-        let vm = makeVM(with: cacheFiles + logFiles)
+        let vm = makeVM(with: cacheFiles + logFiles, groups: allGroups)
         // Let the async updateFileIndex settle so selectedIDs intersection
         // doesn't clobber our selection below. Two yields is more than
         // enough for the detached task.

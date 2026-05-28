@@ -72,7 +72,8 @@ enum FileGrouper {
                 files: files,
                 topFiles: topNLargest(files, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: files),
-                representativeURL: representative
+                representativeURL: representative,
+                fileIDs: Set(files.map(\.id))
             )]
         case .timeMachineSnapshots, .tempFiles, .largeFiles, .oldDownloads:
             return files.map(singletonGroup)
@@ -143,7 +144,8 @@ enum FileGrouper {
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: bucketFiles),
-                representativeURL: bucketFiles[0].url.deletingLastPathComponent()
+                representativeURL: bucketFiles[0].url.deletingLastPathComponent(),
+                fileIDs: Set(bucketFiles.map(\.id))
             )
         }
         .sorted { $0.totalSize > $1.totalSize }
@@ -199,7 +201,8 @@ enum FileGrouper {
                 files: bucket.files,
                 topFiles: topNLargest(bucket.files, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: bucket.files),
-                representativeURL: bucket.files[0].url.deletingLastPathComponent()
+                representativeURL: bucket.files[0].url.deletingLastPathComponent(),
+                fileIDs: Set(bucket.files.map(\.id))
             )
         }
         .sorted { $0.totalSize > $1.totalSize }
@@ -260,7 +263,8 @@ enum FileGrouper {
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: bucketFiles),
-                representativeURL: representative
+                representativeURL: representative,
+                fileIDs: Set(bucketFiles.map(\.id))
             ))
         }
 
@@ -277,7 +281,8 @@ enum FileGrouper {
                 files: systemBucket,
                 topFiles: topNLargest(systemBucket, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: systemBucket),
-                representativeURL: systemBucket[0].url
+                representativeURL: systemBucket[0].url,
+                fileIDs: Set(systemBucket.map(\.id))
             ))
         }
 
@@ -321,7 +326,8 @@ enum FileGrouper {
                 files: bucketFiles,
                 topFiles: topNLargest(bucketFiles, count: topFilesPreviewCount),
                 mostRecentModificationDate: mostRecentDate(in: bucketFiles),
-                representativeURL: backupRoot
+                representativeURL: backupRoot,
+                fileIDs: Set(bucketFiles.map(\.id))
             )
         }
         .sorted { $0.totalSize > $1.totalSize }
@@ -339,7 +345,8 @@ enum FileGrouper {
             files: [file],
             topFiles: [file],
             mostRecentModificationDate: file.modificationDate,
-            representativeURL: file.url
+            representativeURL: file.url,
+            fileIDs: [file.id]
         )
     }
 }

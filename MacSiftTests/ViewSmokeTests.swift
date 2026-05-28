@@ -31,7 +31,8 @@ struct ViewSmokeTests {
             files: files,
             topFiles: files,
             mostRecentModificationDate: .now,
-            representativeURL: URL(filePath: "/tmp/view-smoke-\(label)")
+            representativeURL: URL(filePath: "/tmp/view-smoke-\(label)"),
+            fileIDs: Set(files.map(\.id))
         )
     }
 

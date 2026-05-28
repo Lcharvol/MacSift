@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the changelog
+    url: https://github.com/Lcharvol/MacSift/blob/main/CHANGELOG.md
+    about: Behavior changed after an update? Check the changelog first — it might be intentional.
+  - name: Install via Homebrew
+    url: https://github.com/Lcharvol/homebrew-macsift
+    about: Install or update instructions for the Homebrew cask.

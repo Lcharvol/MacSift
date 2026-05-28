@@ -1,0 +1,116 @@
+name: Bug report
+description: Something in MacSift doesn't work the way you expect
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug.
+
+        Before submitting, please check the [open issues](https://github.com/Lcharvol/MacSift/issues?q=is%3Aissue) — it might already be reported.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the bug in one or two sentences.
+      placeholder: When I click "Start Scan", the app freezes and never shows results.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that someone else can follow to see the same bug.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / logs
+      description: Drag a screenshot into this field, or paste log output / crash report. Optional but very helpful.
+    validations:
+      required: false
+
+  - type: input
+    id: macsift-version
+    attributes:
+      label: MacSift version
+      description: Visible in MacSift → About, or in the hero of the landing page.
+      placeholder: e.g., 0.4.1
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Apple menu → About This Mac.
+      placeholder: e.g., 15.7.7 or 26.2
+    validations:
+      required: true
+
+  - type: input
+    id: mac-model
+    attributes:
+      label: Mac model
+      placeholder: e.g., MacBook Pro M2, Mac mini M1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dry-run
+    attributes:
+      label: Was Dry Run on when the bug happened?
+      options:
+        - "Yes — Dry Run was ON (nothing was actually deleted)"
+        - "No — Dry Run was OFF"
+        - "Not applicable (bug happened before scanning / cleaning)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fda
+    attributes:
+      label: Is Full Disk Access granted to MacSift?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install MacSift?
+      options:
+        - "Homebrew cask (brew install --cask lcharvol/macsift/macsift)"
+        - "Downloaded MacSift.zip from GitHub Releases"
+        - "Built from source (swift build / build-app.sh)"
+        - "Other / not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Anything else that might help — recent macOS update, unusual disk setup, third-party security tools, etc.
+    validations:
+      required: false

@@ -90,13 +90,13 @@ enum FileDescriptions {
     private static func describeIOSBackup(url: URL, locale: Locale) -> String {
         let path = url.path(percentEncoded: false)
         // Find the backup root: the path component immediately after "Backup/"
-        guard let backupRange = path.range(of: "MobileSync/Backup/") else {
+        // Case-insensitive search because macOS filesystems are case-insensitive
+        // by default — the actual path casing may differ from the canonical form.
+        guard let backupRange = path.range(of: "MobileSync/Backup/", options: .caseInsensitive) else {
             return L10n.format("description.iosBackupNamed", defaultValue: "iOS backup: %@", locale: locale, url.lastPathComponent)
         }
         let afterBackup = path[backupRange.upperBound...]
-        guard let firstSlash = afterBackup.firstIndex(of: "/") ?? afterBackup.endIndex as String.Index? else {
-            return L10n.format("description.iosBackupNamed", defaultValue: "iOS backup: %@", locale: locale, url.lastPathComponent)
-        }
+        let firstSlash = afterBackup.firstIndex(of: "/") ?? afterBackup.endIndex
         let backupID = String(afterBackup[..<firstSlash])
         let backupRootPath = String(path[..<backupRange.upperBound]) + backupID
 

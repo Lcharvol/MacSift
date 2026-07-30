@@ -26,6 +26,14 @@ struct FileDescriptionsTests {
         #expect(desc.contains("iOS"))
     }
 
+    @Test func describesIOSBackupWithNonCanonicalCasing() {
+        // macOS filesystems are case-insensitive by default, so the actual
+        // path may use different casing than the canonical "MobileSync/Backup/".
+        let url = URL(filePath: "/Users/test/Library/Application Support/mobilesync/backup/abc123")
+        let desc = FileDescriptions.describe(url: url, category: .iosBackups, locale: english)
+        #expect(desc.contains("iOS"))
+    }
+
     @Test func fallsBackToGenericDescription() {
         let url = URL(filePath: "/tmp/random_file.dat")
         let desc = FileDescriptions.describe(url: url, category: .tempFiles, locale: english)

@@ -7,6 +7,71 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **UI freezes traced to the concurrency model, not the view layer.** The
+  earlier round of fixes removed the O(n) work from `View.body`; these are
+  the causes that were left underneath.
+  1. **Thread-pool starvation during scans.** `scanDirectory` /
+     `scanForLargeFiles` are synchronous and never suspend, so running them
+     directly inside `withTaskGroup` pinned one cooperative thread each for
+     the walk's whole duration. The pool is capped near the core count and
+     `ScanViewModel` fans out one scanner per volume x ~22 targets, so it was
+     exhausted — and the progress accumulator's `await MainActor.run` hops
+     queued behind a saturated executor. That was the stalled-then-jumping
+     file counter. Walks now run on a dedicated queue behind a process-wide
+     async gate. Hoisting a per-file `Set(keys)` allocation out of the hot
+     loop took 177k files from 4.33s to 1.25s.
+  2. **The cleaning sheet recomputed the whole selection per category, per
+     render.** `selectedByCategory` was a computed property doing a
+     `Dictionary(grouping:)` over every selected file, read once per
+     category inside a `ForEach` — ~550k hash lookups plus 11 large
+     dictionary allocations per render pass on a 50k-file selection, and the
+     sheet re-renders on every progress tick. Now memoized, invalidated
+     lazily on mutation.
+  3. **Dry-run progress hopped to the main actor once per file.** The engine
+     yielded an event per file and the consumer assigned an `@Published`
+     property for each one — 100k+ main-actor hops and SwiftUI
+     invalidations. Throttled to ~4/sec in the consumer.
+  4. **Duplicate detection blocked scan completion and could not be
+     cancelled.** It reads candidate files in full, serially, and the
+     dedupable categories are exactly the large ones. Now parallel (bounded
+     4...8) and cancellable; `ScanViewModel` holds the detached task's handle,
+     without which the cancellation checks were unreachable.
+
+- **Files under a miscased directory were misclassified or silently
+  dropped.** macOS boot volumes are case-insensitive, so a directory whose
+  real name is `library` or `DOWNLOADS` can exist — and is the only name for
+  it. Every path rule in `CategoryClassifier` used a case-sensitive
+  `hasPrefix`, so a file under `~/library/Caches/` missed the `.cache` rule
+  and, under the large-file threshold, returned `nil` and vanished from the
+  scan entirely. Matching now folds to lowercase ASCII bytes; this also made
+  classification 9.8x faster (537ms -> 55ms per 100k paths) by removing a
+  per-rule string interpolation from the per-file path.
+
+- **Large files on external volumes were invisible.** The large-file sweep's
+  skip list conflated "another scan target covers this" (`Library/`,
+  `Downloads/`) with "this is build noise" (`node_modules`, `.git`). The
+  former only holds on the boot volume: in `.externalVolume` mode the sweep
+  is the only walk, so those directories were scanned by nothing at all. A
+  user with 500 GB under `/Volumes/Backup/Library/` saw an empty result with
+  no indication anything had been omitted. The skip list is now
+  mode-dependent.
+
+- **A failed path strip silently disabled the sweep's entire skip list.** The
+  URL APIs and `FileManager.enumerator` disagree about the same directory —
+  `temporaryDirectory` reports `/var/folders/...` and neither
+  `resolvingSymlinksInPath()` nor `realpath(3)` rewrites it, yet the
+  enumerator emits `/private/var/folders/...`. When the prefix strip failed,
+  the relative skip entries could never match and the sweep quietly walked
+  directories it was told to skip. Now resolved via `.canonicalPathKey`, with
+  an absolute-path fallback.
+
+### Changed
+- **Scans show a "Finishing up" phase.** After enumeration ends the scan
+  still sorts, lists Time Machine snapshots via `tmutil`, and looks for
+  duplicates, but the progress view kept showing a file counter that had
+  stopped advancing — which reads as a hang. Not yet visually verified; see
+  the PR notes.
+
 - **Selection and cleaning freezes on large scans.** Three compounding
   causes were pulling the main actor into multi-second stalls on scans
   with 50k+ files:

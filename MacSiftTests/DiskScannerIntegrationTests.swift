@@ -167,4 +167,206 @@ struct DiskScannerIntegrationTests {
         #expect(result.filesByCategory[.cache] == nil || result.filesByCategory[.cache]?.isEmpty == true)
         #expect(result.filesByCategory[.logs]?.isEmpty == false)
     }
+
+    /// Cancelling a scan must stop the walk early and return a PARTIAL
+    /// result rather than enumerating everything. Guards the cooperative
+    /// cancellation checks inside `scanDirectory` / `scanForLargeFiles` that
+    /// the Cancel button and `ScanViewModel.State.cancelling` depend on.
+    ///
+    /// Reuses the tiny shared fixture (2 files) rather than building a big
+    /// tree: `ScanPerformanceTests` runs in parallel against a 2s wall-clock
+    /// budget, and a heavy fixture here pushed it over. The "does cancellation
+    /// actually reach a long-running walk" question is covered precisely (and
+    /// without touching the disk) by
+    /// `blockingExecutorPropagatesCancellationAcrossDispatchHop` below.
+    @Test func cancellingScanReturnsWithoutCompletingEnumeration() async throws {
+        let tempDir = try createTempStructure()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let classifier = CategoryClassifier(largeFileThresholdBytes: 500 * 1024 * 1024)
+        let exclusionManager = await MainActor.run {
+            ExclusionManager(userDefaultsSuiteName: "cancel.\(UUID().uuidString)")
+        }
+        let scanner = DiskScanner(
+            classifier: classifier,
+            exclusionManager: exclusionManager,
+            homeDirectory: tempDir
+        )
+
+        // Cancel before the walk can start. The scan must still return
+        // (never hang) and must come back empty rather than fully enumerated.
+        let task = Task { await scanner.scan() }
+        task.cancel()
+        let cancelled = await task.value
+
+        #expect(cancelled.totalFileCount == 0,
+                "cancelled scan returned \(cancelled.totalFileCount) files — cancellation did not take effect")
+    }
+
+    /// Cancellation must survive the hop onto `BlockingScanExecutor`'s
+    /// dispatch queue. This is the regression this test exists for: Swift
+    /// task-local state does NOT cross `DispatchQueue.async`, so a walk that
+    /// polls `Task.isCancelled` instead of the injected `CancellationFlag`
+    /// silently never cancels. Asserted directly on the executor so the
+    /// failure mode is unambiguous.
+    @Test func blockingExecutorPropagatesCancellationAcrossDispatchHop() async {
+        let observed = BlockingScanExecutor.CancellationFlag()
+
+        let task = Task {
+            await BlockingScanExecutor.run { flag -> ScanRootResult in
+                // Spin until the flag flips (or we hit a safety bound), then
+                // report what we saw. Mirrors the walks' polling loop.
+                for _ in 0..<2_000 {
+                    if flag.isCancelled { observed.cancel(); break }
+                    Thread.sleep(forTimeInterval: 0.001)
+                }
+                return ScanRootResult(files: [], inaccessibleCount: 0)
+            }
+        }
+
+        // Give the work time to land on the queue and start spinning.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        task.cancel()
+        _ = await task.value
+
+        #expect(observed.isCancelled,
+                "CancellationFlag never flipped — cancellation is not reaching the blocking walk")
+    }
+
+    /// The blocking-walk gate must leave cooperative threads free. If this
+    /// ever equals or exceeds the core count we're back to the saturation
+    /// bug that froze the UI during scans.
+    @Test func blockingScanExecutorLeavesHeadroomForTheExecutor() {
+        let cores = ProcessInfo.processInfo.activeProcessorCount
+        #expect(BlockingScanExecutor.concurrencyLimit >= 2)
+        #expect(BlockingScanExecutor.concurrencyLimit < max(cores, 3),
+                "concurrency limit \(BlockingScanExecutor.concurrencyLimit) must stay below core count \(cores)")
+    }
+}
+
+/// External / secondary volumes run ONLY the large-file sweep —
+/// `scanTargets` is empty in `.externalVolume` mode. That makes the
+/// sweep's skip list the sole gatekeeper, so anything it skips is
+/// scanned by nothing at all.
+@Suite("DiskScanner · external volume coverage")
+struct ExternalVolumeScanTests {
+    private func makeTree(folder: String, fileName: String, sizeMB: Int) throws -> URL {
+        // `.resolvingSymlinksInPath()` is load-bearing: TMPDIR is under
+        // /var, which is a symlink to /private/var. The enumerator emits
+        // RESOLVED paths, so an unresolved root makes
+        // `filePath.hasPrefix(homePrefix)` fail inside the sweep — at which
+        // point `relativePath` falls back to the absolute path and the whole
+        // (relative) skip list silently stops matching. These tests would
+        // then pass no matter what the skip list contained. Verified: without
+        // this, reverting the mode split does NOT fail the tests.
+        let root = FileManager.default.temporaryDirectory
+            .resolvingSymlinksInPath()
+            .appending(path: "MacSiftExtVol-\(UUID().uuidString)")
+        let dir = root.appending(path: folder)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let data = Data(repeating: 0xAB, count: sizeMB * 1024 * 1024)
+        try data.write(to: dir.appending(path: fileName))
+        return root
+    }
+
+    private func scanExternal(root: URL) async -> ScanResult {
+        let classifier = CategoryClassifier(
+            largeFileThresholdBytes: 1024 * 1024,   // 1 MB
+            homePrefix: root.path(percentEncoded: false).hasSuffix("/")
+                ? root.path(percentEncoded: false)
+                : root.path(percentEncoded: false) + "/"
+        )
+        let exclusions = await MainActor.run {
+            ExclusionManager(userDefaultsSuiteName: "extvol.\(UUID().uuidString)")
+        }
+        let scanner = DiskScanner(
+            classifier: classifier,
+            exclusionManager: exclusions,
+            homeDirectory: root,
+            mode: .externalVolume,
+            volumeID: "/Volumes/TestDrive"
+        )
+        return await scanner.scan()
+    }
+
+    /// The regression this guards: `Downloads/` is in the sweep's skip list
+    /// because on the BOOT volume a dedicated scan target covers it. On an
+    /// external volume no such target exists, so skipping it made the user's
+    /// files invisible with no warning. Before the mode-dependent skip list
+    /// this returned zero files.
+    @Test func downloadsOnExternalVolumeIsNotSkipped() async throws {
+        let root = try makeTree(folder: "Downloads", fileName: "movie.bin", sizeMB: 2)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let result = await scanExternal(root: root)
+        let found = result.filesByCategory.values.flatMap { $0 }
+            .filter { $0.name == "movie.bin" }
+
+        #expect(found.count == 1, "Downloads/ on an external volume was skipped — nothing else scans it")
+        #expect(found.first?.category == .largeFiles)
+    }
+
+    /// Same reasoning for `Library/`, which is the largest of the
+    /// boot-only skips and the one most likely to hold real user data on a
+    /// backup drive.
+    @Test func libraryOnExternalVolumeIsNotSkipped() async throws {
+        let root = try makeTree(folder: "Library", fileName: "archive.bin", sizeMB: 2)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let result = await scanExternal(root: root)
+        let found = result.filesByCategory.values.flatMap { $0 }
+            .filter { $0.name == "archive.bin" }
+
+        #expect(found.count == 1, "Library/ on an external volume was skipped — nothing else scans it")
+    }
+
+    /// Build artifacts stay skipped everywhere: that skip is justified by
+    /// "this is noise and there are millions of tiny files", which is true
+    /// on every volume. If this starts failing, the mode split was applied
+    /// too broadly.
+    @Test func buildArtifactsAreStillSkippedOnExternalVolume() async throws {
+        let root = try makeTree(folder: "project/node_modules", fileName: "bundle.bin", sizeMB: 2)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let result = await scanExternal(root: root)
+        let found = result.filesByCategory.values.flatMap { $0 }
+            .filter { $0.name == "bundle.bin" }
+
+        #expect(found.isEmpty, "node_modules should stay skipped on every volume — it's noise, not another target's territory")
+    }
+
+    /// And the boot-volume behaviour must be unchanged: `Downloads/` is
+    /// still skipped by the sweep there, because the dedicated Downloads
+    /// scan target covers it. This is the anti-regression guard for the
+    /// v0.1.3 double-count fix.
+    @Test func downloadsIsStillSkippedBySweepOnBootVolume() async throws {
+        let root = try makeTree(folder: "Downloads", fileName: "recent.bin", sizeMB: 2)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let homePrefix = root.path(percentEncoded: false).hasSuffix("/")
+            ? root.path(percentEncoded: false)
+            : root.path(percentEncoded: false) + "/"
+        let classifier = CategoryClassifier(
+            largeFileThresholdBytes: 1024 * 1024,
+            oldDownloadsAgeThresholdDays: 90,
+            homePrefix: homePrefix
+        )
+        let exclusions = await MainActor.run {
+            ExclusionManager(userDefaultsSuiteName: "extvol.\(UUID().uuidString)")
+        }
+        let scanner = DiskScanner(
+            classifier: classifier,
+            exclusionManager: exclusions,
+            homeDirectory: root,
+            mode: .boot
+        )
+        let result = await scanner.scan()
+
+        // The file is recent, so the Downloads target classifies it as nil
+        // and the sweep must not pick it up either — exactly one occurrence
+        // at most, never two.
+        let occurrences = result.filesByCategory.values.flatMap { $0 }
+            .filter { $0.name == "recent.bin" }
+        #expect(occurrences.count <= 1, "file appeared \(occurrences.count) times — sweep double-counted a boot-volume scan target")
+    }
 }

@@ -32,6 +32,8 @@
 // ─── Scan progress ─────────────────────────────────────────────────
 "Scanning your disk" = "Analyse de votre disque";
 "Categorizing files for transparency" = "Classement des fichiers pour plus de transparence";
+"Finishing up" = "Finalisation";
+"Sorting results, checking snapshots and looking for duplicates" = "Tri des résultats, vérification des instantanés et recherche de doublons";
 "files" = "fichiers";
 
 // ─── Results header & storage bar ──────────────────────────────────

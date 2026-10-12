@@ -116,6 +116,17 @@
     targets.forEach((el) => observer.observe(el));
 })();
 
+// --------------------------------------------------------------- Mockup ----
+// The light theme shows the CSS mockup rather than the screenshot (which only
+// exists in the app's dark appearance). Clone the template into its slot once;
+// CSS decides which of the two is visible.
+(function () {
+    const slot = document.getElementById('mockup-slot');
+    const tpl = document.getElementById('mockup-template');
+    if (!slot || !tpl) return;
+    slot.appendChild(tpl.content.cloneNode(true));
+})();
+
 // ----------------------------------------------------------------- Copy ----
 document.querySelectorAll('.copy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {

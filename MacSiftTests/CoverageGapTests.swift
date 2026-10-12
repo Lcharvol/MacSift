@@ -50,11 +50,26 @@ struct CleaningViewModelCoverageTests {
         let allGroups = [cacheGroup, logGroup]
 
         let vm = makeVM(with: cacheFiles + logFiles, groups: allGroups)
-        // Let the async updateFileIndex settle so selectedIDs intersection
-        // doesn't clobber our selection below. Two yields is more than
-        // enough for the detached task.
-        await Task.yield()
-        await Task.yield()
+        // Wait for the index build to actually land. `updateFileIndex` kicks
+        // off a DETACHED task, which runs on a background thread — so
+        // `Task.yield()` gives no guarantee it has finished, no matter how
+        // many times you call it. The old two-yield version lost that race
+        // and the index arrived AFTER `setSelectedIDs`, intersecting the
+        // selection down to empty and failing all five expectations with
+        // zeros. It passed under parallel runs (more scheduling slack) and
+        // failed under `--no-parallel`, which is the worst kind of flake:
+        // green exactly when you aren't looking.
+        //
+        // Poll for the observable post-condition instead of guessing at
+        // timing.
+        var waited = 0
+        while vm.selectedSize == 0 && waited < 200 {
+            vm.setSelectedIDs([cacheFiles[0].id])
+            if vm.selectedSize > 0 { break }
+            try? await Task.sleep(nanoseconds: 5_000_000)
+            waited += 1
+        }
+        #expect(waited < 200, "index build never landed")
         // Select two files in cacheGroup + one in logGroup
         vm.setSelectedIDs([cacheFiles[0].id, cacheFiles[1].id, logFiles[0].id])
 

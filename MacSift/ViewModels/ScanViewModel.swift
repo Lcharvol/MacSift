@@ -106,6 +106,42 @@ final class ScanViewModel: ObservableObject {
     /// Set via `startScan(folder:)` when the user drops a folder on the window.
     private var customScanRoot: URL?
 
+    /// Normalizes a path the way `FileManager`'s enumerator reports it.
+    /// `resolvingSymlinksInPath()` rewrites `/private/tmp` to `/tmp`, but the
+    /// enumerator yields the `/private` form — so prefix matching only works
+    /// if we put it back. Same story for `/private/var`.
+    static func normalizedRoot(_ url: URL) -> URL {
+        let p = url.resolvingSymlinksInPath().path(percentEncoded: false)
+        for bare in ["/tmp", "/var"] where p == bare || p.hasPrefix(bare + "/") {
+            return URL(filePath: "/private" + p)
+        }
+        return URL(filePath: p)
+    }
+
+    /// Prefix every grouping rule matches against: the demo root when running
+    /// a screenshot session, the real home otherwise.
+    static var groupingHomePrefix: String {
+        guard let demoRoot else { return CategoryClassifier.sharedHomePrefix }
+        let p = demoRoot.path(percentEncoded: false)
+        return p.hasSuffix("/") ? p : p + "/"
+    }
+
+    /// Demo root for documentation screenshots, supplied via the launch
+    /// argument `-MacSiftDemoRoot <path>`. When set, scanning is confined to
+    /// that directory and uses `ScanMode.demo`, whose roots are all relative
+    /// to it — the real home directory is never read. Absent in normal runs,
+    /// so this cannot be triggered by accident.
+    static let demoRoot: URL? = {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-MacSiftDemoRoot"), i + 1 < args.count else { return nil }
+        let url = ScanViewModel.normalizedRoot(URL(filePath: args[i + 1]))
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
+            return nil
+        }
+        return url
+    }()
+
     func cancelScan() {
         if state.isScanning {
             state = .cancelling
@@ -159,6 +195,8 @@ final class ScanViewModel: ObservableObject {
 
         defer { continuation.finish() }
 
+        // In demo mode `sharedHomePrefix` already resolves to the fixture
+        // tree, so classification and grouping both follow automatically.
         let classifier = await CategoryClassifier.withInstalledApps(
             largeFileThresholdBytes: appState.largeFileThresholdBytes,
             oldDownloadsAgeThresholdDays: Double(appState.oldDownloadsAgeDays)
@@ -174,7 +212,15 @@ final class ScanViewModel: ObservableObject {
         }
 
         let targets: [Target]
-        if volumes.isEmpty {
+        if let demoRoot = Self.demoRoot {
+            // Demo/screenshot run: one scanner, confined to the demo root.
+            targets = [Target(scanner: DiskScanner(
+                classifier: classifier,
+                exclusionManager: exclusionManager,
+                homeDirectory: demoRoot,
+                mode: .demo
+            ), isBoot: true)]
+        } else if volumes.isEmpty {
             targets = [Target(scanner: DiskScanner(
                 classifier: classifier,
                 exclusionManager: exclusionManager,
@@ -342,12 +388,14 @@ final class ScanViewModel: ObservableObject {
     /// Sort and group the raw scan result off the main thread. With 10k+ files
     /// this would otherwise freeze the UI for hundreds of milliseconds.
     private func prepareScanResult(_ scanResult: ScanResult) async -> Prepared {
-        await Task.detached(priority: .userInitiated) {
+        // Demo runs group against the fixture root; normal runs against $HOME.
+        let homePrefix = Self.groupingHomePrefix
+        return await Task.detached(priority: .userInitiated) {
             let byCategory = scanResult.filesByCategory.mapValues { files in
                 files.sorted { $0.size > $1.size }
             }
             let all = byCategory.values.flatMap { $0 }.sorted { $0.size > $1.size }
-            let groupsByCategory = byCategory.mapValues { FileGrouper.group($0) }
+            let groupsByCategory = byCategory.mapValues { FileGrouper.group($0, homePrefix: homePrefix) }
             let allGroups = groupsByCategory.values.flatMap { $0 }.sorted { $0.totalSize > $1.totalSize }
             return Prepared(
                 byCategory: byCategory,
@@ -389,7 +437,7 @@ final class ScanViewModel: ObservableObject {
             byCategory[.timeMachineSnapshots] = snapshotFiles
             all.append(contentsOf: snapshotFiles)
 
-            let snapshotGroups = FileGrouper.group(snapshotFiles)
+            let snapshotGroups = FileGrouper.group(snapshotFiles, homePrefix: Self.groupingHomePrefix)
             groupsByCategory[.timeMachineSnapshots] = snapshotGroups
             allGroups.append(contentsOf: snapshotGroups)
             allGroups.sort { $0.totalSize > $1.totalSize }

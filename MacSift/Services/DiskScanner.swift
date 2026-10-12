@@ -76,6 +76,13 @@ enum ScanMode: Sendable {
     /// the whole-volume large-file sweep so the user sees what's eating
     /// space without drowning in irrelevant categories.
     case externalVolume
+    /// Demo / screenshot mode. Same category pipeline as `.boot`, but every
+    /// root is resolved *relative to `homeDirectory`* — `/tmp` and
+    /// `/private/var/log` are deliberately omitted because they are absolute
+    /// and would reach outside the sandbox root. Used to populate the window
+    /// with disposable fixture data for documentation screenshots without
+    /// touching the real home directory.
+    case demo
 }
 
 struct DiskScanner: Sendable {
@@ -144,6 +151,22 @@ struct DiskScanner: Sendable {
                 (homeDirectory.appending(path: "Downloads"), nil),
                 (homeDirectory.appending(path: "Library/Mail Downloads"), .mailDownloads),
                 (homeDirectory.appending(path: "Library/Containers/com.apple.mail/Data/Library/Mail Downloads"), .mailDownloads),
+            ]
+        case .demo:
+            // Mirrors `.boot` minus the two absolute roots (/tmp and
+            // /private/var/log), so a demo scan can never escape the
+            // sandbox root it was pointed at.
+            scanTargets = [
+                (homeDirectory.appending(path: "Library/Caches"), .cache),
+                (homeDirectory.appending(path: "Library/Logs"), .logs),
+                (homeDirectory.appending(path: "Library/Application Support"), nil),
+                (homeDirectory.appending(path: "tmp"), .tempFiles),
+                (homeDirectory.appending(path: "Library/Developer/Xcode/DerivedData"), .xcodeJunk),
+                (homeDirectory.appending(path: "Library/Developer/CoreSimulator/Caches"), .xcodeJunk),
+                (homeDirectory.appending(path: ".npm"), .devCaches),
+                (homeDirectory.appending(path: ".cache"), .devCaches),
+                (homeDirectory.appending(path: "Downloads"), nil),
+                (homeDirectory.appending(path: "Library/Mail Downloads"), .mailDownloads),
             ]
         case .externalVolume:
             // External/secondary volumes only get the large-file sweep — no

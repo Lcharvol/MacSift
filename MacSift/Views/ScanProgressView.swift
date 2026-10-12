@@ -5,6 +5,36 @@ struct ScanProgressView: View {
 
     @State private var rotate = false
 
+    /// Flips to `true` once the file counters have stopped advancing for
+    /// `Self.stallGraceSeconds`, which means enumeration is done and the
+    /// ViewModel is in its end-of-scan work (sorting/grouping, listing Time
+    /// Machine snapshots, hashing duplicate candidates).
+    ///
+    /// This is deliberately a VIEW-side inference, not a real phase signal.
+    /// `ScanViewModel` publishes only `displayProgress`, so all this view can
+    /// honestly observe is "the numbers stopped moving". The copy therefore
+    /// says "Finishing up" and lists the remaining work as a single
+    /// non-committal line — we never name a specific phase we cannot observe.
+    /// See the note on `ScanViewModel.State` in the task write-up for the
+    /// phase enum that would let this show the real step.
+    @State private var isFinalizing = false
+
+    /// Last progress value we saw advance, plus when we saw it. Compared on
+    /// every `progress` change to decide whether the scan has stalled.
+    @State private var lastAdvance: Advance = Advance(files: 0, size: 0, at: .distantPast)
+
+    private struct Advance: Equatable {
+        var files: Int
+        var size: Int64
+        var at: Date
+    }
+
+    /// How long the counters must sit still before we call it "finishing up".
+    /// Long enough that a slow directory or a between-batch lull in the 250ms
+    /// throttled update stream doesn't flip the UI, short enough that the user
+    /// gets an explanation well before it reads as a hang.
+    private static let stallGraceSeconds: TimeInterval = 1.5
+
     var body: some View {
         VStack(spacing: 32) {
             ZStack {
@@ -25,18 +55,19 @@ struct ScanProgressView: View {
                         value: rotate
                     )
 
-                Image(systemName: "magnifyingglass")
+                Image(systemName: isFinalizing ? "slider.horizontal.3" : "magnifyingglass")
                     .font(.system(size: 30, weight: .light))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.symbolEffect(.replace))
             }
             .padding(20)
             .compatGlassEffect(in: Circle())
             .onAppear { rotate = true }
 
             VStack(spacing: 6) {
-                Text("Scanning your disk")
+                Text(headline)
                     .font(.title2.weight(.semibold))
-                Text("Categorizing files for transparency")
+                Text(subheadline)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -66,14 +97,21 @@ struct ScanProgressView: View {
                         .contentTransition(.numericText(countsDown: false))
                         .animation(.easeInOut(duration: 0.24), value: progress.totalFiles)
 
-                    if let category = progress.currentCategory {
+                    // The per-category label describes where the enumerator
+                    // currently is. Once enumeration has stopped it would be
+                    // stale, so it is hidden while finalizing.
+                    if !isFinalizing, let category = progress.currentCategory {
                         Label(category.label, systemImage: category.iconName)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                if !progress.currentPath.isEmpty {
+                if isFinalizing {
+                    finalizingIndicator
+                        .frame(maxWidth: 380)
+                        .padding(.top, 2)
+                } else if !progress.currentPath.isEmpty {
                     Text(progress.currentPath)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
@@ -97,6 +135,63 @@ struct ScanProgressView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.28), value: isFinalizing)
+        .onAppear { noteAdvance(force: true) }
+        .onChange(of: progress) { _, _ in noteAdvance(force: false) }
+        .task(id: stallWatchToken) { await watchForStall() }
+    }
+
+    // MARK: - Copy
+
+    private var headline: LocalizedStringKey {
+        isFinalizing ? "Finishing up" : "Scanning your disk"
+    }
+
+    private var subheadline: LocalizedStringKey {
+        // Honest phrasing: the view knows enumeration has stopped, but not
+        // which end-of-scan step is running right now. So it names the set of
+        // remaining work rather than claiming a specific step.
+        isFinalizing
+            ? "Sorting results, checking snapshots and looking for duplicates"
+            : "Categorizing files for transparency"
+    }
+
+    /// Indeterminate bar that replaces the current-path line while the
+    /// end-of-scan work runs. There is no percentage to show — the work is
+    /// not instrumented — so an indeterminate control is the honest control.
+    private var finalizingIndicator: some View {
+        ProgressView()
+            .progressViewStyle(.linear)
+            .controlSize(.small)
+            .tint(.accentColor)
+            .transition(.opacity)
+    }
+
+    // MARK: - Stall detection
+
+    /// Token that restarts the stall watcher whenever real progress arrives.
+    /// Keying `.task` on it means we only ever have one sleeping watcher, and
+    /// it is cancelled and replaced on each advance.
+    private var stallWatchToken: Advance { lastAdvance }
+
+    /// Record that progress advanced (or re-arm on first appear). Any forward
+    /// movement in either counter clears the finalizing state — a scan that
+    /// resumes after a slow directory must go back to "Scanning".
+    private func noteAdvance(force: Bool) {
+        let advanced = progress.totalFiles != lastAdvance.files
+            || progress.totalSize != lastAdvance.size
+        guard force || advanced else { return }
+        lastAdvance = Advance(files: progress.totalFiles, size: progress.totalSize, at: Date())
+        if isFinalizing { isFinalizing = false }
+    }
+
+    /// Sleep out the grace period; if nothing cancelled us in the meantime,
+    /// the counters have not moved and we are in the end-of-scan work.
+    private func watchForStall() async {
+        isFinalizing = false
+        try? await Task.sleep(for: .seconds(Self.stallGraceSeconds))
+        guard !Task.isCancelled else { return }
+        isFinalizing = true
     }
 
     private func liveStorageBar(from sizes: [FileCategory: Int64]) -> some View {

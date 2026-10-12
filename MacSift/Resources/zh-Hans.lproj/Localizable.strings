@@ -29,6 +29,8 @@
 // Scan progress
 "Scanning your disk" = "正在扫描磁盘";
 "Categorizing files for transparency" = "正在分类文件，方便你核对";
+"Finishing up" = "即将完成";
+"Sorting results, checking snapshots and looking for duplicates" = "正在整理结果、检查快照并查找重复文件";
 "files" = "个文件";
 
 // Results header & storage bar

@@ -121,8 +121,17 @@ struct CleaningEngine: Sendable {
 
         // Dry run short-circuit: no disk work, just fold the totals and
         // emit a progress event per file so the preview UI stays live.
-        // Per-file yields are cheap here — no disk, no XPC, just struct
-        // allocation — so there's no reason to throttle.
+        //
+        // The per-file yield is deliberate and stays cheap ON THIS SIDE —
+        // no disk, no XPC, just a struct. But do NOT conclude from that
+        // that throttling is unnecessary: the yield is only half the cost.
+        // `CleaningViewModel.confirmCleaning` consumes this stream and
+        // assigns an @Published property on the MainActor, so an
+        // unthrottled consumer pays one main-actor hop and one SwiftUI
+        // invalidation PER FILE. That's what froze the sheet on large
+        // selections. The throttle lives in the consumer (see the ~4/sec
+        // buffer there) so the real-deletion path is covered too and this
+        // function's event granularity stays testable.
         //
         // We still check cancellation every 1000 items so a user who
         // hit Cancel on a 100k-file dry-run preview doesn't have to

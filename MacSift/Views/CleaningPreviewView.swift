@@ -13,6 +13,25 @@ struct CleaningPreviewView: View {
     @State private var showEmptyTrashConfirmation = false
     /// Whether the empty-trash action has already run in this session.
     @State private var trashEmptied = false
+    /// Cached per-category breakdown of the selection, as an array sorted by
+    /// `FileCategory.allCases` order so the preview list can render it with a
+    /// plain `ForEach` and no dictionary lookups.
+    ///
+    /// Refreshed ONLY when `cleaningVM.selectionVersion` changes (plus once on
+    /// appear) — never inside the body. Reading `cleaningVM.selectedByCategory`
+    /// per category in the `ForEach` rebuilt the full grouping 11 times per
+    /// render pass, and the sheet re-renders on every `cleaningProgress` tick
+    /// during cleaning. On a 50k-file "select all safe" that was seconds of
+    /// main-actor work per frame.
+    @State private var categoryBreakdown: [CategoryBreakdown] = []
+
+    /// One preview row: a category plus the selected files inside it.
+    private struct CategoryBreakdown: Identifiable {
+        let category: FileCategory
+        let fileCount: Int
+        let totalSize: Int64
+        var id: FileCategory { category }
+    }
 
     /// 10 GB threshold above which we display an extra warning.
     private static let largeDeletionWarningBytes: Int64 = 10 * 1024 * 1024 * 1024
@@ -45,6 +64,12 @@ struct CleaningPreviewView: View {
             }
         }
         .frame(width: 560, height: 500)
+        .onAppear { refreshCategoryBreakdown() }
+        .onChange(of: cleaningVM.selectionVersion) { _, _ in
+            // Observe the O(1) int counter rather than the Set itself —
+            // Set<String> equality on thousands of entries is O(n) per render.
+            refreshCategoryBreakdown()
+        }
         .alert(
             destructiveAlertTitle,
             isPresented: $showFinalConfirmation,
@@ -58,6 +83,21 @@ struct CleaningPreviewView: View {
                 destructiveAlertMessage
             }
         )
+    }
+
+    /// Rebuild the cached per-category breakdown. Called from `onAppear` and
+    /// from the `selectionVersion` change handler — never from a view body.
+    /// One O(selected) pass total, versus 11 per render before.
+    private func refreshCategoryBreakdown() {
+        let grouped = cleaningVM.groupedSelection()
+        categoryBreakdown = FileCategory.allCases.compactMap { category in
+            guard let files = grouped[category], !files.isEmpty else { return nil }
+            return CategoryBreakdown(
+                category: category,
+                fileCount: files.count,
+                totalSize: files.reduce(0 as Int64) { $0 + $1.size }
+            )
+        }
     }
 
     private var destructiveAlertTitle: LocalizedStringKey {
@@ -115,11 +155,8 @@ struct CleaningPreviewView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 8) {
-                    ForEach(FileCategory.allCases) { category in
-                        let files = cleaningVM.selectedByCategory[category] ?? []
-                        if !files.isEmpty {
-                            categoryRow(category: category, files: files)
-                        }
+                    ForEach(categoryBreakdown) { entry in
+                        categoryRow(entry)
                     }
                 }
                 .padding(20)
@@ -163,8 +200,9 @@ struct CleaningPreviewView: View {
         }
     }
 
-    private func categoryRow(category: FileCategory, files: [ScannedFile]) -> some View {
-        let categorySize = files.reduce(0 as Int64) { $0 + $1.size }
+    private func categoryRow(_ entry: CategoryBreakdown) -> some View {
+        let category = entry.category
+        let categorySize = entry.totalSize
 
         return HStack(spacing: 12) {
             ZStack {
@@ -179,7 +217,7 @@ struct CleaningPreviewView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.label)
                     .font(.callout.weight(.semibold))
-                Text("\(files.count) files")
+                Text("\(entry.fileCount) files")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -210,36 +248,16 @@ struct CleaningPreviewView: View {
     // MARK: - Cleaning progress
 
     private var cleaningProgressView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            ProgressView(
-                value: Double(cleaningVM.cleaningProgress?.processed ?? 0),
-                total: Double(cleaningVM.cleaningProgress?.total ?? 1)
-            )
-            .progressViewStyle(.linear)
-            .tint(.blue)
-            .padding(.horizontal, 40)
-
-            if let progress = cleaningVM.cleaningProgress {
-                VStack(spacing: 8) {
-                    Text("\(progress.processed) / \(progress.total)")
-                        .font(.title.weight(.semibold))
-                        .monospacedDigit()
-                    Text(progress.currentFile)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text("Freed: \(progress.freedSoFar.formattedFileSize)")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(20)
+        // Flattened to plain scalars so the subview can be `Equatable` and
+        // SwiftUI can skip it when a tick carries no visible change.
+        CleaningProgressBody(
+            processed: cleaningVM.cleaningProgress?.processed ?? 0,
+            total: cleaningVM.cleaningProgress?.total ?? 0,
+            currentFile: cleaningVM.cleaningProgress?.currentFile ?? "",
+            freedSoFar: cleaningVM.cleaningProgress?.freedSoFar ?? 0,
+            hasProgress: cleaningVM.cleaningProgress != nil
+        )
+        .equatable()
     }
 
     // MARK: - Report
@@ -424,5 +442,62 @@ struct CleaningPreviewView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(.quinary)
         )
+    }
+}
+
+/// The cleaning-progress body, split out of `CleaningPreviewView` and made
+/// `Equatable` so it can be used with `.equatable()`.
+///
+/// Why this is a separate view: `cleaningProgress` is republished on every
+/// engine progress event, and in the dry-run path the engine currently yields
+/// once PER FILE with no throttling (see `CleaningEngine.clean`). Every tick
+/// invalidates `CleaningPreviewView`, so without this split SwiftUI re-ran the
+/// whole sheet body — header, dry-run toggle, and `confirmButtonLabel`, which
+/// formats `selectedCount`/`selectedSize` — tens of thousands of times.
+///
+/// Holding plain scalars (not the non-`Equatable` `CleaningProgress`) lets
+/// SwiftUI drop a tick entirely when nothing user-visible moved, and confines
+/// the re-render to this subtree when it did. It does NOT fix the per-file
+/// main-actor hop itself — that needs throttling in the engine or the
+/// ViewModel — it just makes each hop cheap.
+private struct CleaningProgressBody: View, Equatable {
+    let processed: Int
+    let total: Int
+    let currentFile: String
+    let freedSoFar: Int64
+    let hasProgress: Bool
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ProgressView(
+                value: Double(processed),
+                total: Double(max(total, 1))
+            )
+            .progressViewStyle(.linear)
+            .tint(.blue)
+            .padding(.horizontal, 40)
+
+            if hasProgress {
+                VStack(spacing: 8) {
+                    Text("\(processed) / \(total)")
+                        .font(.title.weight(.semibold))
+                        .monospacedDigit()
+                    Text(currentFile)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text("Freed: \(freedSoFar.formattedFileSize)")
+                        .font(.callout.weight(.medium))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(20)
     }
 }

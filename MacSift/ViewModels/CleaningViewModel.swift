@@ -30,12 +30,34 @@ final class CleaningViewModel: ObservableObject {
     /// once — that's the only signal SwiftUI needs to invalidate observers.
     func setSelectedIDs(_ newValue: Set<String>) {
         selectedIDs = newValue
+        // Invalidate the derived caches. They are rebuilt LAZILY on the next
+        // read, not eagerly here: `toggleGroup` is called in loops (select-all
+        // across 50 groups) and an eager O(selected) recompute per mutation
+        // reintroduced the very freeze we're fixing. Lazy invalidation makes a
+        // burst of N mutations cost O(N) and pay for exactly one rebuild.
+        invalidateSelectionCaches()
         selectionVersion &+= 1
+    }
+
+    /// Mark every derived selection aggregate stale. Must be called after ANY
+    /// mutation of `selectedIDs` OR of `fileIndex` — an index rebuild changes
+    /// the sizes and categories the caches were derived from even when the
+    /// selection set itself is unchanged.
+    private func invalidateSelectionCaches() {
+        cachedSelectedSize = nil
+        cachedSelectedByCategory = nil
     }
 
     private let appState: AppState
     // Index for O(1) lookup by ID — populated when the scan completes
     private var fileIndex: [String: ScannedFile] = [:]
+    /// Memoized total byte size of the current selection. `nil` means "stale";
+    /// the next `selectedSize` read rebuilds it in one O(selected) pass.
+    private var cachedSelectedSize: Int64?
+    /// Memoized per-category view of the selection. `nil` means "stale" —
+    /// the next read rebuilds it in one O(selected) pass. Invalidated by
+    /// `setSelectedIDs` and by an index rebuild.
+    private var cachedSelectedByCategory: [FileCategory: [ScannedFile]]?
     /// Tracks the in-flight updateFileIndex task so a rapid re-scan can
     /// cancel the previous build before it overwrites a fresher index.
     private var indexBuildTask: Task<Void, Never>?
@@ -110,6 +132,11 @@ final class CleaningViewModel: ObservableObject {
             guard let self else { return }
             self.fileIndex = built.fileIndex
             self.fileToGroupID = built.fileToGroupID
+            // Assign the fresh index BEFORE narrowing the selection: the
+            // `setSelectedIDs` call below invalidates the cached aggregates
+            // (`selectedSize`, grouped selection), and their next rebuild must
+            // read the NEW index. Reordering these lines would rebuild the
+            // caches off the old index and leave stale sizes after a re-scan.
             self.setSelectedIDs(self.selectedIDs.intersection(built.fileIndex.keys))
         }
     }
@@ -118,10 +145,19 @@ final class CleaningViewModel: ObservableObject {
         selectedIDs.compactMap { fileIndex[$0] }
     }
 
+    /// Memoized: one O(selected) pass per selection change, then O(1) for
+    /// every subsequent read until the next mutation. Previously this was a
+    /// full O(selected) reduce over `fileIndex` on EVERY read, and
+    /// `CleaningPreviewView` reads it up to five times per render pass while
+    /// re-rendering on each `cleaningProgress` tick.
     var selectedSize: Int64 {
-        selectedIDs.reduce(0) { acc, id in
-            acc + (fileIndex[id]?.size ?? 0)
+        if let cached = cachedSelectedSize { return cached }
+        var total: Int64 = 0
+        for id in selectedIDs {
+            total += fileIndex[id]?.size ?? 0
         }
+        cachedSelectedSize = total
+        return total
     }
 
     /// Build an aggregate summary from the current selection. The signature
@@ -159,8 +195,26 @@ final class CleaningViewModel: ObservableObject {
         selectedIDs.count
     }
 
+    /// Per-category view of the selection, built at most once per selection
+    /// change. Callers that read this inside a SwiftUI body MUST cache the
+    /// result in `@State` and refresh it from
+    /// `.onChange(of: cleaningVM.selectionVersion)` — see
+    /// `CleaningPreviewView.cachedSelectedByCategory`. Reading it once per
+    /// category in a `ForEach` used to rebuild the whole dictionary 11 times
+    /// per render pass (11 × O(selected) hash lookups + 11 allocations).
+    func groupedSelection() -> [FileCategory: [ScannedFile]] {
+        if let cached = cachedSelectedByCategory { return cached }
+        var grouped: [FileCategory: [ScannedFile]] = [:]
+        for id in selectedIDs {
+            guard let file = fileIndex[id] else { continue }
+            grouped[file.category, default: []].append(file)
+        }
+        cachedSelectedByCategory = grouped
+        return grouped
+    }
+
     var selectedByCategory: [FileCategory: [ScannedFile]] {
-        Dictionary(grouping: selectedFiles, by: \.category)
+        groupedSelection()
     }
 
     func isSelected(_ file: ScannedFile) -> Bool {
@@ -254,25 +308,54 @@ final class CleaningViewModel: ObservableObject {
         let engine = CleaningEngine()
 
         let (stream, continuation) = AsyncStream<CleaningProgress>.makeStream()
-        // Guarantee the stream is finished no matter what happens below —
-        // without it, any early exit would leave `progressTask` hanging
-        // forever on an unterminated AsyncStream iterator.
-        defer { continuation.finish() }
 
+        // Throttle to ~4 updates/sec (CLAUDE.md lesson #11). The engine
+        // yields one event PER FILE — in dry run that's one main-actor hop
+        // and one @Published invalidation for every one of potentially
+        // 100k+ files, each re-rendering the cleaning sheet. Throttling
+        // here rather than in the engine protects the real-deletion path
+        // too, and keeps the engine's event granularity intact for tests.
+        //
+        // The final value is always flushed after the loop so the UI ends
+        // on the exact totals rather than whatever the last tick happened
+        // to be.
         let progressTask = Task { [weak self] in
+            var lastUpdate = Date()
+            let minInterval: TimeInterval = 0.25
+            var pending: CleaningProgress?
+
             for await progress in stream {
-                await MainActor.run {
-                    self?.cleaningProgress = progress
+                pending = progress
+                let now = Date()
+                if now.timeIntervalSince(lastUpdate) >= minInterval {
+                    lastUpdate = now
+                    await MainActor.run { self?.cleaningProgress = progress }
+                    pending = nil
                 }
             }
+
+            // Flush the last buffered event so the final count is exact.
+            if let pending, !Task.isCancelled {
+                await MainActor.run { self?.cleaningProgress = pending }
+            }
         }
-        defer { progressTask.cancel() }
 
         let cleaningReport = await engine.clean(
             files: selectedFiles,
             dryRun: appState.isDryRun,
             progress: continuation
         )
+
+        // Close the stream and then WAIT for the consumer to drain it.
+        // Order matters: `finish()` ends the `for await` loop so the
+        // throttle's final flush can run, and awaiting the task lets that
+        // flush land before we publish the report. Cancelling here instead
+        // (the previous `defer { progressTask.cancel() }`) would kill the
+        // loop while it was suspended on the stream, so the last buffered
+        // progress event would be dropped and the sheet would be left
+        // showing a stale throttled count instead of the exact total.
+        continuation.finish()
+        await progressTask.value
 
         // Bump the lifetime counter only for real (non-dry-run) cleanings.
         if !appState.isDryRun && cleaningReport.freedSize > 0 {

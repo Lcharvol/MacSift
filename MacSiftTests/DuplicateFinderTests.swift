@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import CryptoKit
 @testable import MacSift
 
 @Suite("DuplicateFinder")
@@ -140,4 +141,239 @@ struct DuplicateFinderTests {
         // Largest waste first.
         #expect(result[0].wastedBytes > result[1].wastedBytes)
     }
+    // MARK: - Parallelization / cancellation / hex encoding
+    //
+    // Added alongside the bounded-concurrency rewrite of stages 3 and 4.
+
+    /// (a) Identical files are still detected after parallelization.
+    /// Uses enough distinct duplicate sets to exceed `hashConcurrency`
+    /// so the task group's sliding window actually wraps around, and
+    /// asserts every set is found with the right membership.
+    @Test func identicalFilesStillDetectedWithParallelHashing() async throws {
+        let tempDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let setCount = DuplicateFinder.hashConcurrency * 3
+        var files: [ScannedFile] = []
+        for setIndex in 0..<setCount {
+            // Distinct size per set so stage 2 keeps them apart, and
+            // distinct content so stage 4 must agree within the set.
+            let payload = Data(repeating: UInt8(setIndex % 251), count: 1_100_000 + setIndex)
+            for copy in 0..<3 {
+                files.append(try makeFile(
+                    in: tempDir,
+                    name: "set\(setIndex)-copy\(copy).bin",
+                    contents: payload
+                ))
+            }
+        }
+        // Shuffle so completion order never matches input order.
+        files.shuffle()
+
+        let result = await DuplicateFinder.findDuplicates(in: files)
+        #expect(result.count == setCount)
+        for set in result {
+            #expect(set.count == 3, "every set had exactly 3 identical copies")
+            // All members of a set must really share one size.
+            #expect(Set(set.files.map(\.size)).count == 1)
+        }
+    }
+
+    /// (b) Same-size, different-content files are NOT reported as
+    /// duplicates. This is the false-positive guard — a false positive
+    /// here means the UI offers to trash a file that is not a copy.
+    /// The payloads differ only in the MIDDLE, so the head+tail partial
+    /// hash matches and stage 4 is what has to separate them.
+    @Test func sameSizeDifferentContentIsNotADuplicate() async throws {
+        let tempDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let size = 2_000_000
+        var a = Data(repeating: 0x5A, count: size)
+        var b = Data(repeating: 0x5A, count: size)
+        a[size / 2] = 0x01
+        b[size / 2] = 0x02
+        #expect(a.count == b.count, "precondition: identical sizes")
+        #expect(a.prefix(4096) == b.prefix(4096), "precondition: identical heads")
+        #expect(a.suffix(4096) == b.suffix(4096), "precondition: identical tails")
+
+        let f1 = try makeFile(in: tempDir, name: "mid-a.bin", contents: a)
+        let f2 = try makeFile(in: tempDir, name: "mid-b.bin", contents: b)
+
+        let result = await DuplicateFinder.findDuplicates(in: [f1, f2])
+        #expect(result.isEmpty, "differing middle bytes must not be reported as duplicates")
+    }
+
+    /// (c) A cancelled run returns no partial sets. Cancellation is
+    /// signalled via the `isCancelled` predicate, which is how a
+    /// detached caller must do it (`Task.detached` does not inherit
+    /// cancellation from its parent).
+    @Test func cancelledRunReturnsNoPartialSets() async throws {
+        let tempDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        // Several real duplicate sets that WOULD be reported if the
+        // run were allowed to finish.
+        var files: [ScannedFile] = []
+        for setIndex in 0..<6 {
+            let payload = Data(repeating: UInt8(setIndex), count: 1_200_000 + setIndex)
+            for copy in 0..<2 {
+                files.append(try makeFile(
+                    in: tempDir,
+                    name: "c\(setIndex)-\(copy).bin",
+                    contents: payload
+                ))
+            }
+        }
+        // Sanity: without cancellation these are all found.
+        let baseline = await DuplicateFinder.findDuplicates(in: files)
+        #expect(baseline.count == 6, "precondition: all sets found when not cancelled")
+
+        // Now cancel immediately — before any hashing can complete.
+        let cancelledResult = await DuplicateFinder.findDuplicates(
+            in: files,
+            isCancelled: { true }
+        )
+        #expect(
+            cancelledResult.isEmpty,
+            "a cancelled run must return nothing — partial sets must never look complete"
+        )
+    }
+
+    /// (c-ii) Cancellation mid-flight (after some hashes have already
+    /// landed) also yields nothing rather than the sets completed so far.
+    @Test func cancellationPartWayThroughStillReturnsNothing() async throws {
+        let tempDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        var files: [ScannedFile] = []
+        for setIndex in 0..<40 {
+            let payload = Data(repeating: UInt8(setIndex % 251), count: 1_100_000 + setIndex)
+            for copy in 0..<2 {
+                files.append(try makeFile(
+                    in: tempDir,
+                    name: "m\(setIndex)-\(copy).bin",
+                    contents: payload
+                ))
+            }
+        }
+
+        // Flip to cancelled after a handful of hash completions, so the
+        // run is genuinely interrupted rather than never started.
+        let counter = Counter()
+        let result = await DuplicateFinder.findDuplicates(
+            in: files,
+            isCancelled: { counter.increment() > 50 }
+        )
+        #expect(result.isEmpty, "interrupted run must not surface the sets it already finished")
+    }
+
+    /// Thread-safe call counter for the cancellation predicate, which
+    /// is polled from several hashing tasks at once.
+    private final class Counter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 0
+        func increment() -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            value += 1
+            return value
+        }
+    }
+
+    /// (d) The new hex encoding produces exactly the same digest
+    /// strings as the old `String(format: "%02x")` implementation.
+    @Test func hexEncodingMatchesStringFormatImplementation() {
+        func legacyHex(_ bytes: [UInt8]) -> String {
+            bytes.compactMap { String(format: "%02x", $0) }.joined()
+        }
+
+        // Every single byte value — covers zero-padding (0x00..0x0F)
+        // and the a-f range, which is where a hand-rolled table is
+        // most likely to go wrong.
+        for byte in UInt8.min...UInt8.max {
+            #expect([byte].hexString == legacyHex([byte]), "byte \(byte) encoded differently")
+        }
+
+        // Real SHA-256 digests.
+        for sample in ["", "a", "hello world", "MacSift", String(repeating: "x", count: 10_000)] {
+            let digest = SHA256.hash(data: Data(sample.utf8))
+            let new = digest.hexString
+            let old = legacyHex(Array(digest))
+            #expect(new == old)
+            #expect(new.count == 64, "SHA-256 hex is always 64 chars")
+        }
+
+        // Known-answer test: SHA-256 of the empty string.
+        #expect(
+            SHA256.hash(data: Data()).hexString
+                == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        )
+    }
+
+    /// The progress callback must not fire once per file. With many
+    /// files the throttle should keep the per-phase emission count far
+    /// below the file count (forced first/last updates aside).
+    @Test func progressIsThrottledNotPerFile() async throws {
+        let tempDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        var files: [ScannedFile] = []
+        for setIndex in 0..<30 {
+            let payload = Data(repeating: UInt8(setIndex % 251), count: 1_050_000 + setIndex)
+            for copy in 0..<2 {
+                files.append(try makeFile(
+                    in: tempDir,
+                    name: "p\(setIndex)-\(copy).bin",
+                    contents: payload
+                ))
+            }
+        }
+
+        let recorder = PhaseRecorder()
+        let result = await DuplicateFinder.findDuplicates(
+            in: files,
+            progress: { phase, done, total in recorder.record(phase, done, total) }
+        )
+        #expect(result.count == 30, "throttling must not change the outcome")
+
+        let fullHashCalls = recorder.count(for: "fullHash")
+        #expect(fullHashCalls > 0, "the handler is still wired up")
+        // 60 files in the fullHash phase; a per-file callback would be
+        // ~60 calls. Throttled to ~4/sec plus forced first/last, this
+        // stays tiny for a sub-second run.
+        #expect(
+            fullHashCalls < 60,
+            "fullHash fired \(fullHashCalls) times for 60 files — throttle is not working"
+        )
+        // The phase must still land on 100% so a determinate bar completes.
+        let last = recorder.last(for: "fullHash")
+        #expect(last?.done == last?.total, "final update must report done == total")
+    }
+
+    /// Thread-safe recorder for progress callbacks, which arrive from
+    /// arbitrary hashing tasks.
+    private final class PhaseRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var calls: [(phase: String, done: Int, total: Int)] = []
+
+        func record(_ phase: String, _ done: Int, _ total: Int) {
+            lock.lock()
+            defer { lock.unlock() }
+            calls.append((phase, done, total))
+        }
+
+        func count(for phase: String) -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return calls.filter { $0.phase == phase }.count
+        }
+
+        func last(for phase: String) -> (phase: String, done: Int, total: Int)? {
+            lock.lock()
+            defer { lock.unlock() }
+            return calls.last { $0.phase == phase }
+        }
+    }
+
 }

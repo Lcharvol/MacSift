@@ -95,6 +95,10 @@ final class ScanViewModel: ObservableObject {
     private let exclusionManager: ExclusionManager
     private let appState: AppState
     private var currentScanTask: Task<Void, Never>?
+    /// Handle on the detached duplicate-detection pass. Held separately
+    /// because `Task.detached` does not inherit cancellation — without
+    /// this, cancelling a scan left the finder hashing gigabytes.
+    private var duplicateFinderTask: Task<[DuplicateSet], Never>?
 
     init(exclusionManager: ExclusionManager, appState: AppState) {
         self.exclusionManager = exclusionManager
@@ -111,6 +115,9 @@ final class ScanViewModel: ObservableObject {
             state = .cancelling
         }
         currentScanTask?.cancel()
+        // Cancel the detached duplicate pass explicitly — it does not
+        // inherit cancellation from `currentScanTask`.
+        duplicateFinderTask?.cancel()
     }
 
     func startScan() {
@@ -256,10 +263,30 @@ final class ScanViewModel: ObservableObject {
         // to "how much real duplication is on this machine", not
         // "how many files were scanned". Off-main actor so the hot
         // hashing loop doesn't block the UI.
-        let duplicateSets = await Task.detached(priority: .userInitiated) {
+        //
+        // Cancellation needs an explicit handle: `Task.detached` does NOT
+        // inherit cancellation from the enclosing task, so cancelling the
+        // scan would otherwise leave this hashing gigabytes in the
+        // background. We keep the handle and cancel it from `cancelScan`
+        // — the same pattern `CleaningViewModel` uses for
+        // `indexBuildInnerTask`, and for the same reason.
+        let dupeTask = Task.detached(priority: .userInitiated) {
             await DuplicateFinder.findDuplicates(in: prepared.all)
-        }.value
+        }
+        duplicateFinderTask = dupeTask
+        let duplicateSets = await dupeTask.value
+        duplicateFinderTask = nil
         progressTask.cancel()
+
+        // A cancelled duplicate pass returns [] by design (a partial set
+        // must never be shown, since the UI offers "keep oldest, trash
+        // the rest"). Bail out rather than publishing a result built from
+        // a half-finished scan.
+        if Task.isCancelled {
+            state = .idle
+            displayProgress = ScanDisplayProgress()
+            return
+        }
 
         let completed = buildCompletedScan(
             prepared: prepared,

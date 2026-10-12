@@ -4,7 +4,7 @@ All notable changes to MacSift are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] — 2026-10-12
 
 ### Fixed
 - **UI freezes traced to the concurrency model, not the view layer.** The

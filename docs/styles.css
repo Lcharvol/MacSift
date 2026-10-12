@@ -531,6 +531,13 @@ code {
 .app-window__body { background: var(--card); }
 .app-window__screenshot { width: 100%; display: block; }
 
+/* The real screenshot only exists in the app's dark appearance, so each theme
+   shows the artwork that matches it: the capture in dark, the token-driven CSS
+   mockup in light. Exactly one is in the layout at a time. */
+.app-window__screenshot { display: none; }
+.dark .app-window__screenshot { display: block; }
+.dark .app-window__mockup { display: none; }
+
 /* =========================================================================
    7. Stats strip
    ========================================================================= */

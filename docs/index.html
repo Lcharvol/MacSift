@@ -120,13 +120,18 @@
                                 <span class="app-window__title">MacSift</span>
                             </div>
                             <div class="app-window__body" id="mockup-root">
-                                <!-- Replaced by the inline mockup when the screenshot is absent. -->
+                                <!-- The screenshot is a real capture of the app, which only
+                                     exists in the dark appearance, so it is shown in the dark
+                                     theme. In light the CSS mockup renders instead — it tracks
+                                     the tokens, so the hero never shows a dark app on a light
+                                     page. The mockup is also the fallback if the image fails. -->
                                 <img
                                     src="images/screenshot-main.png"
-                                    alt="MacSift main window"
+                                    alt="The MacSift window showing cached files grouped by app, with an inspector panel"
                                     class="app-window__screenshot"
-                                    onerror="this.replaceWith(document.getElementById('mockup-template').content.cloneNode(true))"
+                                    onerror="this.remove()"
                                 >
+                                <div class="app-window__mockup" id="mockup-slot"></div>
                             </div>
                         </div>
                     </div>

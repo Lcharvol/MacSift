@@ -16,337 +16,492 @@
     <meta name="twitter:title" content="MacSift — A transparent disk cleaner for macOS">
     <meta name="twitter:description" content="A disk cleaner that shows its work. Groups by app. Moves to Trash. Never a black box.">
     <meta name="twitter:image" content="https://lcharvol.github.io/MacSift/images/og-image.png">
-    <meta name="theme-color" content="#0c0c0e">
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0c0c0e" media="(prefers-color-scheme: dark)">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" href="images/icon@180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script>
+        // Applied before first paint so the correct theme is never repainted.
+        (function () {
+            try {
+                var stored = localStorage.getItem('macsift-theme');
+                var dark = stored
+                    ? stored === 'dark'
+                    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (dark) document.documentElement.classList.add('dark');
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
-    <nav class="nav">
+    <nav class="nav" id="nav">
         <div class="nav__inner">
-            <a class="nav__logo" href="#top">
-                <img src="images/icon.png" alt="" width="24" height="24">
-                <span>MacSift</span>
+            <a href="#top" class="nav__logo">
+                <img src="images/icon.png" alt="" width="26" height="26">
+                MacSift
             </a>
             <div class="nav__links">
-                <a href="#how">How it works</a>
-                <a href="#install">Install</a>
-                <a href="#faq">Questions</a>
-                <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener" class="nav__github">GitHub ↗</a>
+                <a href="#how" class="nav__link">How it works</a>
+                <a href="#categories" class="nav__link">What it finds</a>
+                <a href="#install" class="nav__link">Install</a>
+                <a href="#faq" class="nav__link">FAQ</a>
+            </div>
+            <div class="nav__actions">
+                <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+                    <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+                </button>
+                <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener" class="btn btn--outline nav__cta">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z"/></svg>
+                    GitHub
+                </a>
             </div>
         </div>
     </nav>
 
     <main id="top">
-        <!-- HERO -->
+        <!-- ================================================== HERO ===== -->
         <section class="hero">
-            <div class="hero__grid">
-                <div class="hero__text">
-                    <p class="hero__kicker">Disk cleaner for macOS Tahoe</p>
-                    <h1 class="hero__title">
-                        A disk cleaner that<br>
-                        <em>actually shows its work.</em>
-                    </h1>
-                    <p class="hero__lede">
-                        Every other cleaner asks you to trust it. MacSift shows you exactly
-                        what it found, groups it by the app it belongs to, moves it to the
-                        Trash (so you can always undo), and gets out of your way.
-                    </p>
-                    <div class="hero__actions">
-                        <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip" class="btn btn--primary">
-                            Download for macOS
-                            <span class="btn__arrow" aria-hidden="true">→</span>
-                        </a>
-                        <a href="#install" class="btn btn--text">Or build from source</a>
-                    </div>
-                    <p class="hero__fineprint">
-                        v0.1.0 · Apple Silicon · macOS 26 (Tahoe) · 1.5&nbsp;MB · free &amp; open source.
-                        First launch: right-click → Open (ad-hoc signed, no Developer ID).
-                    </p>
-                </div>
-
-                <div class="hero__art">
-                    <div class="app-window">
-                        <div class="app-window__chrome">
-                            <span class="tl-dot tl-dot--red"></span>
-                            <span class="tl-dot tl-dot--yellow"></span>
-                            <span class="tl-dot tl-dot--green"></span>
-                            <span class="app-window__title">MacSift</span>
+            <div class="container">
+                <div class="hero__grid">
+                    <div class="hero__text">
+                        <span class="badge badge--accent hero__kicker">
+                            <span class="badge__dot"></span>
+                            v0.1.0 · Free &amp; open source
+                        </span>
+                        <h1 class="hero__title">
+                            A disk cleaner that<br>
+                            <em>actually shows its work.</em>
+                        </h1>
+                        <p class="hero__lede">
+                            Every other cleaner asks you to trust it. MacSift shows you exactly
+                            what it found, groups it by the app it belongs to, moves it to the
+                            Trash (so you can always undo), and gets out of your way.
+                        </p>
+                        <div class="hero__actions">
+                            <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip" class="btn btn--primary">
+                                Download for macOS
+                                <span class="btn__arrow" aria-hidden="true">→</span>
+                            </a>
+                            <a href="#install" class="btn btn--outline">Or build from source</a>
                         </div>
-                        <div class="app-window__body" id="mockup-root">
-                            <!-- Inline CSS mockup; replace with real screenshot at images/screenshot-main.png -->
-                            <img
-                                src="images/screenshot-main.png"
-                                alt="MacSift main window"
-                                class="app-window__screenshot"
-                                onerror="this.replaceWith(document.getElementById('mockup-template').content.cloneNode(true))"
-                            >
+                        <div class="hero__meta">
+                            <span class="hero__meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                Nothing leaves your Mac
+                            </span>
+                            <span class="hero__meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                Everything goes to the Trash
+                            </span>
+                            <span class="hero__meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                1.5 MB, no telemetry
+                            </span>
+                        </div>
+                        <p class="hero__fineprint">
+                            Apple Silicon · macOS 26 (Tahoe). First launch: right-click → Open
+                            (ad-hoc signed, no Developer ID).
+                        </p>
+                    </div>
+
+                    <div class="hero__art">
+                        <div class="app-window">
+                            <div class="app-window__chrome">
+                                <span class="tl-dot tl-dot--red"></span>
+                                <span class="tl-dot tl-dot--yellow"></span>
+                                <span class="tl-dot tl-dot--green"></span>
+                                <span class="app-window__title">MacSift</span>
+                            </div>
+                            <div class="app-window__body" id="mockup-root">
+                                <!-- Replaced by the inline mockup when the screenshot is absent. -->
+                                <img
+                                    src="images/screenshot-main.png"
+                                    alt="MacSift main window"
+                                    class="app-window__screenshot"
+                                    onerror="this.replaceWith(document.getElementById('mockup-template').content.cloneNode(true))"
+                                >
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- OSS stats — install count + GitHub stars, fetched live from GitHub -->
-        <section class="oss-stats" aria-label="Project stats">
+        <!-- ================================================= STATS ===== -->
+        <section class="stats" aria-label="Project stats">
             <div class="container">
-                <div class="oss-stats__grid">
-                    <div class="oss-stat">
-                        <div class="oss-stat__num" id="stat-installs">—</div>
-                        <div class="oss-stat__lbl">Installs</div>
+                <div class="stats__grid">
+                    <div class="stat">
+                        <div class="stat__num" id="stat-installs">—</div>
+                        <div class="stat__lbl">Installs</div>
                     </div>
-                    <div class="oss-stat">
-                        <div class="oss-stat__num" id="stat-stars">—</div>
-                        <div class="oss-stat__lbl">GitHub stars</div>
+                    <div class="stat">
+                        <div class="stat__num" id="stat-stars">—</div>
+                        <div class="stat__lbl">GitHub stars</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat__num">11</div>
+                        <div class="stat__lbl">Categories scanned</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat__num">0</div>
+                        <div class="stat__lbl">Network requests</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- HOW IT WORKS — prose sections, not a card grid -->
-        <section class="how" id="how">
+        <!-- ================================================== HOW ====== -->
+        <section class="section" id="how">
             <div class="container">
-                <article class="prose-block">
-                    <div class="prose-block__number">01</div>
-                    <div class="prose-block__body">
-                        <h2>Groups files by the app that owns them.</h2>
-                        <p>
-                            <code>~/Library/Caches/com.apple.Safari/</code> might contain fifteen thousand tiny
-                            files. Every other cleaner lists them one by one and expects you to
-                            ignore the noise. MacSift collapses the whole folder into a single
-                            <strong>Safari</strong> row — one decision, not fifteen thousand.
-                        </p>
-                        <p class="prose-block__detail">
-                            Grouping is rule-based per category: caches and logs group by bundle
-                            id, iOS backups group by device, large files stay individual.
-                        </p>
-                    </div>
-                </article>
+                <div class="section__head reveal">
+                    <h2 class="section__title">Built so you never have to take its word for it.</h2>
+                    <p class="section__lede">
+                        Three decisions separate MacSift from every cleaner that asks for
+                        your trust up front.
+                    </p>
+                </div>
 
-                <article class="prose-block">
-                    <div class="prose-block__number">02</div>
-                    <div class="prose-block__body">
-                        <h2>Moves to the Trash. Never permanent.</h2>
+                <div class="how__grid">
+                    <article class="feature reveal">
+                        <span class="feature__num">01</span>
+                        <div class="feature__icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        </div>
+                        <h3>Groups files by the app that owns them.</h3>
                         <p>
-                            Selected items go through <code>FileManager.trashItem</code>, which
-                            puts them in your Finder Trash just like dragging them there
-                            yourself. You can restore anything until you empty the Trash —
-                            something you can't do with most commercial cleaners.
+                            <code>~/Library/Caches/com.apple.Safari/</code> might hold fifteen
+                            thousand tiny files. Other cleaners list them one by one. MacSift
+                            collapses the folder into a single <strong>Safari</strong> row —
+                            one decision, not fifteen thousand.
                         </p>
-                        <p class="prose-block__detail">
-                            Dry run is on by default. Deletion above 10&nbsp;GB shows an extra warning.
-                            System paths (<code>/System</code>, <code>/usr</code>, <code>/bin</code>, <code>/sbin</code>)
-                            are hard-blocked at the engine level.
+                        <p class="feature__detail">
+                            Grouping is rule-based per category: caches and logs by bundle id,
+                            iOS backups by device, large files stay individual.
                         </p>
-                    </div>
-                </article>
+                    </article>
 
-                <article class="prose-block">
-                    <div class="prose-block__number">03</div>
-                    <div class="prose-block__body">
-                        <h2>Doesn't hide anything from you.</h2>
+                    <article class="feature reveal">
+                        <span class="feature__num">02</span>
+                        <div class="feature__icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                        </div>
+                        <h3>Moves to the Trash. Never permanent.</h3>
                         <p>
-                            Click any row to open the inspector: top&nbsp;5 largest files,
+                            Selected items go through <code>FileManager.trashItem</code> — the
+                            same thing as dragging them there yourself. You can restore
+                            anything until you empty the Trash.
+                        </p>
+                        <p class="feature__detail">
+                            Dry run is on by default. Deleting above 10&nbsp;GB shows an extra
+                            warning. <code>/System</code>, <code>/usr</code>, <code>/bin</code>
+                            and <code>/sbin</code> are hard-blocked in the engine.
+                        </p>
+                    </article>
+
+                    <article class="feature reveal">
+                        <span class="feature__num">03</span>
+                        <div class="feature__icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <h3>Doesn't hide anything from you.</h3>
+                        <p>
+                            Click any row to open the inspector: the five largest files, a
                             representative path, Reveal in Finder, Quick Look, copy path.
-                            Advanced mode shows full paths inline and risk indicators.
+                            Advanced mode shows full paths inline with risk indicators.
                         </p>
-                        <p class="prose-block__detail">
-                            Every cleaning operation ends with an itemized report: deleted,
-                            failed, total freed. If something couldn't be deleted, you see why.
+                        <p class="feature__detail">
+                            Every cleaning run ends with an itemized report — deleted, failed,
+                            total freed. If something couldn't be deleted, you see why.
                         </p>
-                    </div>
-                </article>
+                    </article>
+                </div>
             </div>
         </section>
 
-        <!-- WHAT IT FINDS — plain list, no emoji-chips -->
-        <section class="what">
-            <div class="container what__grid">
-                <div class="what__intro">
-                    <h2>Eleven categories.<br>No vague "junk".</h2>
-                    <p>
-                        Each file is classified into a specific category with a known location
+        <!-- =========================================== CATEGORIES ====== -->
+        <section class="section" id="categories">
+            <div class="container">
+                <div class="section__head reveal">
+                    <h2 class="section__title">Eleven categories. No vague "junk".</h2>
+                    <p class="section__lede">
+                        Every file is classified into a specific category with a known location
                         and a documented risk level. Nothing lands in "Other".
                     </p>
                 </div>
-                <ul class="what__list">
-                    <li>
-                        <strong>Caches</strong>
-                        <span class="mono">~/Library/Caches</span>
-                        <em class="risk risk--safe">Safe</em>
-                    </li>
-                    <li>
-                        <strong>Logs</strong>
-                        <span class="mono">~/Library/Logs · /private/var/log</span>
-                        <em class="risk risk--safe">Safe</em>
-                    </li>
-                    <li>
-                        <strong>Temporary files</strong>
-                        <span class="mono">/tmp · NSTemporaryDirectory</span>
-                        <em class="risk risk--safe">Safe</em>
-                    </li>
-                    <li>
-                        <strong>Xcode junk</strong>
-                        <span class="mono">Developer/Xcode · CoreSimulator</span>
-                        <em class="risk risk--safe">Safe</em>
-                    </li>
-                    <li>
-                        <strong>Dev caches</strong>
-                        <span class="mono">npm · yarn · pip · cargo · brew</span>
-                        <em class="risk risk--safe">Safe</em>
-                    </li>
-                    <li>
-                        <strong>Unused app data</strong>
-                        <span class="mono">Orphaned Application Support</span>
-                        <em class="risk risk--moderate">Review</em>
-                    </li>
-                    <li>
-                        <strong>Mail attachments</strong>
-                        <span class="mono">~/Library/Mail Downloads</span>
-                        <em class="risk risk--moderate">Review</em>
-                    </li>
-                    <li>
-                        <strong>Time Machine snapshots</strong>
-                        <span class="mono">tmutil local snapshots</span>
-                        <em class="risk risk--moderate">Review</em>
-                    </li>
-                    <li>
-                        <strong>Large files</strong>
-                        <span class="mono">Anywhere in your home</span>
-                        <em class="risk risk--danger">Caution</em>
-                    </li>
-                    <li>
-                        <strong>Old downloads</strong>
-                        <span class="mono">~/Downloads · older than 90d</span>
-                        <em class="risk risk--danger">Caution</em>
-                    </li>
-                    <li>
-                        <strong>iOS device backups</strong>
-                        <span class="mono">MobileSync/Backup</span>
-                        <em class="risk risk--danger">Caution</em>
-                    </li>
-                </ul>
+
+                <div class="cats reveal">
+                    <div class="cat-row cat-row--head">
+                        <span>Category</span>
+                        <span>Location</span>
+                        <span>Risk</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Caches</span>
+                        <span class="cat-row__path">~/Library/Caches</span>
+                        <span class="badge badge--safe">Safe</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Logs</span>
+                        <span class="cat-row__path">~/Library/Logs · /private/var/log</span>
+                        <span class="badge badge--safe">Safe</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Temporary files</span>
+                        <span class="cat-row__path">/tmp · NSTemporaryDirectory</span>
+                        <span class="badge badge--safe">Safe</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Xcode junk</span>
+                        <span class="cat-row__path">Developer/Xcode · CoreSimulator</span>
+                        <span class="badge badge--safe">Safe</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Dev caches</span>
+                        <span class="cat-row__path">npm · yarn · pip · cargo · brew</span>
+                        <span class="badge badge--safe">Safe</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Unused app data</span>
+                        <span class="cat-row__path">Orphaned Application Support</span>
+                        <span class="badge badge--warn">Review</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Mail attachments</span>
+                        <span class="cat-row__path">~/Library/Mail Downloads</span>
+                        <span class="badge badge--warn">Review</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Time Machine snapshots</span>
+                        <span class="cat-row__path">tmutil local snapshots</span>
+                        <span class="badge badge--warn">Review</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Large files</span>
+                        <span class="cat-row__path">Anywhere in your home</span>
+                        <span class="badge badge--danger">Caution</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">Old downloads</span>
+                        <span class="cat-row__path">~/Downloads · older than 90d</span>
+                        <span class="badge badge--danger">Caution</span>
+                    </div>
+                    <div class="cat-row">
+                        <span class="cat-row__name">iOS device backups</span>
+                        <span class="cat-row__path">MobileSync/Backup</span>
+                        <span class="badge badge--danger">Caution</span>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <!-- INSTALL -->
-        <section class="install" id="install">
+        <!-- ============================================== INSTALL ====== -->
+        <section class="section" id="install">
             <div class="container">
-                <h2 class="install__title">Two ways to install.</h2>
-                <p class="install__lede">
-                    Pick whichever you trust more — the pre-built zip from GitHub
-                    Releases, or clone and build the exact same binary yourself.
-                </p>
-
-                <div class="install__option">
-                    <h3>Option A · Download the release</h3>
-                    <p class="install__detail">
-                        <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip">MacSift.zip</a> (1.5&nbsp;MB, Apple Silicon).
-                        Unzip and drag <code>MacSift.app</code> into <code>/Applications</code>
-                        <em>before</em> opening it — Gatekeeper treats apps inside
-                        <code>~/Downloads</code> more strictly.
-                    </p>
-                    <p class="install__detail">
-                        Then <strong>right-click → Open</strong> the first time. On macOS 15
-                        Sequoia and later, if you still see <em>"Apple could not verify…"</em>,
-                        open <strong>System Settings → Privacy &amp; Security</strong>, scroll to
-                        the bottom, and click <strong>Open Anyway</strong> next to the MacSift
-                        entry — then relaunch. Every subsequent launch is silent.
-                    </p>
-                    <p class="install__detail">
-                        The app is ad-hoc signed (no paid Developer ID), which is why macOS asks.
-                        If you'd rather verify than trust a binary, use Option B.
+                <div class="section__head reveal">
+                    <h2 class="section__title">Two ways to install.</h2>
+                    <p class="section__lede">
+                        Pick whichever you trust more — the pre-built zip from GitHub
+                        Releases, or clone and build the exact same binary yourself.
                     </p>
                 </div>
 
-                <div class="install__option">
-                    <h3>Option B · Build from source</h3>
-                    <p class="install__detail">
-                        SwiftPM project, no <code>.xcodeproj</code>, no Xcode GUI required.
-                        Produces the same binary the release ships with.
-                    </p>
-                    <pre class="code-block">
-<span class="code-block__prompt">$</span> git clone https://github.com/Lcharvol/MacSift.git
+                <div class="reveal">
+                    <div class="tabs__list" role="tablist" aria-label="Installation method">
+                        <button class="tabs__trigger" role="tab" id="tab-release"
+                                aria-controls="panel-release" aria-selected="true">
+                            Download the release
+                        </button>
+                        <button class="tabs__trigger" role="tab" id="tab-source"
+                                aria-controls="panel-source" aria-selected="false">
+                            Build from source
+                        </button>
+                    </div>
+
+                    <div class="card install__card tabs__panel" role="tabpanel"
+                         id="panel-release" aria-labelledby="tab-release">
+                        <div class="install__step">
+                            <span class="install__step-num">1</span>
+                            <div>
+                                <p>
+                                    Download
+                                    <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip">MacSift.zip</a>
+                                    (1.5&nbsp;MB, Apple Silicon), then unzip it.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="install__step">
+                            <span class="install__step-num">2</span>
+                            <div>
+                                <p>
+                                    Drag <code>MacSift.app</code> into <code>/Applications</code>
+                                    <strong>before</strong> opening it — Gatekeeper treats apps
+                                    inside <code>~/Downloads</code> more strictly.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="install__step">
+                            <span class="install__step-num">3</span>
+                            <div>
+                                <p>
+                                    <strong>Right-click → Open</strong> the first time. If you still
+                                    see <em>"Apple could not verify…"</em>, open
+                                    <strong>System Settings → Privacy &amp; Security</strong>, scroll
+                                    to the bottom and click <strong>Open Anyway</strong> next to
+                                    MacSift, then relaunch.
+                                </p>
+                                <p>Every launch after that is silent.</p>
+                            </div>
+                        </div>
+                        <div class="install__note">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            <span>
+                                The app is ad-hoc signed (no paid Developer ID), which is why macOS
+                                asks. If you'd rather verify than trust a binary, build from source.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="card install__card tabs__panel" role="tabpanel"
+                         id="panel-source" aria-labelledby="tab-source" hidden>
+                        <div class="install__step">
+                            <span class="install__step-num">1</span>
+                            <div>
+                                <p>
+                                    SwiftPM project — no <code>.xcodeproj</code>, no Xcode GUI
+                                    required. Produces the same binary the release ships with.
+                                </p>
+                                <pre class="code-block"><span class="code-block__prompt">$</span> git clone https://github.com/Lcharvol/MacSift.git
 <span class="code-block__prompt">$</span> cd MacSift
-<span class="code-block__prompt">$</span> ./build-app.sh &amp;&amp; open MacSift.app<button class="copy-btn" data-copy="git clone https://github.com/Lcharvol/MacSift.git&#10;cd MacSift&#10;./build-app.sh && open MacSift.app">Copy</button>
-</pre>
+<span class="code-block__prompt">$</span> ./build-app.sh &amp;&amp; open MacSift.app<button class="copy-btn" data-copy="git clone https://github.com/Lcharvol/MacSift.git&#10;cd MacSift&#10;./build-app.sh && open MacSift.app">Copy</button></pre>
+                            </div>
+                        </div>
+                        <div class="install__step">
+                            <span class="install__step-num">2</span>
+                            <div>
+                                <p>
+                                    The script ad-hoc signs the bundle so macOS remembers your Full
+                                    Disk Access grant across rebuilds.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="install__note">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            <span>
+                                Both options require macOS 26 (Tahoe) on Apple Silicon and Full Disk
+                                Access, granted once in System Settings → Privacy &amp; Security.
+                            </span>
+                        </div>
+                    </div>
                 </div>
-
-                <p class="install__note">
-                    Both options require macOS 26 (Tahoe) on Apple Silicon and Full Disk
-                    Access (granted once in System Settings → Privacy &amp; Security on
-                    first launch).
-                </p>
             </div>
         </section>
 
-        <!-- FAQ — stripped, no eyebrow pill -->
-        <section class="faq" id="faq">
+        <!-- ================================================== FAQ ====== -->
+        <section class="section" id="faq">
             <div class="container">
-                <h2 class="faq__title">Questions you'd ask a friend who wrote this.</h2>
+                <div class="section__head reveal">
+                    <h2 class="section__title">Questions you'd ask a friend who wrote this.</h2>
+                </div>
 
-                <div class="faq__list">
+                <div class="faq__list reveal">
                     <details class="faq-item" open>
                         <summary>Will it delete anything important?</summary>
-                        <p>
-                            No. Everything goes to the Trash. Dry run is on by default.
-                            Destructive cleaning requires explicit confirmation. System
-                            paths and installed-app data are hard-blocked. I built this because
-                            I didn't trust other cleaners — which is why I wouldn't ask you to trust
-                            this one either. Read <a href="https://github.com/Lcharvol/MacSift/blob/main/MacSift/Services/CleaningEngine.swift" target="_blank" rel="noopener">the cleaning engine source</a> — it's 120 lines.
-                        </p>
+                        <div class="faq-item__body">
+                            <p>
+                                No. Everything goes to the Trash. Dry run is on by default.
+                                Destructive cleaning requires explicit confirmation. System
+                                paths and installed-app data are hard-blocked. I built this
+                                because I didn't trust other cleaners — which is why I wouldn't
+                                ask you to trust this one either. Read
+                                <a href="https://github.com/Lcharvol/MacSift/blob/main/MacSift/Services/CleaningEngine.swift" target="_blank" rel="noopener">the cleaning engine source</a>
+                                — it's 120 lines.
+                            </p>
+                        </div>
                     </details>
 
                     <details class="faq-item">
                         <summary>Why does Gatekeeper warn me on first launch?</summary>
-                        <p>
-                            The app ships ad-hoc signed, not notarized — I don't have a paid
-                            Apple Developer account to notarize with. The first launch flow is:
-                        </p>
-                        <ol>
-                            <li>Drag <code>MacSift.app</code> from the zip into <code>/Applications</code> <em>before</em> opening it.</li>
-                            <li>Right-click (or Control-click) the app → <strong>Open</strong> → confirm.</li>
-                            <li>On macOS 15 Sequoia and later, if you still see <em>"Apple could not verify…"</em>, open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the bottom, and click <strong>Open Anyway</strong> next to MacSift. Relaunch the app.</li>
-                        </ol>
-                        <p>
-                            After that, every launch is silent. If you'd rather verify than
-                            trust a binary, Option B in the install section produces the
-                            exact same binary from scratch in a few seconds.
-                        </p>
+                        <div class="faq-item__body">
+                            <p>
+                                The app ships ad-hoc signed, not notarized — I don't have a paid
+                                Apple Developer account to notarize with. The first launch flow is:
+                            </p>
+                            <ol>
+                                <li>Drag <code>MacSift.app</code> from the zip into <code>/Applications</code> <strong>before</strong> opening it.</li>
+                                <li>Right-click (or Control-click) the app → <strong>Open</strong> → confirm.</li>
+                                <li>If you still see <em>"Apple could not verify…"</em>, open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the bottom and click <strong>Open Anyway</strong> next to MacSift. Relaunch the app.</li>
+                            </ol>
+                            <p>
+                                After that, every launch is silent. If you'd rather verify than
+                                trust a binary, building from source produces the exact same
+                                binary in a few seconds.
+                            </p>
+                        </div>
                     </details>
 
                     <details class="faq-item">
                         <summary>Does it phone home?</summary>
-                        <p>
-                            No. MacSift makes zero network connections. You can verify this:
-                            it doesn't link any networking frameworks and there's not a single
-                            <code>URLSession</code> in the source.
-                        </p>
+                        <div class="faq-item__body">
+                            <p>
+                                No. MacSift makes zero network connections. You can verify this:
+                                it doesn't link any networking frameworks and there's not a single
+                                <code>URLSession</code> in the source.
+                            </p>
+                        </div>
                     </details>
 
                     <details class="faq-item">
                         <summary>How much space will it actually free?</summary>
-                        <p>
-                            Depends on how long you've been using your Mac. On a typical
-                            developer machine you'll find 5–20&nbsp;GB of app caches, old iOS
-                            backups, and Xcode DerivedData. The first scan is always the most
-                            dramatic — after that, weekly runs reclaim a couple of GB at a time.
-                        </p>
+                        <div class="faq-item__body">
+                            <p>
+                                Depends on how long you've been using your Mac. On a typical
+                                developer machine you'll find 5–20&nbsp;GB of app caches, old iOS
+                                backups and Xcode DerivedData. The first scan is always the most
+                                dramatic — after that, weekly runs reclaim a couple of GB at a time.
+                            </p>
+                        </div>
                     </details>
 
                     <details class="faq-item">
                         <summary>Why macOS 26 only?</summary>
-                        <p>
-                            The UI uses the Liquid Glass APIs that only exist on macOS Tahoe.
-                            Supporting older versions would mean forking the UI layer, which
-                            isn't planned.
-                        </p>
+                        <div class="faq-item__body">
+                            <p>
+                                The UI uses the Liquid Glass APIs that only exist on macOS Tahoe.
+                                Supporting older versions would mean forking the UI layer, which
+                                isn't planned.
+                            </p>
+                        </div>
                     </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================== CTA ====== -->
+        <section class="cta">
+            <div class="container">
+                <div class="cta__card reveal">
+                    <h2 class="cta__title">See what's actually on your disk.</h2>
+                    <p class="cta__lede">
+                        Free, open source, 1.5&nbsp;MB. Nothing leaves your Mac, and everything
+                        it touches goes to the Trash first.
+                    </p>
+                    <div class="cta__actions">
+                        <a href="https://github.com/Lcharvol/MacSift/releases/latest/download/MacSift.zip" class="btn btn--primary">
+                            Download for macOS
+                            <span class="btn__arrow" aria-hidden="true">→</span>
+                        </a>
+                        <a href="https://github.com/Lcharvol/MacSift" target="_blank" rel="noopener" class="btn btn--outline">
+                            Read the source
+                        </a>
+                    </div>
                 </div>
             </div>
         </section>

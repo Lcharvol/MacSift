@@ -90,9 +90,15 @@ We've already paid for these. Don't undo them without a good reason.
 8. **`@Published` mutations in tight loops will freeze the UI.** Build the new value locally then assign once. See `selectAllSafe` / `selectAllInCategory`.
 9. **Heavy work (sorting, dictionary build) goes through `Task.detached(priority: .userInitiated)`** and assigns the result on `MainActor` in a single statement.
 10. **Scan progress events are deltas, not cumulative.** `ScanProgress` carries `deltaFiles` and `deltaSize`. The ViewModel accumulates them. Each parallel scan task yields its own delta — never compare or replace cumulative values across tasks.
-11. **Throttle UI updates to ~4/sec** for high-frequency progress streams. See `ScanViewModel.startScan` for the pattern.
+11. **Throttle UI updates to ~4/sec** for high-frequency progress streams. See `ScanViewModel.startScan` for the pattern, and `CleaningViewModel.confirmCleaning` for the consumer-side version. Throttle in the CONSUMER, not the producer: a cheap `yield` still costs a main-actor hop plus a SwiftUI invalidation on the other end, and consumer-side throttling covers every producer at once. When you throttle, you must also flush the final buffered value — and `finish()` the stream then `await` the consumer rather than cancelling it, or the flush is dropped while the loop sits suspended on the stream.
 12. **`ScanViewModel.State` is an enum with associated values** (`.completed(CompletedScan)`). Bundling result + sorted views + snapshots avoids a cascade of `@Published` notifications at end of scan.
 13. **Disable list animations on category change.** `.animation(.none, value: selectedCategory)` — otherwise AppKit animates 1000 row insertions/deletions.
+14. **Never run blocking syscalls directly inside `withTaskGroup`.** The directory walks (`scanDirectory` / `scanForLargeFiles`) are synchronous and never suspend, so each one pins a cooperative thread for its whole duration. The pool is capped near the core count, and `ScanViewModel` fans out one scanner per volume × ~22 targets — enough to exhaust it, at which point `await MainActor.run` hops queue behind a saturated executor and the UI freezes with a stalled-then-jumping counter. Blocking walks go through `BlockingScanExecutor` (dedicated queue + process-wide semaphore gate). The gate is static on purpose: a per-scanner limit would re-multiply by volume count.
+15. **More I/O concurrency is not faster here.** Measured on an 11-core machine over 177k files: bounded 2/4/5/8 and unbounded all land at ~1.1–1.3s. The walk is I/O-bound on APFS metadata, not CPU-bound. For `DuplicateFinder`'s hashing, bound 16 actually *regressed* vs 8 (0.30s vs 0.17s). Bound the concurrency and spend the effort elsewhere.
+16. **Memoize derived selection state lazily, not eagerly.** `selectedSize` / the grouped selection are invalidated (set to `nil`) on mutation and rebuilt on next read. Do NOT recompute eagerly inside `setSelectedIDs`: `toggleGroup` is called in loops (select-all across 50 groups = 100 mutations), and an O(selected) pass per mutation reintroduces the freeze at a different seam — it made `SelectionPerformanceTests.toggleGroupIsFast` fail at 1.04s against a 0.5s budget. Lazy invalidation makes a burst of N mutations pay for exactly one rebuild.
+17. **The large-file sweep's skip list is MODE-DEPENDENT, and must stay that way.** Half its entries mean "another scan target covers this" (`Library/`, `Downloads/`, package-manager caches) and half mean "this is build noise" (`node_modules`, `.git`, `DerivedData`). The first group is only true on the boot volume: in `.externalVolume` mode `scanTargets` is empty and the sweep is the ONLY walk, so applying those entries made `/Volumes/T7/Library/` invisible with no warning — a silent false negative, which for a transparency-first app is worse than over-reporting. Noise entries apply everywhere.
+18. **A relative-path skip list needs a canonical root, or it silently goes inert.** The URL APIs and `FileManager.enumerator` can disagree about the same directory: `temporaryDirectory` reports `/var/folders/…` and neither `resolvingSymlinksInPath()` nor `realpath(3)` rewrites it, yet the enumerator emits `/private/var/folders/…`. When the prefix strip fails, `relativePath` falls back to the absolute path, no relative entry can match, and the sweep quietly walks everything it was told to skip. Use `.canonicalPathKey` (resolved by the same machinery the enumerator uses) and treat a failed strip as "fall back to absolute matching", never as "skip nothing". This also makes tests non-vacuous: two mutation tests of the mode split passed spuriously until the strip worked, because the skip list was never actually applied.
+19. **`Task.detached` does not inherit cancellation from the enclosing task.** It *can* be cancelled via its own handle (verified: `cancel()` on the handle does set `Task.isCancelled` inside it) — so hold the handle. `ScanViewModel.duplicateFinderTask` exists for this: without it, cancelling a scan left `DuplicateFinder` hashing gigabytes in the background. Adding `Task.isCancelled` checks to detached work is dead code unless something actually cancels it.
 
 ## Safety lessons
 
@@ -116,7 +122,13 @@ The build script ad-hoc signs the app so TCC remembers the grant across rebuilds
 
 ## Tests
 
-- 67 tests in 12 suites. They MUST stay green.
+- 267 tests in 43 suites. They MUST stay green. Run `swift test --no-parallel`
+  before trusting a green result: suites run in parallel by default, and that
+  extra scheduling slack has hidden at least one real failure
+  (`selectionSummaryCountsGroupsAndFilesAcrossCategories` passed in parallel
+  and failed serially — never the reverse). (If you change this count,
+  run `swift test` and use the real number — a stale figure here is worse
+  than none, since it's the guardrail everyone trusts.)
 - Tests use Swift Testing (`@Test`, `@Suite`, `#expect`), not XCTest.
 - Integration tests for `DiskScanner` and `CleaningEngine` use real temp directories under `FileManager.default.temporaryDirectory` — never touch the real home or the real Trash from tests.
 - `ExclusionManager` tests pass a unique `userDefaultsSuiteName` per test to avoid cross-test pollution.

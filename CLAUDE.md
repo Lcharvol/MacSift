@@ -122,7 +122,7 @@ The build script ad-hoc signs the app so TCC remembers the grant across rebuilds
 
 ## Tests
 
-- 267 tests in 43 suites. They MUST stay green. Run `swift test --no-parallel`
+- 270 tests in 44 suites. They MUST stay green. Run `swift test --no-parallel`
   before trusting a green result: suites run in parallel by default, and that
   extra scheduling slack has hidden at least one real failure
   (`selectionSummaryCountsGroupsAndFilesAcrossCategories` passed in parallel

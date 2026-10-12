@@ -29,7 +29,7 @@ MacSift is the opposite:
 - **Dry run is on by default** for first-time users.
 - Destructive actions require an explicit confirmation; deletions above 10&nbsp;GB
   show an extra warning.
-- Zero network calls. Zero telemetry. 100 tests, all green.
+- Zero network calls. Zero telemetry. 270 tests, all green.
 - Every scan completion and cleanup run is written to
   `~/Library/Logs/MacSift/macsift.log` so you can audit what the app did
   without a debugger.
@@ -159,7 +159,7 @@ scanner.
 
 ```bash
 swift build                              # type-check
-swift test                               # 100 tests across 16 suites
+swift test                               # 270 tests across 44 suites
 swift test --filter FileGrouper          # run one suite
 ./build-app.sh                           # build the .app bundle
 ./build-app.sh release                   # release-optimized build

@@ -44,20 +44,26 @@ enum FileGrouper {
         return result
     }
 
-    static func group(_ files: [ScannedFile]) -> [FileGroup] {
+    /// `homePrefix` defaults to the real home. Demo/screenshot runs pass the
+    /// fixture root so `Library/<Caches|Logs>/<bundle id>` still matches and
+    /// files group per app instead of collapsing into one "System data" row.
+    static func group(
+        _ files: [ScannedFile],
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
+    ) -> [FileGroup] {
         guard !files.isEmpty else { return [] }
         // All files in this batch should belong to the same category — but we
         // don't enforce that, we just dispatch by category per file.
         let firstCategory = files[0].category
         switch firstCategory {
         case .cache, .logs, .appData:
-            return groupByLibrarySubpath(files: files, category: firstCategory)
+            return groupByLibrarySubpath(files: files, category: firstCategory, homePrefix: homePrefix)
         case .iosBackups:
             return groupByIOSBackup(files: files)
         case .xcodeJunk:
-            return groupByXcodeJunk(files: files)
+            return groupByXcodeJunk(files: files, homePrefix: homePrefix)
         case .devCaches:
-            return groupByDevCache(files: files)
+            return groupByDevCache(files: files, homePrefix: homePrefix)
         case .mailDownloads:
             // All mail attachments collapse into a single row — the individual
             // file names are noisy and the user just wants "clear mail downloads".
@@ -84,8 +90,10 @@ enum FileGrouper {
 
     /// Groups Xcode junk by the owning project name for DerivedData, or by
     /// subpath (Archives, iOS DeviceSupport, CoreSimulator Caches) for the rest.
-    private static func groupByXcodeJunk(files: [ScannedFile]) -> [FileGroup] {
-        let homePrefix = CategoryClassifier.sharedHomePrefix
+    private static func groupByXcodeJunk(
+        files: [ScannedFile],
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
+    ) -> [FileGroup] {
         let derivedDataRoot = "\(homePrefix)Library/Developer/Xcode/DerivedData/"
         let archivesRoot = "\(homePrefix)Library/Developer/Xcode/Archives/"
         let deviceSupportRoot = "\(homePrefix)Library/Developer/Xcode/iOS DeviceSupport/"
@@ -155,8 +163,10 @@ enum FileGrouper {
 
     /// Groups developer caches by the root cache folder (`.npm`, `.yarn`,
     /// `Homebrew`, etc.) so the user sees one row per package manager.
-    private static func groupByDevCache(files: [ScannedFile]) -> [FileGroup] {
-        let homePrefix = CategoryClassifier.sharedHomePrefix
+    private static func groupByDevCache(
+        files: [ScannedFile],
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
+    ) -> [FileGroup] {
 
         // Ordered list — longer prefixes must come first so `.cache/pip`
         // matches before `.cache`.
@@ -213,9 +223,12 @@ enum FileGrouper {
     /// Groups files by the first path component after `Library/<Caches|Logs|Application Support>/`.
     /// Files that don't match (e.g., `/private/var/log` system logs) are grouped
     /// into a single "System logs" bucket.
-    private static func groupByLibrarySubpath(files: [ScannedFile], category: FileCategory) -> [FileGroup] {
+    private static func groupByLibrarySubpath(
+        files: [ScannedFile],
+        category: FileCategory,
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
+    ) -> [FileGroup] {
         let libraryRoots: [String] = {
-            let homePrefix = CategoryClassifier.sharedHomePrefix
             switch category {
             case .cache: return ["\(homePrefix)Library/Caches/"]
             case .logs: return ["\(homePrefix)Library/Logs/"]

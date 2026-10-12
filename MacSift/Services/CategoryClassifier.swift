@@ -35,7 +35,8 @@ struct CategoryClassifier: Sendable {
     /// task so callers on the main actor don't block.
     static func withInstalledApps(
         largeFileThresholdBytes: Int64 = 500 * 1024 * 1024,
-        oldDownloadsAgeThresholdDays: Double = 90
+        oldDownloadsAgeThresholdDays: Double = 90,
+        homePrefix: String = CategoryClassifier.sharedHomePrefix
     ) async -> CategoryClassifier {
         let names = await Task.detached(priority: .userInitiated) {
             Self.scanInstalledAppBundleNames()
@@ -43,14 +44,39 @@ struct CategoryClassifier: Sendable {
         return CategoryClassifier(
             largeFileThresholdBytes: largeFileThresholdBytes,
             oldDownloadsAgeThresholdDays: oldDownloadsAgeThresholdDays,
-            installedAppBundleNames: names
+            installedAppBundleNames: names,
+            homePrefix: homePrefix
         )
     }
 
     /// Shared home directory prefix (`/Users/foo/`) used by both the
-    /// classifier and `FileGrouper`. Computed once at process start.
+    /// classifier and `FileGrouper`, resolved once at process start. Normally the real home directory. When the app is started with
+    /// `-MacSiftDemoRoot <path>` (documentation screenshots only) it resolves
+    /// to that directory instead, so classification *and* grouping treat the
+    /// fixture tree as the home — otherwise `FileGrouper` would fail to match
+    /// `Library/Caches/<bundle id>` and collapse everything into one
+    /// "System data" row.
     static let sharedHomePrefix: String = {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
+        let home: String
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-MacSiftDemoRoot"), i + 1 < args.count,
+           !args[i + 1].isEmpty {
+            // Match the spelling FileManager's enumerator actually reports.
+            // resolvingSymlinksInPath collapses /private/tmp down to /tmp,
+            // but scanned paths keep the /private prefix — so put it back,
+            // otherwise the prefix never matches and every file falls into
+            // the "System data" bucket.
+            let resolved = URL(filePath: args[i + 1]).resolvingSymlinksInPath()
+                .path(percentEncoded: false)
+            if resolved == "/tmp" || resolved.hasPrefix("/tmp/")
+                || resolved == "/var" || resolved.hasPrefix("/var/") {
+                home = "/private" + resolved
+            } else {
+                home = resolved
+            }
+        } else {
+            home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
+        }
         return home.hasSuffix("/") ? home : home + "/"
     }()
 
